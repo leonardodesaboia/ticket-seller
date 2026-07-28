@@ -90,7 +90,8 @@ multi-cloud ativa.
 - templates de tarefas, ADRs e relatórios;
 - documentação inicial dos módulos do domínio;
 - monorepo inicializado: package.json, pnpm-workspace.yaml, turbo.json, .npmrc, .node-version, .nvmrc, pnpm-lock.yaml;
-- ferramentas padronizadas: TypeScript 5.9.3 (strict), ESLint 10 (flat config), Prettier 3.9.6, packages/tsconfig/ compartilhado;
-- API backend: NestJS 10 + Fastify em apps/api/ com GET /api/v1/health/live e /ready, RFC 9457 errors, Pino logging, Swagger;
-- infraestrutura local: Docker Compose com PostgreSQL 17, Redis 7, MinIO e Mailpit;
-- web pública: Next.js 15 + App Router + Tailwind CSS 4 + shadcn/ui em apps/marketplace-web/.
+- ferramentas padronizadas: TypeScript 5.9.3 (strict), ESLint 10.8.0 (flat config), Prettier 3.9.6, packages/tsconfig/ compartilhado, Turborepo 2.10.7;
+- runtime: Node.js 22.18.0 LTS, pnpm 11.17.0;
+- API backend: NestJS 10.4.22 + Fastify 4.29.1 em apps/api/ — GET /api/v1/health/live e /ready, RFC 9457 errors, Pino logging (nestjs-pino 3.5.0), Swagger (@nestjs/swagger 7.4.0);
+- infraestrutura local: Docker Compose com PostgreSQL 17-alpine, Redis 7-alpine, MinIO latest, Mailpit latest;
+- web pública: Next.js 15.5.22 + React 19.2.8 + App Router + Tailwind CSS 4 + shadcn/ui em apps/marketplace-web/.
