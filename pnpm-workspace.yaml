@@ -2,4 +2,6 @@ packages:
   - 'apps/*'
   - 'packages/*'
 allowBuilds:
+  '@nestjs/core': true
+  'nestjs-pino': true
   sharp: true
