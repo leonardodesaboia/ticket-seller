@@ -1,0 +1,18 @@
+node_modules
+dist
+build
+.next
+out
+coverage
+generated
+pnpm-lock.yaml
+
+# Documentation and AI workflow files — not subject to Prettier formatting
+docs
+ai
+**/*.md
+
+# Claude Code system directories
+.ai
+.claude
+.turbo

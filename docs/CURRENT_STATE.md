@@ -22,20 +22,20 @@ documentação básica;
 regras globais para agentes;
 estrutura de tarefas;
 definição inicial do produto;
-definição arquitetural inicial.
+definição arquitetural inicial;
+monorepo inicializado com pnpm 11.17.0, Turborepo 2.10.7 e Node.js 22.18.0;
+TypeScript 5.9.3, ESLint 10.8.0 e Prettier 3.9.6 configurados no workspace.
 Em andamento
-templates de tarefas;
-workflows para agentes;
-primeira ADR;
-preparação da fundação do monorepo.
+infraestrutura local de desenvolvimento (Docker Compose).
 Próxima entrega
 
-Inicializar o monorepo e os arquivos básicos de configuração, sem implementar funcionalidades de negócio.
+Docker Compose com PostgreSQL e Redis para ambiente de desenvolvimento local.
 
 Próximas tarefas
-TASK-001 — Fundação do repositório.
-TASK-002 — Bootstrap da API.
-TASK-003 — Infraestrutura local.
+TASK-001 — Fundação do repositório. (CONCLUÍDA)
+TASK-002 — Bootstrap do monorepo. (CONCLUÍDA)
+TASK-003 — Padronização de ferramentas. (CONCLUÍDA)
+TASK-004 — Infraestrutura local.
 TASK-004 — Banco e migrations.
 TASK-005 — Organizações e multi-tenancy.
 TASK-006 — Eventos.
@@ -84,4 +84,6 @@ multi-cloud ativa.
 - regras globais em AGENTS.md;
 - workflows PLAN, IMPLEMENT, REVIEW e FIX;
 - templates de tarefas, ADRs e relatórios;
-- documentação inicial dos módulos do domínio.
+- documentação inicial dos módulos do domínio;
+- monorepo inicializado: package.json, pnpm-workspace.yaml, turbo.json, .npmrc, .node-version, .nvmrc, pnpm-lock.yaml;
+- ferramentas padronizadas: TypeScript 5.9.3 (strict), ESLint 10 (flat config), Prettier 3.9.6, packages/tsconfig/ compartilhado.
