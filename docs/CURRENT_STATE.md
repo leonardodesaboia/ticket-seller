@@ -26,24 +26,28 @@ definição arquitetural inicial;
 monorepo inicializado com pnpm 11.17.0, Turborepo 2.10.7 e Node.js 22.18.0;
 TypeScript 5.9.3, ESLint 10.8.0 e Prettier 3.9.6 configurados no workspace.
 Em andamento
-infraestrutura local de desenvolvimento (Docker Compose).
-Próxima entrega
 
-Docker Compose com PostgreSQL e Redis para ambiente de desenvolvimento local.
+Nenhuma tarefa em andamento.
+
+Próxima fase
+
+Banco de dados, migrations e módulos de domínio.
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)
 TASK-002 — Bootstrap do monorepo. (CONCLUÍDA)
 TASK-003 — Padronização de ferramentas. (CONCLUÍDA)
-TASK-004 — Infraestrutura local.
-TASK-004 — Banco e migrations.
-TASK-005 — Organizações e multi-tenancy.
-TASK-006 — Eventos.
-TASK-007 — Inventário e reservas.
-TASK-008 — Pedidos.
-TASK-009 — Pagamento simulado.
-TASK-010 — Emissão de ingressos.
-TASK-011 — Check-in online.
+TASK-004 — API Bootstrap. (CONCLUÍDA)
+TASK-005 — Infraestrutura local. (CONCLUÍDA)
+TASK-006 — Marketplace Web Bootstrap. (CONCLUÍDA)
+TASK-007 — Banco e migrations.
+TASK-008 — Organizações e multi-tenancy.
+TASK-009 — Eventos.
+TASK-010 — Inventário e reservas.
+TASK-011 — Pedidos.
+TASK-012 — Pagamento simulado.
+TASK-013 — Emissão de ingressos.
+TASK-014 — Check-in online.
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -86,4 +90,7 @@ multi-cloud ativa.
 - templates de tarefas, ADRs e relatórios;
 - documentação inicial dos módulos do domínio;
 - monorepo inicializado: package.json, pnpm-workspace.yaml, turbo.json, .npmrc, .node-version, .nvmrc, pnpm-lock.yaml;
-- ferramentas padronizadas: TypeScript 5.9.3 (strict), ESLint 10 (flat config), Prettier 3.9.6, packages/tsconfig/ compartilhado.
+- ferramentas padronizadas: TypeScript 5.9.3 (strict), ESLint 10 (flat config), Prettier 3.9.6, packages/tsconfig/ compartilhado;
+- API backend: NestJS 10 + Fastify em apps/api/ com GET /api/v1/health/live e /ready, RFC 9457 errors, Pino logging, Swagger;
+- infraestrutura local: Docker Compose com PostgreSQL 17, Redis 7, MinIO e Mailpit;
+- web pública: Next.js 15 + App Router + Tailwind CSS 4 + shadcn/ui em apps/marketplace-web/.

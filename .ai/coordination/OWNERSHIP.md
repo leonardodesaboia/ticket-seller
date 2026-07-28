@@ -3,12 +3,12 @@ Propriedade temporária de arquivos
 Última atualização: 2026-07-28
 
 Caminho	Responsável	Tarefa	Estado
-apps/api/**	Implementador-1	TASK-004	LOCKED
-apps/marketplace-web/**	Implementador-3	TASK-006	LOCKED
+apps/api/**	Não atribuído	—	AVAILABLE
+apps/marketplace-web/**	Não atribuído	—	AVAILABLE
 apps/backoffice-web/**	Não atribuído	—	AVAILABLE
-infra/**	Implementador-2	TASK-005	LOCKED
-compose.yaml	Implementador-2	TASK-005	LOCKED
-.env.example (raiz)	Implementador-2	TASK-005	LOCKED
+infra/**	Não atribuído	—	AVAILABLE
+compose.yaml	Não atribuído	—	AVAILABLE
+.env.example	Não atribuído	—	AVAILABLE
 
 Estados
 AVAILABLE;

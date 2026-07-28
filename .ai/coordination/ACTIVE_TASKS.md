@@ -2,10 +2,7 @@ Tarefas ativas
 
 Última atualização: 2026-07-28
 
-Tarefa	Agente	Branch	Worktree	Status	Dependências
-TASK-004	Implementador-1	feature/TASK-004-api-bootstrap	../ticket-seller-task-004	READY	TASK-003 (MERGED)
-TASK-005	Implementador-2	feature/TASK-005-local-infrastructure	../ticket-seller-task-005	READY	TASK-003 (MERGED)
-TASK-006	Implementador-3	feature/TASK-006-marketplace-web-bootstrap	../ticket-seller-task-006	READY	TASK-003 (MERGED)
+(nenhuma tarefa ativa no momento)
 
 Estados
 BLOCKED: dependências ainda não integradas;
@@ -19,6 +16,9 @@ CANCELLED: cancelada.
 Histórico de tarefas concluídas
 TASK-002: Monorepo Bootstrap — MERGED em 2026-07-28
 TASK-003: Tooling Standards — MERGED em 2026-07-28
+TASK-004: API Bootstrap — MERGED em 2026-07-28
+TASK-005: Local Infrastructure — MERGED em 2026-07-28
+TASK-006: Marketplace Web Bootstrap — MERGED em 2026-07-28
 
 Regras
 uma tarefa deve aparecer uma única vez;

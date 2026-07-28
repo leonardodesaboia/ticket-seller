@@ -2,15 +2,13 @@ Fila de integração
 
 Última atualização: 2026-07-28
 
-Ordem	Tarefa	Branch	Review	Rebase	CI	Status
-1	TASK-005	feature/TASK-005-local-infrastructure	PENDING	PENDING	PENDING	WAITING
-2	TASK-004	feature/TASK-004-api-bootstrap	PENDING	PENDING	PENDING	WAITING
-3	TASK-006	feature/TASK-006-marketplace-web-bootstrap	PENDING	PENDING	PENDING	WAITING
+(fila vazia — todas as tarefas da fase atual foram integradas)
 
-Notas
-TASK-005 integrada primeiro: sem conflito de pnpm-lock.yaml (Docker Compose, sem pnpm install)
-TASK-004 integrada em segundo: pnpm install resolve lock na raiz após merge
-TASK-006 integrada por último: idem
+Histórico recente
+Ordem	Tarefa	Status	Data
+1	TASK-005	MERGED	2026-07-28
+2	TASK-004	MERGED	2026-07-28
+3	TASK-006	MERGED	2026-07-28
 
 Estados
 WAITING;
