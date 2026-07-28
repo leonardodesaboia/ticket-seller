@@ -173,3 +173,33 @@ health checks;
 logs estruturados;
 backups;
 testes de concorrência.
+
+Estrutura de pastas
+
+Definida em ADR-004. Resumo:
+
+API backend:
+
+```text
+apps/api/src/
+├── main.ts
+├── app.module.ts
+├── platform/          — config, database, health, http, messaging, observability, security
+├── modules/[module]/  — domain, application, infrastructure, presentation
+└── shared/kernel/     — somente elementos realmente compartilhados
+```
+
+Frontends:
+
+```text
+apps/[web]/src/
+├── app/               — rotas Next.js
+├── features/[feat]/   — api, components, hooks, schemas, types, tests, index.ts
+└── shared/            — api, lib, ui/primitives, ui/composites, ui/sections
+```
+
+Tokens de design:
+
+```text
+packages/design-tokens/tokens.css — tokens primitivos e semânticos compartilhados
+```

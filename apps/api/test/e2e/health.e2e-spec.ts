@@ -2,8 +2,8 @@ import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from '../src/app.module';
-import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { AppModule } from '../../src/app.module';
+import { HttpExceptionFilter } from '../../src/platform/http/filters/http-exception.filter';
 
 describe('HealthController (e2e)', () => {
   let app: NestFastifyApplication;

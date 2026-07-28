@@ -6,9 +6,7 @@ export const metadata: Metadata = {
   description: 'Marketplace de ingressos multi-tenant',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
       <body>{children}</body>

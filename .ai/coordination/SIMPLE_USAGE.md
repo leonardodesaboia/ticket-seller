@@ -250,6 +250,19 @@ O agente deve considerar como base:
 * processos stateless;
 * contratos versionados.
 
+## Fontes de versão
+
+Versões de frameworks, runtimes e dependências só são obrigatórias quando estiverem registradas em:
+
+- `package.json`;
+- lockfile;
+- `.nvmrc`, `.node-version` ou arquivo equivalente;
+- tarefa aprovada;
+- ADR aceito;
+- documento técnico oficial do repositório.
+
+Referências de conversas externas não são decisões oficiais e não devem provocar upgrades automáticos.
+
 ## Backend
 
 * Node.js;

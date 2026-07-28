@@ -40,7 +40,8 @@ TASK-003 — Padronização de ferramentas. (CONCLUÍDA)
 TASK-004 — API Bootstrap. (CONCLUÍDA)
 TASK-005 — Infraestrutura local. (CONCLUÍDA)
 TASK-006 — Marketplace Web Bootstrap. (CONCLUÍDA)
-TASK-007 — Banco e migrations.
+TASK-007 — Application Structure Standards. (CONCLUÍDA)
+TASK-008 — Banco e migrations.
 TASK-008 — Organizações e multi-tenancy.
 TASK-009 — Eventos.
 TASK-010 — Inventário e reservas.
@@ -94,4 +95,6 @@ multi-cloud ativa.
 - runtime: Node.js 22.18.0 LTS, pnpm 11.17.0;
 - API backend: NestJS 10.4.22 + Fastify 4.29.1 em apps/api/ — GET /api/v1/health/live e /ready, RFC 9457 errors, Pino logging (nestjs-pino 3.5.0), Swagger (@nestjs/swagger 7.4.0);
 - infraestrutura local: Docker Compose com PostgreSQL 17-alpine, Redis 7-alpine, MinIO latest, Mailpit latest;
-- web pública: Next.js 15.5.22 + React 19.2.8 + App Router + Tailwind CSS 4 + shadcn/ui em apps/marketplace-web/.
+- web pública: Next.js 15.5.22 + React 19.2.8 + App Router + Tailwind CSS 4 + shadcn/ui em apps/marketplace-web/;
+- arquitetura de pastas: platform/ na API, feature-first + shared/ nos frontends, design tokens em packages/design-tokens/;
+- design tokens: pacote @ticket-seller/design-tokens com tokens semânticos HSL + @theme inline no marketplace.

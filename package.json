@@ -17,7 +17,9 @@
     "format:write": "prettier --write ."
   },
   "pnpm": {
-    "approvedBuilds": ["sharp"]
+    "approvedBuilds": [
+      "sharp"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

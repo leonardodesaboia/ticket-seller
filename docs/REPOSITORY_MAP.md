@@ -1,65 +1,112 @@
 Mapa do repositório
-Raiz
-AGENTS.md
 
-Regras globais para agentes e pessoas.
+Raiz
+
+AGENTS.md — Regras globais para agentes e pessoas.
 
 Aplicações
+
+apps/ — Aplicações executáveis.
+
+```text
 apps/
+├── api/                   — API NestJS + Fastify (ATIVA)
+│   ├── src/
+│   │   ├── main.ts
+│   │   ├── app.module.ts
+│   │   └── platform/
+│   │       ├── config/   — env.ts (Zod)
+│   │       ├── health/   — health.controller.ts, health.module.ts
+│   │       └── http/
+│   │           └── filters/ — http-exception.filter.ts (RFC 9457)
+│   └── test/
+│       └── e2e/          — health.e2e-spec.ts
+├── marketplace-web/       — Next.js 15 + App Router (ATIVA)
+│   └── src/
+│       ├── app/          — layout, page, loading, error, not-found, globals.css
+│       └── shared/
+│           ├── api/      — api-client.ts
+│           ├── lib/      — utils.ts (cn)
+│           └── ui/
+│               └── primitives/ — button.tsx
+├── backoffice-web/        — PLANEJADA (TASK-009)
+├── worker/                — PREVISTO
+├── scheduler/             — PREVISTO
+└── checkin-pwa/           — PREVISTO
+```
 
-Aplicações executáveis.
-
-Previstas:
-
-apps/
-├── api/
-├── worker/
-├── scheduler/
-├── marketplace-web/
-├── backoffice-web/
-└── checkin-pwa/
 Pacotes
+
+packages/ — Código compartilhado entre aplicações.
+
+```text
 packages/
-
-Código compartilhado que não representa aplicação executável.
-
-Previstos:
-
-packages/
-├── api-client/
-├── contracts/
-├── observability/
-├── config/
-├── security/
-├── testing/
-└── ui/
+├── design-tokens/         — tokens.css (tokens semânticos, ATIVO)
+├── tsconfig/              — configurações TypeScript compartilhadas (ATIVO)
+├── api-client/            — PREVISTO (gerado do OpenAPI)
+├── contracts/             — PREVISTO
+├── observability/         — PREVISTO
+├── ui/                    — PREVISTO (promovido de apps quando necessário)
+└── testing/               — PREVISTO
+```
 
 Entidades do domínio do backend não devem ser compartilhadas com o frontend.
 
 Documentação
-docs/
 
-Fonte oficial de conhecimento.
+docs/ — Fonte oficial de conhecimento.
+
+```text
+docs/
+├── INDEX.md
+├── PROJECT.md
+├── ARCHITECTURE.md
+├── DOMAIN.md
+├── CURRENT_STATE.md
+├── REPOSITORY_MAP.md
+├── decisions/
+│   ├── ADR-001-modular-monolith.md
+│   ├── ADR-002-postgresql.md
+│   ├── ADR-003-payment-gateway-port.md
+│   └── ADR-004-application-folder-architecture.md
+└── modules/
+    └── [módulos de domínio]
+```
 
 IA
+
+.ai/ — Suporte ao desenvolvimento assistido por IA.
+
+```text
 .ai/
-├── tasks/
-├── reports/
-├── workflows/
-├── skills/
-├── scripts/
-└── templates/
+├── tasks/         — especificações de tarefas
+├── reports/       — relatórios de conclusão
+├── workflows/     — PLAN, IMPLEMENT, REVIEW, FIX
+├── skills/        — skills especializadas
+├── scripts/       — validate-architecture.sh, validate-migrations.sh, scan-secrets.sh...
+├── templates/     — templates de tarefas, ADRs, relatórios
+└── coordination/  — ACTIVE_TASKS.md, OWNERSHIP.md, DEPENDENCIES.md, INTEGRATION_QUEUE.md
+```
+
 Infraestrutura
+
+```text
+compose.yaml        — Docker Compose: PostgreSQL 17, Redis 7, MinIO, Mailpit
 infra/
 ├── docker/
 ├── terraform/
 └── environments/
-Testes
-tests/
+```
+
+Testes globais
+
+```text
+tests/              — testes que cruzam múltiplas aplicações (quando necessário)
 ├── integration/
 ├── concurrency/
 ├── contract/
 ├── e2e/
 └── load/
+```
 
-Testes específicos do módulo podem ficar próximos ao código quando isso melhorar a manutenção.
+Testes específicos de módulo ficam dentro do app ou pacote correspondente.

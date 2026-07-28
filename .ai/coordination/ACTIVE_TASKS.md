@@ -2,7 +2,7 @@ Tarefas ativas
 
 Última atualização: 2026-07-28
 
-(nenhuma tarefa ativa no momento)
+(nenhuma tarefa ativa no momento — TASK-007 integrada)
 
 Estados
 BLOCKED: dependências ainda não integradas;

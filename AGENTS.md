@@ -160,34 +160,56 @@ audit
 administration
 ```
 
-Estrutura recomendada:
+### Estrutura da API (`apps/api/src/`)
+
+Consulte ADR-004 para a decisão completa. Resumo:
 
 ```text
-module/
-├── domain/
-│   ├── entities/
-│   ├── value-objects/
-│   ├── events/
-│   ├── errors/
-│   └── ports/
-├── application/
-│   ├── commands/
-│   ├── queries/
-│   ├── use-cases/
-│   └── dto/
-├── infrastructure/
-│   ├── persistence/
-│   ├── providers/
-│   ├── queues/
-│   └── mappers/
-├── presentation/
-│   ├── controllers/
-│   ├── guards/
-│   └── presenters/
-└── module.ts
+platform/         — infraestrutura transversal (config, database, health, http, messaging, observability, security)
+modules/          — módulos de negócio
+  [module]/
+    domain/       — TypeScript puro: entidades, value objects, eventos, erros, ports
+    application/  — casos de uso, commands, queries, DTOs, ports
+    infrastructure/ — repositories Prisma, adapters externos, mappers
+    presentation/ — controllers, requests, responses, presenters
+    [module].module.ts
+shared/kernel/    — somente elementos comprovadamente compartilhados por múltiplos módulos
+```
+
+Regras de dependência:
+
+```text
+Permitido:   presentation → application → domain
+             infrastructure → application/domain
+             platform → composição
+
+Proibido:    domain → NestJS, Prisma, Redis, SDKs externos
+             application → Prisma, NestJS, Fastify
+             módulo A → implementação interna de módulo B
+```
+
+### Estrutura dos frontends (`apps/marketplace-web/`, `apps/backoffice-web/`)
+
+```text
+app/           — rotas Next.js, layouts, páginas
+features/      — comportamentos específicos do produto
+  [feature]/   — api/, components/, hooks/, schemas/, types/, tests/, index.ts
+shared/        — código genérico e reutilizável
+  api/         — cliente tipado da API
+  lib/         — utilitários (cn, format-date...)
+  ui/
+    primitives/  — Button, Input, Badge...
+    composites/  — SearchField, FormField...
+    sections/    — Header, Sidebar, DataTable...
 ```
 
 Não criar arquivos ou pastas vazias apenas para antecipar funcionalidades.
+
+### Design tokens
+
+Centralizados em `packages/design-tokens/tokens.css`.
+
+Todas as aplicações web importam o pacote. Nenhuma define paleta própria de marca. Componentes usam apenas tokens semânticos (`bg-primary`, `text-muted-foreground`, `border-destructive`). Nunca valores hexadecimais diretamente.
 
 ---
 
