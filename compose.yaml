@@ -1,0 +1,88 @@
+name: ticket-seller
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ticket-seller-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ticket_seller}
+    ports:
+      - '${PORT_POSTGRES:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ticket-seller-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ticket-seller-redis
+    restart: unless-stopped
+    ports:
+      - '${PORT_REDIS:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - ticket-seller-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: ticket-seller-minio
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - '${PORT_MINIO_API:-9000}:9000'
+      - '${PORT_MINIO_CONSOLE:-9001}:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ticket-seller-network
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ticket-seller-mailpit
+    restart: unless-stopped
+    ports:
+      - '${PORT_MAILPIT_SMTP:-1025}:1025'
+      - '${PORT_MAILPIT_UI:-8025}:8025'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8025/api/v1/info']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - ticket-seller-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  ticket-seller-network:
+    driver: bridge
