@@ -1,0 +1,3 @@
+-- Placeholder for future development seed scripts.
+-- Migrations are managed by Prisma (apps/api/prisma/migrations).
+-- Do NOT add schema DDL here — use Prisma migrations instead.
