@@ -4,6 +4,13 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import { HttpExceptionFilter } from '../../src/platform/http/filters/http-exception.filter';
+import { PrismaService } from '../../src/platform/database/prisma.service';
+
+const mockPrismaService = {
+  $connect: jest.fn().mockResolvedValue(undefined),
+  $disconnect: jest.fn().mockResolvedValue(undefined),
+  $queryRaw: jest.fn().mockResolvedValue([{ one: 1n }]),
+};
 
 describe('HealthController (e2e)', () => {
   let app: NestFastifyApplication;
@@ -11,7 +18,10 @@ describe('HealthController (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PrismaService)
+      .useValue(mockPrismaService)
+      .compile();
 
     app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
 
@@ -35,9 +45,16 @@ describe('HealthController (e2e)', () => {
     expect(JSON.parse(result.payload)).toEqual({ status: 'ok' });
   });
 
-  it('GET /api/v1/health/ready → 200 OK', async () => {
+  it('GET /api/v1/health/ready → 200 OK when DB reachable', async () => {
+    mockPrismaService.$queryRaw.mockResolvedValueOnce([{ one: 1n }]);
     const result = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
     expect(result.statusCode).toBe(200);
     expect(JSON.parse(result.payload)).toEqual({ status: 'ok' });
+  });
+
+  it('GET /api/v1/health/ready → 503 when DB unreachable', async () => {
+    mockPrismaService.$queryRaw.mockRejectedValueOnce(new Error('connection refused'));
+    const result = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
+    expect(result.statusCode).toBe(503);
   });
 });

@@ -5,6 +5,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
   CORS_ORIGINS: z.string().default('*'),
+  DATABASE_URL: z.string().url(),
 });
 
 export type Env = z.infer<typeof envSchema>;
