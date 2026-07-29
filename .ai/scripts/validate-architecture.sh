@@ -23,14 +23,16 @@ FAILED=1
 fi
 done < <(find "$ROOT" -type f -path '/domain/' -name '*.ts')
 
-echo "Verificando Prisma em controllers..."
+echo "Verificando Prisma em controllers de módulos de negócio..."
 
+# Only check controllers under modules/ — platform/ controllers (health, etc.)
+# are infrastructure and may legitimately use PrismaService.
 while IFS= read -r file; do
 if grep -En 'PrismaService|@prisma' "$file"; then
-echo "Prisma encontrado em controller: $file"
+echo "Prisma encontrado em controller de módulo: $file"
 FAILED=1
 fi
-done < <(find "$ROOT" -type f -name '*controller.ts')
+done < <(find "$ROOT/modules" -type f -name '*controller.ts' 2>/dev/null)
 
 if [[ "$FAILED" -ne 0 ]]; then
 echo "Validação arquitetural reprovada."

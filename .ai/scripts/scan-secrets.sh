@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-PATTERN='(api[-]?key|secret|password|private[-]?key|access[-]?token|client[-]?secret)[[:space:]][:=][[:space:]]["'''][^"''']+'
+# Single-quoted strings cannot contain literal single quotes in bash.
+# Use ANSI $'...' quoting so \' works correctly inside the pattern.
+PATTERN=$'(api[-]?key|secret|password|private[-]?key|access[-]?token|client[-]?secret)[[:space:]][:=][[:space:]]["\'][^"\']+'
 
 FILES=$(git diff --name-only --cached)
 

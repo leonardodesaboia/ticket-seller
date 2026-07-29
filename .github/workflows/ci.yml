@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel previous runs for the same branch or PR when a new commit arrives.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Minimum permissions required for read-only checkout.
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Quality: formatting, lint, type checking
+  # ──────────────────────────────────────────────
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prisma client types must be generated before TypeScript can compile
+      # files that import from @prisma/client.
+      - name: Generate Prisma client
+        run: pnpm --filter @ticket-seller/api db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+  # ──────────────────────────────────────────────
+  # Tests: unit + integration (Testcontainers)
+  # Docker is available on ubuntu-latest runners.
+  # No external PostgreSQL service needed.
+  # ──────────────────────────────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @ticket-seller/api db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Unit tests
+        run: pnpm test
+
+      # Testcontainers pulls postgres:16-alpine and runs prisma migrate deploy
+      # on a fresh database before running the integration suite.
+      # DATABASE_URL is overridden inside the test by Testcontainers.
+      - name: Integration tests
+        run: pnpm --filter @ticket-seller/api test:integration
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+  # ──────────────────────────────────────────────
+  # Build: production build of all apps
+  # ──────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @ticket-seller/api db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Build
+        run: pnpm build
+
+  # ──────────────────────────────────────────────
+  # Validate: structural and security checks
+  # ──────────────────────────────────────────────
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Foundation check
+        run: bash .ai/scripts/check-foundation.sh
+
+      - name: Architecture validation
+        run: bash .ai/scripts/validate-architecture.sh
+
+      # Verifies that no committed migration file has been modified.
+      # On a clean CI checkout, git diff shows no changes — correct behaviour.
+      # The integration test job validates migrations against a real database.
+      - name: Migration integrity
+        run: bash .ai/scripts/validate-migrations.sh
+
+      # Scans staged/changed files for common secret patterns.
+      # In CI with a clean working tree this exits 0 without scanning all files.
+      # Local pre-commit usage provides the diff-level protection.
+      - name: Secrets scan
+        run: bash .ai/scripts/scan-secrets.sh
+
+      # Validates Prisma schema syntax without connecting to the database.
+      # DATABASE_URL must be syntactically valid but no real DB is required.
+      - name: Prisma schema validation
+        run: pnpm --filter @ticket-seller/api exec prisma validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
