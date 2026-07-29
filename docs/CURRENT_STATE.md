@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-07-28
+Última atualização: 2026-07-29
 
 Fase
 
@@ -41,14 +41,9 @@ TASK-004 — API Bootstrap. (CONCLUÍDA)
 TASK-005 — Infraestrutura local. (CONCLUÍDA)
 TASK-006 — Marketplace Web Bootstrap. (CONCLUÍDA)
 TASK-007 — Application Structure Standards. (CONCLUÍDA)
-TASK-008 — Banco e migrations.
-TASK-008 — Organizações e multi-tenancy.
-TASK-009 — Eventos.
-TASK-010 — Inventário e reservas.
-TASK-011 — Pedidos.
-TASK-012 — Pagamento simulado.
-TASK-013 — Emissão de ingressos.
-TASK-014 — Check-in online.
+TASK-008 — Database Foundation. (CONCLUÍDA)
+TASK-009 — Backoffice Web Bootstrap. (CONCLUÍDA)
+TASK-010 — Continuous Integration.
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -97,4 +92,6 @@ multi-cloud ativa.
 - infraestrutura local: Docker Compose com PostgreSQL 17-alpine, Redis 7-alpine, MinIO latest, Mailpit latest;
 - web pública: Next.js 15.5.22 + React 19.2.8 + App Router + Tailwind CSS 4 + shadcn/ui em apps/marketplace-web/;
 - arquitetura de pastas: platform/ na API, feature-first + shared/ nos frontends, design tokens em packages/design-tokens/;
-- design tokens: pacote @ticket-seller/design-tokens com tokens semânticos HSL + @theme inline no marketplace.
+- design tokens: pacote @ticket-seller/design-tokens com tokens semânticos HSL + @theme inline no marketplace;
+- banco de dados: Prisma 5.22.0 + PostgreSQL — PrismaService @Global, DatabaseModule, DATABASE_URL validado por Zod, 3 migrations (users, organizations, infrastructure), GET /ready verifica banco real, testes de integração com Testcontainers (5/5 passando);
+- backoffice: Next.js 15 + App Router + Tailwind CSS 4 + design tokens em apps/backoffice-web/ (porta 3002), estrutura shared/ idêntica ao marketplace, Button primitivo com tokens semânticos, cliente de API centralizado.

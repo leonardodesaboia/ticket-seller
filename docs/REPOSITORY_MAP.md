@@ -11,16 +11,19 @@ apps/ — Aplicações executáveis.
 ```text
 apps/
 ├── api/                   — API NestJS + Fastify (ATIVA)
+│   ├── prisma/            — schema.prisma, migrations (3 aplicadas)
 │   ├── src/
 │   │   ├── main.ts
 │   │   ├── app.module.ts
 │   │   └── platform/
-│   │       ├── config/   — env.ts (Zod)
+│   │       ├── config/   — env.ts (Zod, DATABASE_URL)
+│   │       ├── database/ — prisma.service.ts, prisma.module.ts (@Global)
 │   │       ├── health/   — health.controller.ts, health.module.ts
 │   │       └── http/
 │   │           └── filters/ — http-exception.filter.ts (RFC 9457)
 │   └── test/
-│       └── e2e/          — health.e2e-spec.ts
+│       ├── e2e/          — health.e2e-spec.ts
+│       └── integration/  — database.integration-spec.ts (Testcontainers)
 ├── marketplace-web/       — Next.js 15 + App Router (ATIVA)
 │   └── src/
 │       ├── app/          — layout, page, loading, error, not-found, globals.css
@@ -29,7 +32,14 @@ apps/
 │           ├── lib/      — utils.ts (cn)
 │           └── ui/
 │               └── primitives/ — button.tsx
-├── backoffice-web/        — PLANEJADA (TASK-009)
+├── backoffice-web/        — Next.js 15 + App Router (ATIVA)
+│   └── src/
+│       ├── app/          — layout, page, loading, error, not-found, globals.css
+│       └── shared/
+│           ├── api/      — api-client.ts
+│           ├── lib/      — utils.ts (cn)
+│           └── ui/
+│               └── primitives/ — button.tsx
 ├── worker/                — PREVISTO
 ├── scheduler/             — PREVISTO
 └── checkin-pwa/           — PREVISTO

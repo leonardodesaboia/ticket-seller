@@ -14,7 +14,7 @@ Criar a aplicação Next.js do backoffice administrativo, seguindo a mesma arqui
 
 ## Status
 
-IN_PROGRESS
+COMPLETED
 
 ## Dependências
 

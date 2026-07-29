@@ -14,7 +14,7 @@ Integrar Prisma com PostgreSQL na API, criar as migrations fundacionais, impleme
 
 ## Status
 
-IN_PROGRESS
+COMPLETED
 
 ## Dependências
 
