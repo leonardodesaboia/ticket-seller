@@ -73,6 +73,7 @@ describe('Events API', () => {
   });
 
   afterEach(async () => {
+    await prisma.outboxEvent.deleteMany();
     await prisma.event.deleteMany();
     await prisma.organizationMember.deleteMany();
     await prisma.organization.deleteMany();
@@ -95,6 +96,21 @@ describe('Events API', () => {
       });
       expect(res.body.id).toBeDefined();
       expect(res.body.createdAt).toBeDefined();
+    });
+
+    it('writes event.created.v1 to outbox atomically', async () => {
+      const res = await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'Outbox Test Event' })
+        .expect(201);
+
+      const outbox = await prisma.outboxEvent.findFirst({
+        where: { type: 'event.created.v1', aggregateId: res.body.id as string },
+      });
+      expect(outbox).not.toBeNull();
+      expect(outbox?.aggregateType).toBe('event');
+      expect(outbox?.organizationId).toBe(organizationId);
     });
 
     it('returns 201 with optional description', async () => {

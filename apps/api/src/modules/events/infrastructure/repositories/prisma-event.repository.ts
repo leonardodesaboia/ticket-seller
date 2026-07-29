@@ -8,14 +8,30 @@ export class PrismaEventRepository implements IEventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(input: CreateEventInput): Promise<Event> {
-    const row = await this.prisma.event.create({
-      data: {
-        id: input.id,
-        organizationId: input.organizationId,
-        title: input.title,
-        description: input.description,
-      },
-    });
+    const [row] = await this.prisma.$transaction([
+      this.prisma.event.create({
+        data: {
+          id: input.id,
+          organizationId: input.organizationId,
+          title: input.title,
+          description: input.description,
+        },
+      }),
+      this.prisma.outboxEvent.create({
+        data: {
+          aggregateType: 'event',
+          aggregateId: input.id,
+          type: 'event.created.v1',
+          version: '1',
+          organizationId: input.organizationId,
+          payload: {
+            eventId: input.id,
+            organizationId: input.organizationId,
+            title: input.title,
+          },
+        },
+      }),
+    ]);
 
     return this.toEntity(row);
   }
