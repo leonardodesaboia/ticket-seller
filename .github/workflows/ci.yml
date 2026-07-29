@@ -143,6 +143,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -170,11 +172,15 @@ jobs:
       - name: Migration integrity
         run: bash .ai/scripts/validate-migrations.sh
 
-      # Scans staged/changed files for common secret patterns.
-      # In CI with a clean working tree this exits 0 without scanning all files.
-      # Local pre-commit usage provides the diff-level protection.
+      # Scans changed files for common secret patterns.
+      # On pull_request: diffs against the PR base commit.
+      # On push: diffs against the commit before this push.
+      # Falls back to all tracked files when no diff is available.
       - name: Secrets scan
         run: bash .ai/scripts/scan-secrets.sh
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
 
       # Validates Prisma schema syntax without connecting to the database.
       # DATABASE_URL must be syntactically valid but no real DB is required.
