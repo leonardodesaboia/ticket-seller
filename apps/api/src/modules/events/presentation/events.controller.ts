@@ -22,17 +22,23 @@ import { CreateEventUseCase } from '../application/use-cases/create-event.use-ca
 import { GetEventUseCase } from '../application/use-cases/get-event.use-case';
 import { ListOrganizationEventsUseCase } from '../application/use-cases/list-organization-events.use-case';
 import { UpdateEventUseCase } from '../application/use-cases/update-event.use-case';
+import { UpdateEventConfigurationUseCase } from '../application/use-cases/update-event-configuration.use-case';
 import {
   EventNotFoundError,
   EventNotInDraftError,
   EventVersionConflictError,
+  EventVenueNotFoundError,
+  EventVenueOrganizationMismatchError,
   InsufficientRoleError,
+  InvalidDateRangeError,
+  InvalidTimezoneError,
   OrganizationAccessDeniedError,
 } from '../domain/event.errors';
 import { CreateEventDto } from './dto/create-event.dto';
 import { EventResponse } from './dto/event.response';
 import { ListEventsResponse } from './dto/list-events.response';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { UpdateEventConfigurationDto } from './dto/update-event-configuration.dto';
 
 const uuidPipe = new ParseUUIDPipe({ version: '4' });
 
@@ -45,6 +51,7 @@ export class EventsController {
     private readonly getEvent: GetEventUseCase,
     private readonly listEvents: ListOrganizationEventsUseCase,
     private readonly updateEvent: UpdateEventUseCase,
+    private readonly updateConfiguration: UpdateEventConfigurationUseCase,
   ) {}
 
   @Post()
@@ -130,6 +137,42 @@ export class EventsController {
       if (err instanceof InsufficientRoleError) throw new ForbiddenException(err.message);
       if (err instanceof EventNotInDraftError) throw new UnprocessableEntityException(err.message);
       if (err instanceof EventVersionConflictError) throw new ConflictException(err.message);
+      throw err;
+    }
+  }
+
+  @Patch(':eventId/configuration')
+  async configure(
+    @Param('organizationId', uuidPipe) organizationId: string,
+    @Param('eventId', uuidPipe) eventId: string,
+    @Body() dto: UpdateEventConfigurationDto,
+    @CurrentActor() actor: ICurrentActor,
+  ): Promise<EventResponse> {
+    try {
+      const event = await this.updateConfiguration.execute({
+        organizationId,
+        eventId,
+        actorId: actor.userId,
+        expectedVersion: dto.expectedVersion,
+        ...(dto.format !== undefined && { format: dto.format }),
+        ...(dto.startsAt !== undefined && { startsAt: new Date(dto.startsAt) }),
+        ...(dto.endsAt !== undefined && { endsAt: new Date(dto.endsAt) }),
+        ...(dto.timezone !== undefined && { timezone: dto.timezone }),
+        ...(dto.onlineInfo !== undefined && { onlineInfo: dto.onlineInfo }),
+        ...(dto.venueId !== undefined && { venueId: dto.venueId }),
+        ...(dto.currency !== undefined && { currency: dto.currency }),
+      });
+      return EventResponse.from(event);
+    } catch (err) {
+      if (err instanceof OrganizationAccessDeniedError) throw new NotFoundException(err.message);
+      if (err instanceof EventNotFoundError) throw new NotFoundException(err.message);
+      if (err instanceof InsufficientRoleError) throw new ForbiddenException(err.message);
+      if (err instanceof EventNotInDraftError) throw new UnprocessableEntityException(err.message);
+      if (err instanceof EventVersionConflictError) throw new ConflictException(err.message);
+      if (err instanceof EventVenueNotFoundError) throw new UnprocessableEntityException(err.message);
+      if (err instanceof EventVenueOrganizationMismatchError) throw new UnprocessableEntityException(err.message);
+      if (err instanceof InvalidTimezoneError) throw new UnprocessableEntityException(err.message);
+      if (err instanceof InvalidDateRangeError) throw new UnprocessableEntityException(err.message);
       throw err;
     }
   }

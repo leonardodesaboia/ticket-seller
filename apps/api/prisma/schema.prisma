@@ -55,6 +55,7 @@ model Organization {
   owner   User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
   members OrganizationMember[]
   events  Event[]
+  venues  Venue[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -113,6 +114,25 @@ model OutboxEvent {
   @@map("outbox_events")
 }
 
+model Venue {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String       @db.VarChar(500)
+  address        String
+  city           String       @db.VarChar(255)
+  state          String       @db.VarChar(255)
+  country        String       @db.VarChar(2)
+  postalCode     String?      @map("postal_code") @db.VarChar(20)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  events         Event[]
+
+  @@index([organizationId])
+  @@map("venues")
+}
+
 model Event {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String       @map("organization_id") @db.Uuid
@@ -122,13 +142,22 @@ model Event {
   version        Int          @default(1)
   slug           String?      @db.VarChar(500)
   metadata       Json?
+  format         String?      @db.VarChar(50)
+  startsAt       DateTime?    @map("starts_at") @db.Timestamptz
+  endsAt         DateTime?    @map("ends_at") @db.Timestamptz
+  timezone       String?      @db.VarChar(100)
+  onlineInfo     String?      @map("online_info")
+  venueId        String?      @map("venue_id") @db.Uuid
+  currency       String?      @db.VarChar(3)
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
   organization   Organization @relation(fields: [organizationId], references: [id])
+  venue          Venue?       @relation(fields: [venueId], references: [id])
 
   @@index([organizationId])
   @@index([status])
+  @@index([venueId])
   @@unique([slug])
   @@map("events")
 }

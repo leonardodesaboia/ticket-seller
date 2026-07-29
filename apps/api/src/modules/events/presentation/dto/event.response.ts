@@ -8,6 +8,12 @@ export class EventResponse {
   @ApiProperty({ nullable: true }) description!: string | null;
   @ApiProperty() status!: string;
   @ApiProperty() version!: number;
+  @ApiProperty({ nullable: true }) format!: string | null;
+  @ApiProperty({ nullable: true }) startsAt!: string | null;
+  @ApiProperty({ nullable: true }) endsAt!: string | null;
+  @ApiProperty({ nullable: true }) timezone!: string | null;
+  @ApiProperty({ nullable: true }) venueId!: string | null;
+  @ApiProperty({ nullable: true }) currency!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 
@@ -19,6 +25,12 @@ export class EventResponse {
     res.description = event.description;
     res.status = event.status;
     res.version = event.version;
+    res.format = event.format;
+    res.startsAt = event.startsAt ? event.startsAt.toISOString() : null;
+    res.endsAt = event.endsAt ? event.endsAt.toISOString() : null;
+    res.timezone = event.timezone;
+    res.venueId = event.venueId;
+    res.currency = event.currency;
     res.createdAt = event.createdAt.toISOString();
     res.updatedAt = event.updatedAt.toISOString();
     return res;

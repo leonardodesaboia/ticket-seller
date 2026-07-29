@@ -32,3 +32,31 @@ export class EventVersionConflictError extends Error {
     this.name = 'EventVersionConflictError';
   }
 }
+
+export class EventVenueNotFoundError extends Error {
+  constructor(venueId: string) {
+    super(`Venue not found: ${venueId}`);
+    this.name = 'EventVenueNotFoundError';
+  }
+}
+
+export class EventVenueOrganizationMismatchError extends Error {
+  constructor() {
+    super('Venue does not belong to this organization');
+    this.name = 'EventVenueOrganizationMismatchError';
+  }
+}
+
+export class InvalidTimezoneError extends Error {
+  constructor(tz: string) {
+    super(`Invalid timezone: ${tz}`);
+    this.name = 'InvalidTimezoneError';
+  }
+}
+
+export class InvalidDateRangeError extends Error {
+  constructor() {
+    super('endsAt must be after startsAt');
+    this.name = 'InvalidDateRangeError';
+  }
+}

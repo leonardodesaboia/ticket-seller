@@ -11,6 +11,13 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   description: null,
   status: 'DRAFT',
   version: 1,
+  format: null,
+  startsAt: null,
+  endsAt: null,
+  timezone: null,
+  onlineInfo: null,
+  venueId: null,
+  currency: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -27,6 +34,7 @@ describe('CreateEventUseCase', () => {
       findByOrganizationAndId: jest.fn(),
       findByOrganization: jest.fn(),
       update: jest.fn(),
+      updateConfiguration: jest.fn(),
     };
     orgAccess = { findMember: jest.fn() };
     useCase = new CreateEventUseCase(eventRepository, orgAccess);

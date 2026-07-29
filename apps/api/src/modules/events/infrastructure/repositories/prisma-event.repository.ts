@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
-import type { Event } from '../../domain/event.entity';
+import { Event } from '../../domain/event.entity';
 import { EventNotFoundError, EventVersionConflictError } from '../../domain/event.errors';
 import type {
   CreateEventInput,
   IEventRepository,
   ListEventsInput,
   ListEventsResult,
+  UpdateEventConfigurationInput,
   UpdateEventInput,
 } from '../../domain/ports/event-repository.port';
+import type { Event as PrismaEvent } from '@prisma/client';
 
 const ISO_DATE_LENGTH = 24; // "2026-07-29T04:35:16.154Z" is always 24 chars
 
@@ -153,25 +155,76 @@ export class PrismaEventRepository implements IEventRepository {
     });
   }
 
-  private toEntity(row: {
-    id: string;
-    organizationId: string;
-    title: string;
-    description: string | null;
-    status: string;
-    version: number;
-    createdAt: Date;
-    updatedAt: Date;
-  }): Event {
-    return {
-      id: row.id,
-      organizationId: row.organizationId,
-      title: row.title,
-      description: row.description,
-      status: row.status,
-      version: row.version,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
+  async updateConfiguration(input: UpdateEventConfigurationInput): Promise<Event> {
+    return this.prisma.$transaction(async (tx) => {
+      const updateData: Record<string, unknown> = {
+        version: { increment: 1 },
+      };
+      if (input.format !== undefined) updateData['format'] = input.format;
+      if (input.startsAt !== undefined) updateData['startsAt'] = input.startsAt;
+      if (input.endsAt !== undefined) updateData['endsAt'] = input.endsAt;
+      if (input.timezone !== undefined) updateData['timezone'] = input.timezone;
+      if (input.onlineInfo !== undefined) updateData['onlineInfo'] = input.onlineInfo;
+      if (input.venueId !== undefined) updateData['venueId'] = input.venueId;
+      if (input.currency !== undefined) updateData['currency'] = input.currency;
+
+      const result = await tx.event.updateMany({
+        where: {
+          id: input.eventId,
+          organizationId: input.organizationId,
+          version: input.expectedVersion,
+          status: 'DRAFT',
+        },
+        data: updateData,
+      });
+
+      if (result.count === 0) {
+        throw new EventVersionConflictError();
+      }
+
+      const updated = await tx.event.findFirst({ where: { id: input.eventId } });
+      if (!updated) throw new EventNotFoundError();
+
+      const changedFields = Object.keys(updateData).filter((k) => k !== 'version');
+
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'event',
+          aggregateId: input.eventId,
+          type: 'event.configuration-updated.v1',
+          version: '1',
+          organizationId: input.organizationId,
+          payload: {
+            eventId: input.eventId,
+            organizationId: input.organizationId,
+            version: updated.version,
+            changedFields,
+            occurredAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return this.toEntity(updated);
+    });
+  }
+
+  private toEntity(row: PrismaEvent): Event {
+    return new Event(
+      row.id,
+      row.organizationId,
+      row.title,
+      row.description,
+      row.status,
+      row.version,
+      row.format,
+      row.startsAt,
+      row.endsAt,
+      row.timezone,
+      row.onlineInfo,
+      row.venueId,
+      row.currency,
+      row.createdAt,
+      row.updatedAt,
+    );
   }
 }

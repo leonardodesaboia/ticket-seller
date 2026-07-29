@@ -6,6 +6,7 @@ import { HealthModule } from './platform/health/health.module';
 import { HttpModule } from './platform/http/http.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { EventsModule } from './modules/events/events.module';
+import { VenuesModule } from './modules/venues/venues.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EventsModule } from './modules/events/events.module';
     HttpModule,
     OrganizationsModule,
     EventsModule,
+    VenuesModule,
   ],
 })
 export class AppModule {}

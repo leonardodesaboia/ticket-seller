@@ -76,6 +76,7 @@ describe('Events API', () => {
   afterEach(async () => {
     await prisma.outboxEvent.deleteMany();
     await prisma.event.deleteMany();
+    await prisma.venue.deleteMany();
     await prisma.organizationMember.deleteMany();
     await prisma.organization.deleteMany();
     await prisma.user.deleteMany();
@@ -462,6 +463,228 @@ describe('Events API', () => {
         .send({ title: 'New', version: 1 })
         .expect(404);
       await prisma.user.delete({ where: { id: stranger.id } });
+    });
+  });
+
+  // ── PATCH CONFIGURATION ───────────────────────────────────────────────────
+
+  describe('PATCH /api/v1/organizations/:organizationId/events/:eventId/configuration', () => {
+    let eventId: string;
+
+    beforeEach(async () => {
+      const event = await prisma.event.create({
+        data: { organizationId, title: 'Config Event', status: 'DRAFT' },
+      });
+      eventId = event.id;
+    });
+
+    it('returns 200 and updates format and timezone', async () => {
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, format: 'IN_PERSON', timezone: 'America/Sao_Paulo' })
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        id: eventId,
+        format: 'IN_PERSON',
+        timezone: 'America/Sao_Paulo',
+        version: 2,
+      });
+    });
+
+    it('returns 200 and updates startsAt and endsAt', async () => {
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({
+          expectedVersion: 1,
+          startsAt: '2026-08-01T18:00:00.000Z',
+          endsAt: '2026-08-01T22:00:00.000Z',
+        })
+        .expect(200);
+
+      expect(res.body.startsAt).toBe('2026-08-01T18:00:00.000Z');
+      expect(res.body.endsAt).toBe('2026-08-01T22:00:00.000Z');
+      expect(res.body.version).toBe(2);
+    });
+
+    it('returns 200 and updates currency', async () => {
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, currency: 'BRL' })
+        .expect(200);
+
+      expect(res.body.currency).toBe('BRL');
+    });
+
+    it('returns 200 and updates venueId when venue belongs to same org', async () => {
+      const venue = await prisma.venue.create({
+        data: {
+          organizationId,
+          name: 'Main Arena',
+          address: 'Rua das Flores, 100',
+          city: 'São Paulo',
+          state: 'SP',
+          country: 'BR',
+        },
+      });
+
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, venueId: venue.id })
+        .expect(200);
+
+      expect(res.body.venueId).toBe(venue.id);
+      expect(res.body.version).toBe(2);
+    });
+
+    it('writes event.configuration-updated.v1 to outbox atomically', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, format: 'ONLINE' })
+        .expect(200);
+
+      const outbox = await prisma.outboxEvent.findFirst({
+        where: { type: 'event.configuration-updated.v1', aggregateId: eventId },
+      });
+      expect(outbox).not.toBeNull();
+      expect((outbox?.payload as { version: number }).version).toBe(2);
+    });
+
+    it('returns 409 when version conflicts', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, format: 'ONLINE' })
+        .expect(200);
+
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, format: 'IN_PERSON' })
+        .expect(409);
+    });
+
+    it('returns 422 when event is not in DRAFT', async () => {
+      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, format: 'ONLINE' })
+        .expect(422);
+    });
+
+    it('returns 422 for invalid IANA timezone', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, timezone: 'Not/ATimezone' })
+        .expect(422);
+    });
+
+    it('returns 422 when endsAt is before startsAt', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({
+          expectedVersion: 1,
+          startsAt: '2026-08-01T22:00:00.000Z',
+          endsAt: '2026-08-01T18:00:00.000Z',
+        })
+        .expect(422);
+    });
+
+    it('returns 422 when venue belongs to a different organization', async () => {
+      const otherUser = await prisma.user.create({
+        data: { email: `other-${Date.now()}@test.com`, displayName: 'Other' },
+      });
+      const otherOrg = await prisma.organization.create({
+        data: { name: 'Other Org', slug: `other-${Date.now()}`, status: 'ACTIVE', ownerId: otherUser.id },
+      });
+      const otherVenue = await prisma.venue.create({
+        data: {
+          organizationId: otherOrg.id,
+          name: 'Other Venue',
+          address: 'Av. Paulista, 1000',
+          city: 'São Paulo',
+          state: 'SP',
+          country: 'BR',
+        },
+      });
+
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, venueId: otherVenue.id })
+        .expect(422);
+
+      await prisma.venue.delete({ where: { id: otherVenue.id } });
+      await prisma.organization.delete({ where: { id: otherOrg.id } });
+      await prisma.user.delete({ where: { id: otherUser.id } });
+    });
+
+    it('returns 400 for invalid organizationId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${INVALID_UUID}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1 })
+        .expect(400);
+    });
+
+    it('returns 400 for invalid eventId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${INVALID_UUID}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1 })
+        .expect(400);
+    });
+
+    it('returns 401 when header is missing', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .send({ expectedVersion: 1 })
+        .expect(401);
+    });
+
+    it('returns 403 when actor has VIEWER role', async () => {
+      const viewer = await prisma.user.create({
+        data: { email: `vcfg-${Date.now()}@test.com`, displayName: 'V' },
+      });
+      await prisma.organizationMember.create({
+        data: { organizationId, userId: viewer.id, role: 'VIEWER', status: 'ACTIVE' },
+      });
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', viewer.id)
+        .send({ expectedVersion: 1, format: 'ONLINE' })
+        .expect(403);
+    });
+
+    it('returns 404 when actor is not a member', async () => {
+      const stranger = await prisma.user.create({
+        data: { email: `scfg-${Date.now()}@test.com`, displayName: 'S' },
+      });
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', stranger.id)
+        .send({ expectedVersion: 1, format: 'ONLINE' })
+        .expect(404);
+      await prisma.user.delete({ where: { id: stranger.id } });
+    });
+
+    it('onlineInfo is accepted but NOT included in EventResponse', async () => {
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, onlineInfo: 'https://meet.example.com/secret' })
+        .expect(200);
+
+      expect(res.body).not.toHaveProperty('onlineInfo');
     });
   });
 });

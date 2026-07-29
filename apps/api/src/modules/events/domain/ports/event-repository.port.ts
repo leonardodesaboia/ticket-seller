@@ -26,11 +26,25 @@ export interface ListEventsResult {
   nextCursor: string | null;
 }
 
+export interface UpdateEventConfigurationInput {
+  organizationId: string;
+  eventId: string;
+  expectedVersion: number;
+  format?: string;
+  startsAt?: Date;
+  endsAt?: Date;
+  timezone?: string;
+  onlineInfo?: string | null;
+  venueId?: string | null;
+  currency?: string;
+}
+
 export interface IEventRepository {
   create(input: CreateEventInput): Promise<Event>;
   findByOrganizationAndId(organizationId: string, eventId: string): Promise<Event | null>;
   findByOrganization(input: ListEventsInput): Promise<ListEventsResult>;
   update(input: UpdateEventInput): Promise<Event>;
+  updateConfiguration(input: UpdateEventConfigurationInput): Promise<Event>;
 }
 
 export const EVENT_REPOSITORY = Symbol('EVENT_REPOSITORY');

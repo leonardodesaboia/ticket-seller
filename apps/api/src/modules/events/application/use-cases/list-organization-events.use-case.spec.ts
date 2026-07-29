@@ -11,6 +11,13 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   description: null,
   status: 'DRAFT',
   version: 1,
+  format: null,
+  startsAt: null,
+  endsAt: null,
+  timezone: null,
+  onlineInfo: null,
+  venueId: null,
+  currency: null,
   createdAt: new Date('2026-07-29T10:00:00Z'),
   updatedAt: new Date('2026-07-29T10:00:00Z'),
   ...overrides,
@@ -33,6 +40,7 @@ describe('ListOrganizationEventsUseCase', () => {
       findByOrganizationAndId: jest.fn(),
       findByOrganization: jest.fn(),
       update: jest.fn(),
+      updateConfiguration: jest.fn(),
     };
     orgAccess = { findMember: jest.fn() };
     useCase = new ListOrganizationEventsUseCase(eventRepository, orgAccess);
