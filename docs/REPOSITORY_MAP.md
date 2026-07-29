@@ -83,6 +83,14 @@ docs/
     └── [módulos de domínio]
 ```
 
+CI/CD
+
+```text
+.github/
+└── workflows/
+    └── ci.yml     — GitHub Actions: quality, test, build, validate (4 jobs paralelos)
+```
+
 IA
 
 .ai/ — Suporte ao desenvolvimento assistido por IA.

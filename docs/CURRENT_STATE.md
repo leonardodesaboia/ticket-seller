@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-07-29
+Última atualização: 2026-07-29 (TASK-010)
 
 Fase
 
@@ -43,7 +43,7 @@ TASK-006 — Marketplace Web Bootstrap. (CONCLUÍDA)
 TASK-007 — Application Structure Standards. (CONCLUÍDA)
 TASK-008 — Database Foundation. (CONCLUÍDA)
 TASK-009 — Backoffice Web Bootstrap. (CONCLUÍDA)
-TASK-010 — Continuous Integration.
+TASK-010 — Continuous Integration. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -94,4 +94,5 @@ multi-cloud ativa.
 - arquitetura de pastas: platform/ na API, feature-first + shared/ nos frontends, design tokens em packages/design-tokens/;
 - design tokens: pacote @ticket-seller/design-tokens com tokens semânticos HSL + @theme inline no marketplace;
 - banco de dados: Prisma 5.22.0 + PostgreSQL — PrismaService @Global, DatabaseModule, DATABASE_URL validado por Zod, 3 migrations (users, organizations, infrastructure), GET /ready verifica banco real, testes de integração com Testcontainers (5/5 passando);
-- backoffice: Next.js 15 + App Router + Tailwind CSS 4 + design tokens em apps/backoffice-web/ (porta 3002), estrutura shared/ idêntica ao marketplace, Button primitivo com tokens semânticos, cliente de API centralizado.
+- backoffice: Next.js 15 + App Router + Tailwind CSS 4 + design tokens em apps/backoffice-web/ (porta 3002), estrutura shared/ idêntica ao marketplace, Button primitivo com tokens semânticos, cliente de API centralizado;
+- CI: GitHub Actions em .github/workflows/ci.yml — 4 jobs paralelos (quality, test, build, validate), Testcontainers para integração, concorrência com cancel-in-progress, permissões mínimas.

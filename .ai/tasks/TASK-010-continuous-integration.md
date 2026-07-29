@@ -14,7 +14,7 @@ Configurar um pipeline de integração contínua confiável para o monorepo, que
 
 ## Status
 
-IN_PROGRESS
+COMPLETED
 
 ## Dependências
 
