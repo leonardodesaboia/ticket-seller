@@ -52,10 +52,11 @@ model Organization {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz
 
-  owner   User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
-  members OrganizationMember[]
-  events  Event[]
-  venues  Venue[]
+  owner       User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  members     OrganizationMember[]
+  events      Event[]
+  venues      Venue[]
+  ticketTypes TicketType[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -154,12 +155,35 @@ model Event {
 
   organization   Organization @relation(fields: [organizationId], references: [id])
   venue          Venue?       @relation(fields: [venueId], references: [id])
+  ticketTypes    TicketType[]
 
   @@index([organizationId])
   @@index([status])
   @@index([venueId])
   @@unique([slug])
   @@map("events")
+}
+
+model TicketType {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId        String       @map("event_id") @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String       @db.VarChar(500)
+  description    String?
+  priceAmount    Int          @map("price_amount")
+  capacity       Int
+  status         String       @default("ACTIVE") @db.VarChar(50)
+  version        Int          @default(1)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  event          Event        @relation(fields: [eventId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([eventId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("ticket_types")
 }
 
 model AuditEntry {

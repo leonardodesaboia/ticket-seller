@@ -18,6 +18,11 @@ import {
   type IOrganizationAccessPort,
 } from '../../domain/ports/organization-access.port';
 import { VENUE_ACCESS_PORT, type IVenueAccessPort } from '../../domain/ports/venue-access.port';
+import {
+  TICKET_TYPE_REPOSITORY,
+  type ITicketTypeRepository,
+} from '../../domain/ticket-types/ticket-type-repository.port';
+import { EventCurrencyLockedError } from '../../domain/ticket-types/ticket-type.errors';
 
 export interface UpdateEventConfigurationCommand {
   organizationId: string;
@@ -48,6 +53,7 @@ export class UpdateEventConfigurationUseCase {
     @Inject(EVENT_REPOSITORY) private readonly eventRepository: IEventRepository,
     @Inject(ORGANIZATION_ACCESS_PORT) private readonly orgAccess: IOrganizationAccessPort,
     @Inject(VENUE_ACCESS_PORT) private readonly venueAccess: IVenueAccessPort,
+    @Inject(TICKET_TYPE_REPOSITORY) private readonly ticketTypeRepository: ITicketTypeRepository,
   ) {}
 
   async execute(command: UpdateEventConfigurationCommand): Promise<Event> {
@@ -80,6 +86,13 @@ export class UpdateEventConfigurationUseCase {
 
     if (command.timezone !== undefined && !isValidIANATimezone(command.timezone)) {
       throw new InvalidTimezoneError(command.timezone);
+    }
+
+    if (command.currency !== undefined && command.currency !== event.currency) {
+      const ticketTypeCount = await this.ticketTypeRepository.countActiveByEvent(command.eventId);
+      if (ticketTypeCount > 0) {
+        throw new EventCurrencyLockedError();
+      }
     }
 
     const effectiveStartsAt = command.startsAt ?? event.startsAt;

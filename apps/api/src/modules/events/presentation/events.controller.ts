@@ -34,6 +34,7 @@ import {
   InvalidTimezoneError,
   OrganizationAccessDeniedError,
 } from '../domain/event.errors';
+import { EventCurrencyLockedError } from '../domain/ticket-types/ticket-type.errors';
 import { CreateEventDto } from './dto/create-event.dto';
 import { EventResponse } from './dto/event.response';
 import { ListEventsResponse } from './dto/list-events.response';
@@ -173,6 +174,7 @@ export class EventsController {
       if (err instanceof EventVenueOrganizationMismatchError) throw new UnprocessableEntityException(err.message);
       if (err instanceof InvalidTimezoneError) throw new UnprocessableEntityException(err.message);
       if (err instanceof InvalidDateRangeError) throw new UnprocessableEntityException(err.message);
+      if (err instanceof EventCurrencyLockedError) throw new UnprocessableEntityException(err.message);
       throw err;
     }
   }

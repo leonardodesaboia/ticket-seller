@@ -10,9 +10,11 @@ import {
   InvalidTimezoneError,
   OrganizationAccessDeniedError,
 } from '../../domain/event.errors';
+import { EventCurrencyLockedError } from '../../domain/ticket-types/ticket-type.errors';
 import type { IEventRepository } from '../../domain/ports/event-repository.port';
 import type { IOrganizationAccessPort } from '../../domain/ports/organization-access.port';
 import type { IVenueAccessPort } from '../../domain/ports/venue-access.port';
+import type { ITicketTypeRepository } from '../../domain/ticket-types/ticket-type-repository.port';
 import type { Event } from '../../domain/event.entity';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
@@ -39,6 +41,7 @@ describe('UpdateEventConfigurationUseCase', () => {
   let eventRepository: jest.Mocked<IEventRepository>;
   let orgAccess: jest.Mocked<IOrganizationAccessPort>;
   let venueAccess: jest.Mocked<IVenueAccessPort>;
+  let ticketTypeRepository: jest.Mocked<ITicketTypeRepository>;
 
   beforeEach(() => {
     eventRepository = {
@@ -50,7 +53,14 @@ describe('UpdateEventConfigurationUseCase', () => {
     };
     orgAccess = { findMember: jest.fn() };
     venueAccess = { findVenue: jest.fn() };
-    useCase = new UpdateEventConfigurationUseCase(eventRepository, orgAccess, venueAccess);
+    ticketTypeRepository = {
+      create: jest.fn(),
+      findByEventAndId: jest.fn(),
+      findByEvent: jest.fn(),
+      update: jest.fn(),
+      countActiveByEvent: jest.fn().mockResolvedValue(0),
+    };
+    useCase = new UpdateEventConfigurationUseCase(eventRepository, orgAccess, venueAccess, ticketTypeRepository);
   });
 
   it('updates format when actor is OWNER and version matches', async () => {
@@ -234,6 +244,40 @@ describe('UpdateEventConfigurationUseCase', () => {
         venueId: 'venue-1',
       }),
     ).rejects.toThrow(EventVenueOrganizationMismatchError);
+  });
+
+  it('throws EventCurrencyLockedError when changing currency after ticket types exist', async () => {
+    orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
+    eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ currency: 'BRL' }));
+    ticketTypeRepository.countActiveByEvent.mockResolvedValue(2);
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'u',
+        expectedVersion: 1,
+        currency: 'USD',
+      }),
+    ).rejects.toThrow(EventCurrencyLockedError);
+  });
+
+  it('allows setting same currency value when ticket types exist', async () => {
+    orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
+    eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ currency: 'BRL' }));
+    eventRepository.updateConfiguration.mockResolvedValue(makeEvent({ currency: 'BRL', version: 2 }));
+    ticketTypeRepository.countActiveByEvent.mockResolvedValue(2);
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'u',
+        expectedVersion: 1,
+        currency: 'BRL',
+      }),
+    ).resolves.toBeDefined();
+    expect(ticketTypeRepository.countActiveByEvent).not.toHaveBeenCalled();
   });
 
   it('validates endsAt against existing startsAt when only endsAt is updated', async () => {

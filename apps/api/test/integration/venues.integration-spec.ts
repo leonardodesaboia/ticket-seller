@@ -73,6 +73,7 @@ describe('Venues API', () => {
 
   afterEach(async () => {
     await prisma.outboxEvent.deleteMany();
+    await prisma.ticketType.deleteMany();
     await prisma.event.deleteMany();
     await prisma.venue.deleteMany();
     await prisma.organizationMember.deleteMany();
