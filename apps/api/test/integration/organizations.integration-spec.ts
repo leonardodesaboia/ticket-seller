@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { spawnSync } from 'child_process';
@@ -26,13 +27,14 @@ beforeAll(async () => {
   }
 
   const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  app = module.createNestApplication();
+  app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
   await app.init();
+  await app.getHttpAdapter().getInstance().ready();
 
   prisma = module.get(PrismaService);
 }, 120000);
