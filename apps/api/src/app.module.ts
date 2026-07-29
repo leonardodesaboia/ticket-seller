@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { DatabaseModule } from './platform/database/prisma.module';
 import { HealthModule } from './platform/health/health.module';
 import { HttpModule } from './platform/http/http.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { HttpModule } from './platform/http/http.module';
     DatabaseModule,
     HealthModule,
     HttpModule,
+    OrganizationsModule,
   ],
 })
 export class AppModule {}
