@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-07-29 (TASK-010)
+Última atualização: 2026-07-29 (TASK-013)
 
 Fase
 
@@ -95,4 +95,8 @@ multi-cloud ativa.
 - design tokens: pacote @ticket-seller/design-tokens com tokens semânticos HSL + @theme inline no marketplace;
 - banco de dados: Prisma 5.22.0 + PostgreSQL — PrismaService @Global, DatabaseModule, DATABASE_URL validado por Zod, 3 migrations (users, organizations, infrastructure), GET /ready verifica banco real, testes de integração com Testcontainers (5/5 passando);
 - backoffice: Next.js 15 + App Router + Tailwind CSS 4 + design tokens em apps/backoffice-web/ (porta 3002), estrutura shared/ idêntica ao marketplace, Button primitivo com tokens semânticos, cliente de API centralizado;
-- CI: GitHub Actions em .github/workflows/ci.yml — 4 jobs paralelos (quality, test, build, validate), Testcontainers para integração, concorrência com cancel-in-progress, permissões mínimas.
+- CI: GitHub Actions em .github/workflows/ci.yml — 4 jobs paralelos (quality, test, build, validate), Testcontainers para integração, concorrência com cancel-in-progress, permissões mínimas;
+- actor foundation: IActorAdapter port, DevelopmentActorAdapter (lê X-Dev-User-Id, desabilitado em production), ActorGuard, CurrentActor decorator — TASK-011;
+- CreateOrganization: POST /api/v1/organizations, módulo hexagonal completo (domain, application, infrastructure, presentation), criação atômica via $transaction (org + OWNER member + outbox event), 6 testes de integração — TASK-012;
+- backoffice features: organizations/new, organizations/[id]/events/new, organizations/[id]/events/[id] com TanStack Query, React Hook Form + Zod — TASK-014;
+- CreateEvent + GetEvent: POST e GET /api/v1/organizations/:organizationId/events/:eventId, módulo hexagonal completo com IOrganizationAccessPort port, role check (OWNER/ADMIN/EVENT_MANAGER para criar), evento nasce como DRAFT, 11 testes de integração — TASK-013.

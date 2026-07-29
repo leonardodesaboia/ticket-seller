@@ -11,19 +11,26 @@ apps/ — Aplicações executáveis.
 ```text
 apps/
 ├── api/                   — API NestJS + Fastify (ATIVA)
-│   ├── prisma/            — schema.prisma, migrations (3 aplicadas)
+│   ├── prisma/            — schema.prisma, migrations (4 aplicadas)
 │   ├── src/
 │   │   ├── main.ts
 │   │   ├── app.module.ts
-│   │   └── platform/
-│   │       ├── config/   — env.ts (Zod, DATABASE_URL)
-│   │       ├── database/ — prisma.service.ts, prisma.module.ts (@Global)
-│   │       ├── health/   — health.controller.ts, health.module.ts
-│   │       └── http/
-│   │           └── filters/ — http-exception.filter.ts (RFC 9457)
+│   │   ├── platform/
+│   │   │   ├── config/   — env.ts (Zod, DATABASE_URL)
+│   │   │   ├── database/ — prisma.service.ts, prisma.module.ts (@Global)
+│   │   │   ├── health/   — health.controller.ts, health.module.ts
+│   │   │   └── http/
+│   │   │       ├── filters/  — http-exception.filter.ts (RFC 9457)
+│   │   │       ├── guards/   — actor.guard.ts
+│   │   │       ├── adapters/ — development-actor.adapter.ts
+│   │   │       └── actor-adapter.port.ts
+│   │   ├── shared/kernel/ — actor.types.ts, current-actor.decorator.ts
+│   │   └── modules/
+│   │       ├── organizations/ — POST /api/v1/organizations (hexagonal completo)
+│   │       └── events/        — POST/GET /api/v1/organizations/:id/events/:id (hexagonal completo)
 │   └── test/
 │       ├── e2e/          — health.e2e-spec.ts
-│       └── integration/  — database.integration-spec.ts (Testcontainers)
+│       └── integration/  — database, organizations, events (Testcontainers)
 ├── marketplace-web/       — Next.js 15 + App Router (ATIVA)
 │   └── src/
 │       ├── app/          — layout, page, loading, error, not-found, globals.css
@@ -34,7 +41,10 @@ apps/
 │               └── primitives/ — button.tsx
 ├── backoffice-web/        — Next.js 15 + App Router (ATIVA)
 │   └── src/
-│       ├── app/          — layout, page, loading, error, not-found, globals.css
+│       ├── app/          — layout, page, providers.tsx
+│       ├── features/
+│       │   ├── organizations/ — types, schemas, api, hooks, CreateOrganizationForm
+│       │   └── events/        — types, schemas, api, hooks, CreateEventForm, EventDetail
 │       └── shared/
 │           ├── api/      — api-client.ts
 │           ├── lib/      — utils.ts (cn)
