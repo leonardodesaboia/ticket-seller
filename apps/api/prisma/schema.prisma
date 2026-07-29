@@ -54,6 +54,7 @@ model Organization {
 
   owner   User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
   members OrganizationMember[]
+  events  Event[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -110,6 +111,25 @@ model OutboxEvent {
   @@index([processedAt])
   @@index([organizationId])
   @@map("outbox_events")
+}
+
+model Event {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  title          String       @db.VarChar(500)
+  description    String?
+  status         String       @default("DRAFT") @db.VarChar(50)
+  slug           String?      @db.VarChar(500)
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([status])
+  @@unique([slug])
+  @@map("events")
 }
 
 model AuditEntry {
