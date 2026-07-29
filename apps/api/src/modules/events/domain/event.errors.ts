@@ -18,3 +18,17 @@ export class InsufficientRoleError extends Error {
     this.name = 'InsufficientRoleError';
   }
 }
+
+export class EventNotInDraftError extends Error {
+  constructor() {
+    super('Event can only be edited while in DRAFT status');
+    this.name = 'EventNotInDraftError';
+  }
+}
+
+export class EventVersionConflictError extends Error {
+  constructor() {
+    super('Event was modified by another request; please refresh and try again');
+    this.name = 'EventVersionConflictError';
+  }
+}

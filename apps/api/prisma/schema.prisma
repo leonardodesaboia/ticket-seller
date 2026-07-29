@@ -119,6 +119,7 @@ model Event {
   title          String       @db.VarChar(500)
   description    String?
   status         String       @default("DRAFT") @db.VarChar(50)
+  version        Int          @default(1)
   slug           String?      @db.VarChar(500)
   metadata       Json?
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz

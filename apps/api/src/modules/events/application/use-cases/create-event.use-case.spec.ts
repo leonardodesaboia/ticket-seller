@@ -10,6 +10,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   title: 'My Event',
   description: null,
   status: 'DRAFT',
+  version: 1,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -21,7 +22,12 @@ describe('CreateEventUseCase', () => {
   let orgAccess: jest.Mocked<IOrganizationAccessPort>;
 
   beforeEach(() => {
-    eventRepository = { create: jest.fn(), findByOrganizationAndId: jest.fn() };
+    eventRepository = {
+      create: jest.fn(),
+      findByOrganizationAndId: jest.fn(),
+      findByOrganization: jest.fn(),
+      update: jest.fn(),
+    };
     orgAccess = { findMember: jest.fn() };
     useCase = new CreateEventUseCase(eventRepository, orgAccess);
   });

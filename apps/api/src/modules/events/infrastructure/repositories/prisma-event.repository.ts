@@ -1,7 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import type { Event } from '../../domain/event.entity';
-import type { CreateEventInput, IEventRepository } from '../../domain/ports/event-repository.port';
+import { EventNotFoundError, EventVersionConflictError } from '../../domain/event.errors';
+import type {
+  CreateEventInput,
+  IEventRepository,
+  ListEventsInput,
+  ListEventsResult,
+  UpdateEventInput,
+} from '../../domain/ports/event-repository.port';
+
+const ISO_DATE_LENGTH = 24; // "2026-07-29T04:35:16.154Z" is always 24 chars
+
+function encodeCursor(event: { createdAt: Date; id: string }): string {
+  return Buffer.from(`${event.createdAt.toISOString()}|${event.id}`).toString('base64url');
+}
+
+function decodeCursor(cursor: string): { createdAt: Date; id: string } {
+  const decoded = Buffer.from(cursor, 'base64url').toString('utf-8');
+  return {
+    createdAt: new Date(decoded.substring(0, ISO_DATE_LENGTH)),
+    id: decoded.substring(ISO_DATE_LENGTH + 1),
+  };
+}
 
 @Injectable()
 export class PrismaEventRepository implements IEventRepository {
@@ -46,12 +67,99 @@ export class PrismaEventRepository implements IEventRepository {
     return this.toEntity(row);
   }
 
+  async findByOrganization(input: ListEventsInput): Promise<ListEventsResult> {
+    const limit = input.limit;
+
+    let whereClause: Parameters<typeof this.prisma.event.findMany>[0] extends
+      { where?: infer W } | undefined
+      ? W
+      : never = { organizationId: input.organizationId };
+
+    if (input.cursor) {
+      const { createdAt, id } = decodeCursor(input.cursor);
+      whereClause = {
+        organizationId: input.organizationId,
+        OR: [
+          { createdAt: { lt: createdAt } },
+          { createdAt: { equals: createdAt }, id: { lt: id } },
+        ],
+      };
+    }
+
+    const rows = await this.prisma.event.findMany({
+      where: whereClause,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+    });
+
+    const hasNext = rows.length > limit;
+    const items = hasNext ? rows.slice(0, limit) : rows;
+    const lastItem = items[items.length - 1];
+    const nextCursor = hasNext && lastItem ? encodeCursor(lastItem) : null;
+
+    return {
+      events: items.map((row) => this.toEntity(row)),
+      nextCursor,
+    };
+  }
+
+  async update(input: UpdateEventInput): Promise<Event> {
+    return this.prisma.$transaction(async (tx) => {
+      const updateData: Record<string, unknown> = {
+        version: { increment: 1 },
+      };
+      if (input.title !== undefined) updateData['title'] = input.title;
+      if (input.description !== undefined) updateData['description'] = input.description;
+
+      const result = await tx.event.updateMany({
+        where: {
+          id: input.eventId,
+          organizationId: input.organizationId,
+          version: input.expectedVersion,
+          status: 'DRAFT',
+        },
+        data: updateData,
+      });
+
+      if (result.count === 0) {
+        throw new EventVersionConflictError();
+      }
+
+      const updated = await tx.event.findFirst({ where: { id: input.eventId } });
+      if (!updated) throw new EventNotFoundError();
+
+      const changedFields: string[] = [];
+      if (input.title !== undefined) changedFields.push('title');
+      if (input.description !== undefined) changedFields.push('description');
+
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'event',
+          aggregateId: input.eventId,
+          type: 'event.updated.v1',
+          version: '1',
+          organizationId: input.organizationId,
+          payload: {
+            eventId: input.eventId,
+            organizationId: input.organizationId,
+            version: updated.version,
+            changedFields,
+            occurredAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return this.toEntity(updated);
+    });
+  }
+
   private toEntity(row: {
     id: string;
     organizationId: string;
     title: string;
     description: string | null;
     status: string;
+    version: number;
     createdAt: Date;
     updatedAt: Date;
   }): Event {
@@ -61,6 +169,7 @@ export class PrismaEventRepository implements IEventRepository {
       title: row.title,
       description: row.description,
       status: row.status,
+      version: row.version,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

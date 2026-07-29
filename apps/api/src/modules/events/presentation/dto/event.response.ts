@@ -7,6 +7,7 @@ export class EventResponse {
   @ApiProperty() title!: string;
   @ApiProperty({ nullable: true }) description!: string | null;
   @ApiProperty() status!: string;
+  @ApiProperty() version!: number;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 
@@ -17,6 +18,7 @@ export class EventResponse {
     res.title = event.title;
     res.description = event.description;
     res.status = event.status;
+    res.version = event.version;
     res.createdAt = event.createdAt.toISOString();
     res.updatedAt = event.updatedAt.toISOString();
     return res;

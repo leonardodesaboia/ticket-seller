@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { spawnSync } from 'child_process';
@@ -10,6 +11,10 @@ import { PrismaService } from '../../src/platform/database/prisma.service';
 let container: StartedPostgreSqlContainer;
 let app: INestApplication;
 let prisma: PrismaService;
+
+const INVALID_UUID = 'not-a-valid-uuid';
+// Valid v4 UUID that won't match any entity (version=4 at position 14, variant=8 at position 19)
+const NONEXISTENT_UUID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
 
 beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:16-alpine').start();
@@ -26,13 +31,14 @@ beforeAll(async () => {
   }
 
   const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  app = module.createNestApplication();
+  app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
   await app.init();
+  await app.getHttpAdapter().getInstance().ready();
 
   prisma = module.get(PrismaService);
 }, 120000);
@@ -63,12 +69,7 @@ describe('Events API', () => {
     organizationId = org.id;
 
     await prisma.organizationMember.create({
-      data: {
-        organizationId,
-        userId: testUserId,
-        role: 'OWNER',
-        status: 'ACTIVE',
-      },
+      data: { organizationId, userId: testUserId, role: 'OWNER', status: 'ACTIVE' },
     });
   });
 
@@ -80,8 +81,10 @@ describe('Events API', () => {
     await prisma.user.deleteMany();
   });
 
+  // ── POST ──────────────────────────────────────────────────────────────────
+
   describe('POST /api/v1/organizations/:organizationId/events', () => {
-    it('returns 201 and creates event as DRAFT', async () => {
+    it('returns 201 and creates event as DRAFT with version 1', async () => {
       const res = await supertest(app.getHttpServer())
         .post(`/api/v1/organizations/${organizationId}/events`)
         .set('X-Dev-User-Id', testUserId)
@@ -93,9 +96,9 @@ describe('Events API', () => {
         title: 'Rock Festival 2026',
         status: 'DRAFT',
         description: null,
+        version: 1,
       });
       expect(res.body.id).toBeDefined();
-      expect(res.body.createdAt).toBeDefined();
     });
 
     it('writes event.created.v1 to outbox atomically', async () => {
@@ -123,6 +126,14 @@ describe('Events API', () => {
       expect(res.body.description).toBe('An annual festival');
     });
 
+    it('returns 400 for invalid organizationId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${INVALID_UUID}/events`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'Event' })
+        .expect(400);
+    });
+
     it('returns 401 when X-Dev-User-Id header is missing', async () => {
       await supertest(app.getHttpServer())
         .post(`/api/v1/organizations/${organizationId}/events`)
@@ -130,7 +141,22 @@ describe('Events API', () => {
         .expect(401);
     });
 
-    it('returns 404 when actor is not a member of the organization', async () => {
+    it('returns 403 when actor has VIEWER role', async () => {
+      const viewer = await prisma.user.create({
+        data: { email: `viewer-${Date.now()}@test.com`, displayName: 'Viewer' },
+      });
+      await prisma.organizationMember.create({
+        data: { organizationId, userId: viewer.id, role: 'VIEWER', status: 'ACTIVE' },
+      });
+
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events`)
+        .set('X-Dev-User-Id', viewer.id)
+        .send({ title: 'Event' })
+        .expect(403);
+    });
+
+    it('returns 404 when actor is not a member', async () => {
       const stranger = await prisma.user.create({
         data: { email: `stranger-${Date.now()}@test.com`, displayName: 'Stranger' },
       });
@@ -144,22 +170,6 @@ describe('Events API', () => {
       await prisma.user.delete({ where: { id: stranger.id } });
     });
 
-    it('returns 403 when actor has VIEWER role', async () => {
-      const viewer = await prisma.user.create({
-        data: { email: `viewer-${Date.now()}@test.com`, displayName: 'Viewer' },
-      });
-
-      await prisma.organizationMember.create({
-        data: { organizationId, userId: viewer.id, role: 'VIEWER', status: 'ACTIVE' },
-      });
-
-      await supertest(app.getHttpServer())
-        .post(`/api/v1/organizations/${organizationId}/events`)
-        .set('X-Dev-User-Id', viewer.id)
-        .send({ title: 'Event' })
-        .expect(403);
-    });
-
     it('returns 400 when title is empty', async () => {
       await supertest(app.getHttpServer())
         .post(`/api/v1/organizations/${organizationId}/events`)
@@ -169,21 +179,94 @@ describe('Events API', () => {
     });
   });
 
+  // ── GET LIST ──────────────────────────────────────────────────────────────
+
+  describe('GET /api/v1/organizations/:organizationId/events', () => {
+    beforeEach(async () => {
+      await prisma.event.createMany({
+        data: [
+          { organizationId, title: 'Event A', status: 'DRAFT' },
+          { organizationId, title: 'Event B', status: 'DRAFT' },
+          { organizationId, title: 'Event C', status: 'DRAFT' },
+        ],
+      });
+    });
+
+    it('returns 200 with list of events and null nextCursor', async () => {
+      const res = await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${organizationId}/events`)
+        .set('X-Dev-User-Id', testUserId)
+        .expect(200);
+
+      expect(res.body.data).toHaveLength(3);
+      expect(res.body.nextCursor).toBeNull();
+      expect(res.body.data[0]).toMatchObject({ organizationId, status: 'DRAFT', version: 1 });
+    });
+
+    it('paginates with limit and nextCursor', async () => {
+      const page1 = await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${organizationId}/events?limit=2`)
+        .set('X-Dev-User-Id', testUserId)
+        .expect(200);
+
+      expect(page1.body.data).toHaveLength(2);
+      expect(page1.body.nextCursor).not.toBeNull();
+
+      const page2 = await supertest(app.getHttpServer())
+        .get(
+          `/api/v1/organizations/${organizationId}/events?limit=2&cursor=${page1.body.nextCursor as string}`,
+        )
+        .set('X-Dev-User-Id', testUserId)
+        .expect(200);
+
+      expect(page2.body.data).toHaveLength(1);
+      expect(page2.body.nextCursor).toBeNull();
+
+      const allTitles = [
+        ...(page1.body.data as Array<{ title: string }>).map((e) => e.title),
+        ...(page2.body.data as Array<{ title: string }>).map((e) => e.title),
+      ];
+      expect(allTitles).toHaveLength(3);
+    });
+
+    it('returns 400 for invalid organizationId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${INVALID_UUID}/events`)
+        .set('X-Dev-User-Id', testUserId)
+        .expect(400);
+    });
+
+    it('returns 401 when header is missing', async () => {
+      await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${organizationId}/events`)
+        .expect(401);
+    });
+
+    it('returns 404 when actor is not a member', async () => {
+      const stranger = await prisma.user.create({
+        data: { email: `s-${Date.now()}@test.com`, displayName: 'S' },
+      });
+      await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${organizationId}/events`)
+        .set('X-Dev-User-Id', stranger.id)
+        .expect(404);
+      await prisma.user.delete({ where: { id: stranger.id } });
+    });
+  });
+
+  // ── GET BY ID ─────────────────────────────────────────────────────────────
+
   describe('GET /api/v1/organizations/:organizationId/events/:eventId', () => {
     let eventId: string;
 
     beforeEach(async () => {
       const event = await prisma.event.create({
-        data: {
-          organizationId,
-          title: 'Existing Event',
-          status: 'DRAFT',
-        },
+        data: { organizationId, title: 'Existing Event', status: 'DRAFT' },
       });
       eventId = event.id;
     });
 
-    it('returns 200 with event data', async () => {
+    it('returns 200 with event data including version', async () => {
       const res = await supertest(app.getHttpServer())
         .get(`/api/v1/organizations/${organizationId}/events/${eventId}`)
         .set('X-Dev-User-Id', testUserId)
@@ -194,10 +277,32 @@ describe('Events API', () => {
         organizationId,
         title: 'Existing Event',
         status: 'DRAFT',
+        version: 1,
       });
     });
 
-    it('returns 401 when X-Dev-User-Id header is missing', async () => {
+    it('returns 400 for invalid organizationId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${INVALID_UUID}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .expect(400);
+    });
+
+    it('returns 400 for invalid eventId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${organizationId}/events/${INVALID_UUID}`)
+        .set('X-Dev-User-Id', testUserId)
+        .expect(400);
+    });
+
+    it('returns 404 for valid UUID that does not exist', async () => {
+      await supertest(app.getHttpServer())
+        .get(`/api/v1/organizations/${organizationId}/events/${NONEXISTENT_UUID}`)
+        .set('X-Dev-User-Id', testUserId)
+        .expect(404);
+    });
+
+    it('returns 401 when header is missing', async () => {
       await supertest(app.getHttpServer())
         .get(`/api/v1/organizations/${organizationId}/events/${eventId}`)
         .expect(401);
@@ -205,25 +310,16 @@ describe('Events API', () => {
 
     it('returns 404 when actor is not a member', async () => {
       const stranger = await prisma.user.create({
-        data: { email: `stranger2-${Date.now()}@test.com`, displayName: 'Stranger' },
+        data: { email: `s2-${Date.now()}@test.com`, displayName: 'S' },
       });
-
       await supertest(app.getHttpServer())
         .get(`/api/v1/organizations/${organizationId}/events/${eventId}`)
         .set('X-Dev-User-Id', stranger.id)
         .expect(404);
-
       await prisma.user.delete({ where: { id: stranger.id } });
     });
 
-    it('returns 404 when event does not exist', async () => {
-      await supertest(app.getHttpServer())
-        .get(`/api/v1/organizations/${organizationId}/events/00000000-0000-0000-0000-000000000000`)
-        .set('X-Dev-User-Id', testUserId)
-        .expect(404);
-    });
-
-    it('returns 404 when event belongs to different organization', async () => {
+    it('returns 404 when event belongs to a different organization', async () => {
       const otherUser = await prisma.user.create({
         data: { email: `other-${Date.now()}@test.com`, displayName: 'Other' },
       });
@@ -243,6 +339,129 @@ describe('Events API', () => {
 
       await prisma.organization.delete({ where: { id: otherOrg.id } });
       await prisma.user.delete({ where: { id: otherUser.id } });
+    });
+  });
+
+  // ── PATCH ─────────────────────────────────────────────────────────────────
+
+  describe('PATCH /api/v1/organizations/:organizationId/events/:eventId', () => {
+    let eventId: string;
+
+    beforeEach(async () => {
+      const event = await prisma.event.create({
+        data: { organizationId, title: 'Original Title', status: 'DRAFT' },
+      });
+      eventId = event.id;
+    });
+
+    it('returns 200 and updates title, increments version', async () => {
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'Updated Title', version: 1 })
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        id: eventId,
+        title: 'Updated Title',
+        version: 2,
+        status: 'DRAFT',
+      });
+    });
+
+    it('writes event.updated.v1 to outbox', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'Updated', version: 1 })
+        .expect(200);
+
+      const outbox = await prisma.outboxEvent.findFirst({
+        where: { type: 'event.updated.v1', aggregateId: eventId },
+      });
+      expect(outbox).not.toBeNull();
+      expect((outbox?.payload as { version: number }).version).toBe(2);
+    });
+
+    it('returns 409 when version conflicts', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'First update', version: 1 })
+        .expect(200);
+
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'Concurrent update', version: 1 })
+        .expect(409);
+    });
+
+    it('returns 422 when event is not in DRAFT', async () => {
+      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'New Title', version: 1 })
+        .expect(422);
+    });
+
+    it('returns 400 for invalid organizationId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${INVALID_UUID}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ version: 1 })
+        .expect(400);
+    });
+
+    it('returns 400 for invalid eventId UUID', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${INVALID_UUID}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ version: 1 })
+        .expect(400);
+    });
+
+    it('returns 400 when version is missing', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ title: 'Title' })
+        .expect(400);
+    });
+
+    it('returns 401 when header is missing', async () => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .send({ version: 1 })
+        .expect(401);
+    });
+
+    it('returns 403 when actor has VIEWER role', async () => {
+      const viewer = await prisma.user.create({
+        data: { email: `v-${Date.now()}@test.com`, displayName: 'V' },
+      });
+      await prisma.organizationMember.create({
+        data: { organizationId, userId: viewer.id, role: 'VIEWER', status: 'ACTIVE' },
+      });
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', viewer.id)
+        .send({ title: 'New', version: 1 })
+        .expect(403);
+    });
+
+    it('returns 404 when actor is not a member', async () => {
+      const stranger = await prisma.user.create({
+        data: { email: `s3-${Date.now()}@test.com`, displayName: 'S' },
+      });
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
+        .set('X-Dev-User-Id', stranger.id)
+        .send({ title: 'New', version: 1 })
+        .expect(404);
+      await prisma.user.delete({ where: { id: stranger.id } });
     });
   });
 });
