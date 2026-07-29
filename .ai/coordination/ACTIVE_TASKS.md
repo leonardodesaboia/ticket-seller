@@ -1,8 +1,8 @@
 Tarefas ativas
 
-Última atualização: 2026-07-28
+Última atualização: 2026-07-29
 
-(nenhuma tarefa ativa no momento — TASK-007 integrada)
+(nenhuma tarefa ativa no momento — TASK-020 integrada)
 
 Estados
 BLOCKED: dependências ainda não integradas;
@@ -19,6 +19,20 @@ TASK-003: Tooling Standards — MERGED em 2026-07-28
 TASK-004: API Bootstrap — MERGED em 2026-07-28
 TASK-005: Local Infrastructure — MERGED em 2026-07-28
 TASK-006: Marketplace Web Bootstrap — MERGED em 2026-07-28
+TASK-007: Application Structure Standards — MERGED em 2026-07-28
+TASK-008: Database Foundation — MERGED em 2026-07-28
+TASK-009: Backoffice Web Bootstrap — MERGED em 2026-07-28
+TASK-010: Continuous Integration — MERGED em 2026-07-28
+TASK-011: Actor Foundation — MERGED em 2026-07-28
+TASK-012: CreateOrganization — MERGED em 2026-07-28
+TASK-013: CreateEvent + GetEvent — MERGED em 2026-07-28
+TASK-014: Backoffice UI — MERGED em 2026-07-28
+TASK-015: ListOrganizationEvents + ParseUUIDPipe — MERGED em 2026-07-28
+TASK-016: UpdateEvent com controle de concorrência — MERGED em 2026-07-28
+TASK-017: Event Management Backoffice — MERGED em 2026-07-28
+TASK-018: Event Schedule and Venue Foundation — MERGED em 2026-07-29
+TASK-019: Ticket Types Foundation — MERGED em 2026-07-29
+TASK-020: Event Configuration Backoffice — MERGED em 2026-07-29
 
 Regras
 uma tarefa deve aparecer uma única vez;
