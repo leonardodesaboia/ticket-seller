@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -8,6 +9,7 @@ import {
   IsUUID,
   Length,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 const EVENT_FORMATS = ['IN_PERSON', 'ONLINE', 'HYBRID'] as const;
@@ -35,9 +37,15 @@ export class UpdateEventConfigurationDto {
   @Length(1, 100)
   timezone?: string;
 
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
+  @IsNotEmpty()
+  @Length(1, 2000)
   onlineInfo?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  clearOnlineInfo?: boolean;
 
   @IsOptional()
   @IsUUID('4')

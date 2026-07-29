@@ -4,7 +4,7 @@ import { CreateVenueUseCase } from './application/use-cases/create-venue.use-cas
 import { ListOrganizationVenuesUseCase } from './application/use-cases/list-organization-venues.use-case';
 import { VENUE_REPOSITORY } from './domain/ports/venue-repository.port';
 import { ORGANIZATION_ACCESS_PORT } from '../events/domain/ports/organization-access.port';
-import { VENUE_ACCESS_PORT } from '../events/domain/ports/venue-access.port';
+import { VENUE_ACCESS_PORT } from '../events/application/ports/venue-access.port';
 import { PrismaOrganizationAccessAdapter } from '../events/infrastructure/adapters/prisma-organization-access.adapter';
 import { PrismaVenueRepository } from './infrastructure/repositories/prisma-venue.repository';
 import { PrismaVenueAccessAdapter } from './infrastructure/adapters/prisma-venue-access.adapter';

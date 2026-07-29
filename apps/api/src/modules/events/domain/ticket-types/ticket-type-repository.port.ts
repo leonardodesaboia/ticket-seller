@@ -1,15 +1,5 @@
 import type { TicketType } from './ticket-type.entity';
 
-export interface CreateTicketTypeInput {
-  id: string;
-  eventId: string;
-  organizationId: string;
-  name: string;
-  description: string | null;
-  priceAmount: number;
-  capacity: number;
-}
-
 export interface UpdateTicketTypeInput {
   ticketTypeId: string;
   eventId: string;
@@ -23,7 +13,6 @@ export interface UpdateTicketTypeInput {
 }
 
 export interface ITicketTypeRepository {
-  create(input: CreateTicketTypeInput): Promise<TicketType>;
   findByEventAndId(eventId: string, ticketTypeId: string): Promise<TicketType | null>;
   findByEvent(eventId: string, organizationId: string): Promise<TicketType[]>;
   update(input: UpdateTicketTypeInput): Promise<TicketType>;

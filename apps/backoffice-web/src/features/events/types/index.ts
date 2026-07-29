@@ -11,6 +11,7 @@ export interface Event {
   timezone: string | null;
   venueId: string | null;
   currency: string | null;
+  onlineConfigured: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -32,7 +33,8 @@ export interface UpdateEventConfigurationInput {
   startsAt?: string;
   endsAt?: string;
   timezone?: string;
-  onlineInfo?: string | null;
+  onlineInfo?: string;
+  clearOnlineInfo?: true;
   venueId?: string | null;
   currency?: string;
 }

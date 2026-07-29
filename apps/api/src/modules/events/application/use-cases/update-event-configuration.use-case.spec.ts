@@ -10,11 +10,9 @@ import {
   InvalidTimezoneError,
   OrganizationAccessDeniedError,
 } from '../../domain/event.errors';
-import { EventCurrencyLockedError } from '../../domain/ticket-types/ticket-type.errors';
 import type { IEventRepository } from '../../domain/ports/event-repository.port';
 import type { IOrganizationAccessPort } from '../../domain/ports/organization-access.port';
-import type { IVenueAccessPort } from '../../domain/ports/venue-access.port';
-import type { ITicketTypeRepository } from '../../domain/ticket-types/ticket-type-repository.port';
+import type { IVenueAccessPort } from '../ports/venue-access.port';
 import type { Event } from '../../domain/event.entity';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
@@ -41,7 +39,6 @@ describe('UpdateEventConfigurationUseCase', () => {
   let eventRepository: jest.Mocked<IEventRepository>;
   let orgAccess: jest.Mocked<IOrganizationAccessPort>;
   let venueAccess: jest.Mocked<IVenueAccessPort>;
-  let ticketTypeRepository: jest.Mocked<ITicketTypeRepository>;
 
   beforeEach(() => {
     eventRepository = {
@@ -53,14 +50,7 @@ describe('UpdateEventConfigurationUseCase', () => {
     };
     orgAccess = { findMember: jest.fn() };
     venueAccess = { findVenue: jest.fn() };
-    ticketTypeRepository = {
-      create: jest.fn(),
-      findByEventAndId: jest.fn(),
-      findByEvent: jest.fn(),
-      update: jest.fn(),
-      countActiveByEvent: jest.fn().mockResolvedValue(0),
-    };
-    useCase = new UpdateEventConfigurationUseCase(eventRepository, orgAccess, venueAccess, ticketTypeRepository);
+    useCase = new UpdateEventConfigurationUseCase(eventRepository, orgAccess, venueAccess);
   });
 
   it('updates format when actor is OWNER and version matches', async () => {
@@ -246,28 +236,30 @@ describe('UpdateEventConfigurationUseCase', () => {
     ).rejects.toThrow(EventVenueOrganizationMismatchError);
   });
 
-  it('throws EventCurrencyLockedError when changing currency after ticket types exist', async () => {
+  it('delegates currency lock enforcement to the atomic repository operation', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ currency: 'BRL' }));
-    ticketTypeRepository.countActiveByEvent.mockResolvedValue(2);
+    eventRepository.updateConfiguration.mockResolvedValue(
+      makeEvent({ currency: 'USD', version: 2 }),
+    );
 
-    await expect(
-      useCase.execute({
-        organizationId: 'org-1',
-        eventId: 'evt-1',
-        actorId: 'u',
-        expectedVersion: 1,
-        currency: 'USD',
-      }),
-    ).rejects.toThrow(EventCurrencyLockedError);
+    await useCase.execute({
+      organizationId: 'org-1',
+      eventId: 'evt-1',
+      actorId: 'u',
+      expectedVersion: 1,
+      currency: 'USD',
+    });
+
+    expect(eventRepository.updateConfiguration).toHaveBeenCalledWith(
+      expect.objectContaining({ currency: 'USD' }),
+    );
   });
 
-  it('allows setting same currency value when ticket types exist', async () => {
+  it('allows setting the same currency value', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ currency: 'BRL' }));
     eventRepository.updateConfiguration.mockResolvedValue(makeEvent({ currency: 'BRL', version: 2 }));
-    ticketTypeRepository.countActiveByEvent.mockResolvedValue(2);
-
     await expect(
       useCase.execute({
         organizationId: 'org-1',
@@ -277,7 +269,6 @@ describe('UpdateEventConfigurationUseCase', () => {
         currency: 'BRL',
       }),
     ).resolves.toBeDefined();
-    expect(ticketTypeRepository.countActiveByEvent).not.toHaveBeenCalled();
   });
 
   it('validates endsAt against existing startsAt when only endsAt is updated', async () => {
@@ -294,5 +285,72 @@ describe('UpdateEventConfigurationUseCase', () => {
         endsAt: new Date('2026-08-01T18:00:00Z'),
       }),
     ).rejects.toThrow(InvalidDateRangeError);
+  });
+
+  it('preserves onlineInfo when it is omitted while changing format', async () => {
+    orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
+    eventRepository.findByOrganizationAndId.mockResolvedValue(
+      makeEvent({ format: 'ONLINE', onlineInfo: 'private-access' }),
+    );
+    eventRepository.updateConfiguration.mockResolvedValue(
+      makeEvent({ format: 'IN_PERSON', onlineInfo: 'private-access', version: 2 }),
+    );
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      eventId: 'evt-1',
+      actorId: 'u',
+      expectedVersion: 1,
+      format: 'IN_PERSON',
+    });
+
+    expect(eventRepository.updateConfiguration).toHaveBeenCalledWith(
+      expect.not.objectContaining({ onlineInfo: expect.anything() }),
+    );
+  });
+
+  it('clears onlineInfo only when clearOnlineInfo is explicitly true', async () => {
+    orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
+    eventRepository.findByOrganizationAndId.mockResolvedValue(
+      makeEvent({ onlineInfo: 'private-access' }),
+    );
+    eventRepository.updateConfiguration.mockResolvedValue(
+      makeEvent({ onlineInfo: null, version: 2 }),
+    );
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      eventId: 'evt-1',
+      actorId: 'u',
+      expectedVersion: 1,
+      clearOnlineInfo: true,
+    });
+
+    expect(eventRepository.updateConfiguration).toHaveBeenCalledWith(
+      expect.objectContaining({ onlineInfo: null }),
+    );
+  });
+
+  it.each([
+    { onlineInfo: null },
+    { onlineInfo: '' },
+    { onlineInfo: '   ' },
+    { onlineInfo: 'x'.repeat(2001) },
+    { onlineInfo: 'private-access', clearOnlineInfo: true },
+  ])('rejects an invalid online configuration command: %p', async (onlineUpdate) => {
+    orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
+    eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'u',
+        expectedVersion: 1,
+        ...onlineUpdate,
+      }),
+    ).rejects.toThrow('Invalid online configuration update');
+
+    expect(eventRepository.updateConfiguration).not.toHaveBeenCalled();
   });
 });

@@ -14,6 +14,7 @@ export class EventResponse {
   @ApiProperty({ nullable: true }) timezone!: string | null;
   @ApiProperty({ nullable: true }) venueId!: string | null;
   @ApiProperty({ nullable: true }) currency!: string | null;
+  @ApiProperty() onlineConfigured!: boolean;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 
@@ -31,6 +32,7 @@ export class EventResponse {
     res.timezone = event.timezone;
     res.venueId = event.venueId;
     res.currency = event.currency;
+    res.onlineConfigured = event.onlineInfo !== null && event.onlineInfo.trim().length > 0;
     res.createdAt = event.createdAt.toISOString();
     res.updatedAt = event.updatedAt.toISOString();
     return res;

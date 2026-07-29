@@ -100,4 +100,63 @@ describe('PrismaService', () => {
     await expect(prisma.outboxEvent.count()).resolves.toBeGreaterThanOrEqual(0);
     await expect(prisma.auditEntry.count()).resolves.toBeGreaterThanOrEqual(0);
   });
+
+  it('enforces publication columns, status constraints, and the public ordering index', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `publication-db-${Date.now()}@example.com` },
+    });
+    const organization = await prisma.organization.create({
+      data: {
+        slug: `publication-db-${Date.now()}`,
+        name: 'Publication Database Test',
+        ownerId: owner.id,
+      },
+    });
+    const event = await prisma.event.create({
+      data: {
+        organizationId: organization.id,
+        title: 'Publication Database Event',
+      },
+    });
+
+    await expect(
+      prisma.$executeRaw`
+        UPDATE events
+        SET status = 'PUBLISHED'
+        WHERE id = ${event.id}::uuid
+      `,
+    ).rejects.toThrow();
+
+    const publishedAt = new Date('2030-01-01T00:00:00.000Z');
+    await expect(
+      prisma.$executeRaw`
+        UPDATE events
+        SET status = 'PUBLISHED',
+            slug = 'publication-database-event',
+            published_at = ${publishedAt}
+        WHERE id = ${event.id}::uuid
+      `,
+    ).resolves.toBe(1);
+
+    await expect(
+      prisma.$executeRaw`
+        UPDATE events
+        SET status = 'UNKNOWN'
+        WHERE id = ${event.id}::uuid
+      `,
+    ).rejects.toThrow();
+
+    const indexes = await prisma.$queryRaw<Array<{ indexname: string }>>`
+      SELECT indexname
+      FROM pg_indexes
+      WHERE schemaname = current_schema()
+        AND tablename = 'events'
+        AND indexname = 'events_published_starts_at_id_idx'
+    `;
+    expect(indexes).toHaveLength(1);
+
+    await prisma.event.delete({ where: { id: event.id } });
+    await prisma.organization.delete({ where: { id: organization.id } });
+    await prisma.user.delete({ where: { id: owner.id } });
+  });
 });

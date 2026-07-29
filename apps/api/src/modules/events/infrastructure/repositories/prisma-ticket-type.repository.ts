@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import { TicketType } from '../../domain/ticket-types/ticket-type.entity';
-import { TicketTypeVersionConflictError, TicketTypeNotFoundError } from '../../domain/ticket-types/ticket-type.errors';
+import { EventNotFoundError, EventNotInDraftError } from '../../domain/event.errors';
+import {
+  TicketTypeVersionConflictError,
+  TicketTypeNotFoundError,
+} from '../../domain/ticket-types/ticket-type.errors';
 import type {
-  CreateTicketTypeInput,
   ITicketTypeRepository,
   UpdateTicketTypeInput,
 } from '../../domain/ticket-types/ticket-type-repository.port';
@@ -12,40 +15,6 @@ import type { TicketType as PrismaTicketType } from '@prisma/client';
 @Injectable()
 export class PrismaTicketTypeRepository implements ITicketTypeRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  async create(input: CreateTicketTypeInput): Promise<TicketType> {
-    const [row] = await this.prisma.$transaction([
-      this.prisma.ticketType.create({
-        data: {
-          id: input.id,
-          eventId: input.eventId,
-          organizationId: input.organizationId,
-          name: input.name,
-          description: input.description,
-          priceAmount: input.priceAmount,
-          capacity: input.capacity,
-        },
-      }),
-      this.prisma.outboxEvent.create({
-        data: {
-          aggregateType: 'ticket-type',
-          aggregateId: input.id,
-          type: 'ticket-type.created.v1',
-          version: '1',
-          organizationId: input.organizationId,
-          payload: {
-            ticketTypeId: input.id,
-            eventId: input.eventId,
-            organizationId: input.organizationId,
-            name: input.name,
-            priceAmount: input.priceAmount,
-            capacity: input.capacity,
-          },
-        },
-      }),
-    ]);
-    return this.toEntity(row);
-  }
 
   async findByEventAndId(eventId: string, ticketTypeId: string): Promise<TicketType | null> {
     const row = await this.prisma.ticketType.findFirst({
@@ -65,6 +34,17 @@ export class PrismaTicketTypeRepository implements ITicketTypeRepository {
 
   async update(input: UpdateTicketTypeInput): Promise<TicketType> {
     return this.prisma.$transaction(async (tx) => {
+      const lockedEvents = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status
+        FROM events
+        WHERE id = ${input.eventId}::uuid
+          AND organization_id = ${input.organizationId}::uuid
+        FOR UPDATE
+      `;
+      const lockedEvent = lockedEvents[0];
+      if (!lockedEvent) throw new EventNotFoundError();
+      if (lockedEvent.status !== 'DRAFT') throw new EventNotInDraftError();
+
       const updateData: Record<string, unknown> = { version: { increment: 1 } };
       if (input.name !== undefined) updateData['name'] = input.name;
       if (input.description !== undefined) updateData['description'] = input.description;

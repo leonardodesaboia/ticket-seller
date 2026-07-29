@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { IVenueAccessPort, VenueInfo } from '../../../events/domain/ports/venue-access.port';
+import {
+  IVenueAccessPort,
+  VenueInfo,
+} from '../../../events/application/ports/venue-access.port';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 
 @Injectable()

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
@@ -31,6 +32,7 @@ import {
   EventVenueOrganizationMismatchError,
   InsufficientRoleError,
   InvalidDateRangeError,
+  InvalidOnlineConfigurationUpdateError,
   InvalidTimezoneError,
   OrganizationAccessDeniedError,
 } from '../domain/event.errors';
@@ -160,6 +162,7 @@ export class EventsController {
         ...(dto.endsAt !== undefined && { endsAt: new Date(dto.endsAt) }),
         ...(dto.timezone !== undefined && { timezone: dto.timezone }),
         ...(dto.onlineInfo !== undefined && { onlineInfo: dto.onlineInfo }),
+        ...(dto.clearOnlineInfo !== undefined && { clearOnlineInfo: dto.clearOnlineInfo }),
         ...(dto.venueId !== undefined && { venueId: dto.venueId }),
         ...(dto.currency !== undefined && { currency: dto.currency }),
       });
@@ -174,6 +177,9 @@ export class EventsController {
       if (err instanceof EventVenueOrganizationMismatchError) throw new UnprocessableEntityException(err.message);
       if (err instanceof InvalidTimezoneError) throw new UnprocessableEntityException(err.message);
       if (err instanceof InvalidDateRangeError) throw new UnprocessableEntityException(err.message);
+      if (err instanceof InvalidOnlineConfigurationUpdateError) {
+        throw new BadRequestException(err.message);
+      }
       if (err instanceof EventCurrencyLockedError) throw new UnprocessableEntityException(err.message);
       throw err;
     }

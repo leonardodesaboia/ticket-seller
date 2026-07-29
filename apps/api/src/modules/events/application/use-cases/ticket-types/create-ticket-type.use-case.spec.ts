@@ -1,18 +1,14 @@
-import { CreateTicketTypeUseCase } from './create-ticket-type.use-case';
-import {
-  EventCurrencyNotSetError,
-} from '../../../domain/ticket-types/ticket-type.errors';
+import type { ICreateTicketTypeOperationPort } from '../../ports/create-ticket-type-operation.port';
+import type { Event } from '../../../domain/event.entity';
 import {
   EventNotFoundError,
-  EventNotInDraftError,
   InsufficientRoleError,
   OrganizationAccessDeniedError,
 } from '../../../domain/event.errors';
-import type { ITicketTypeRepository } from '../../../domain/ticket-types/ticket-type-repository.port';
 import type { IEventRepository } from '../../../domain/ports/event-repository.port';
 import type { IOrganizationAccessPort } from '../../../domain/ports/organization-access.port';
-import type { Event } from '../../../domain/event.entity';
 import type { TicketType } from '../../../domain/ticket-types/ticket-type.entity';
+import { CreateTicketTypeUseCase } from './create-ticket-type.use-case';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   id: 'evt-1',
@@ -48,29 +44,27 @@ const makeTicketType = (overrides: Partial<TicketType> = {}): TicketType => ({
   ...overrides,
 });
 
-const makePrisma = () => ({
-  idempotencyRecord: {
-    findUnique: jest.fn().mockResolvedValue(null),
-    upsert: jest.fn().mockResolvedValue({}),
-    update: jest.fn().mockResolvedValue({}),
-  },
-});
-
 describe('CreateTicketTypeUseCase', () => {
   let useCase: CreateTicketTypeUseCase;
-  let ticketTypeRepository: jest.Mocked<ITicketTypeRepository>;
+  let operation: jest.Mocked<ICreateTicketTypeOperationPort>;
   let eventRepository: jest.Mocked<IEventRepository>;
   let orgAccess: jest.Mocked<IOrganizationAccessPort>;
-  let prisma: ReturnType<typeof makePrisma>;
+
+  const execute = (overrides: Partial<Parameters<CreateTicketTypeUseCase['execute']>[0]> = {}) =>
+    useCase.execute({
+      organizationId: 'org-1',
+      eventId: 'evt-1',
+      actorId: 'user-1',
+      idempotencyKey: 'key-1',
+      name: 'General',
+      description: null,
+      priceAmount: 5000,
+      capacity: 100,
+      ...overrides,
+    });
 
   beforeEach(() => {
-    ticketTypeRepository = {
-      create: jest.fn(),
-      findByEventAndId: jest.fn(),
-      findByEvent: jest.fn(),
-      update: jest.fn(),
-      countActiveByEvent: jest.fn(),
-    };
+    operation = { execute: jest.fn() };
     eventRepository = {
       create: jest.fn(),
       findByOrganizationAndId: jest.fn(),
@@ -79,109 +73,96 @@ describe('CreateTicketTypeUseCase', () => {
       updateConfiguration: jest.fn(),
     };
     orgAccess = { findMember: jest.fn() };
-    prisma = makePrisma();
-    useCase = new CreateTicketTypeUseCase(
-      ticketTypeRepository,
-      eventRepository,
-      orgAccess,
-      prisma as never,
-    );
+    useCase = new CreateTicketTypeUseCase(operation, eventRepository, orgAccess);
   });
 
-  it('creates ticket type when actor is OWNER', async () => {
+  it('delegates one atomic create operation when actor is OWNER', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
-    ticketTypeRepository.create.mockResolvedValue(makeTicketType());
+    operation.execute.mockResolvedValue({ ticketType: makeTicketType(), cached: false });
 
-    const result = await useCase.execute({
-      organizationId: 'org-1',
-      eventId: 'evt-1',
-      actorId: 'user-1',
-      idempotencyKey: 'key-1',
-      name: 'General',
-      description: null,
-      priceAmount: 5000,
-      capacity: 100,
-    });
+    const result = await execute();
 
     expect(result.cached).toBe(false);
     expect(result.ticketType.name).toBe('General');
-    expect(ticketTypeRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'General', priceAmount: 5000, capacity: 100 }),
+    expect(operation.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopedKey: 'ticket-type-create:org-1:evt-1:key-1',
+        requestHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        ticketType: expect.objectContaining({
+          eventId: 'evt-1',
+          organizationId: 'org-1',
+          name: 'General',
+          description: null,
+          priceAmount: 5000,
+          capacity: 100,
+        }),
+      }),
     );
   });
 
-  it('returns cached result when idempotency key is reused', async () => {
-    const cachedBody = {
-      id: 'tt-cached', eventId: 'evt-1', organizationId: 'org-1', name: 'Cached',
-      description: null, priceAmount: 5000, capacity: 100, status: 'ACTIVE', version: 1,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    };
-    prisma.idempotencyRecord.findUnique.mockResolvedValue({
-      idempotencyKey: 'key-1', completedAt: new Date(), responseBody: cachedBody,
-    });
+  it('returns the cached result supplied by the atomic operation', async () => {
+    const cached = makeTicketType({ id: 'tt-cached' });
+    orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
+    eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
+    operation.execute.mockResolvedValue({ ticketType: cached, cached: true });
 
-    const result = await useCase.execute({
-      organizationId: 'org-1',
-      eventId: 'evt-1',
-      actorId: 'user-1',
-      idempotencyKey: 'key-1',
-      name: 'General',
-      description: null,
-      priceAmount: 5000,
-      capacity: 100,
-    });
+    await expect(execute()).resolves.toEqual({ ticketType: cached, cached: true });
+  });
 
-    expect(result.cached).toBe(true);
-    expect(result.ticketType.id).toBe('tt-cached');
-    expect(ticketTypeRepository.create).not.toHaveBeenCalled();
+  it('includes description in the material request hash', async () => {
+    orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
+    eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
+    operation.execute.mockResolvedValue({ ticketType: makeTicketType(), cached: false });
+
+    await execute({ description: 'First description' });
+    await execute({ description: 'Different description' });
+
+    const firstHash = operation.execute.mock.calls[0]?.[0].requestHash;
+    const secondHash = operation.execute.mock.calls[1]?.[0].requestHash;
+    expect(firstHash).toBeDefined();
+    expect(secondHash).toBeDefined();
+    expect(firstHash).not.toBe(secondHash);
   });
 
   it('throws OrganizationAccessDeniedError when actor is not a member', async () => {
-    prisma.idempotencyRecord.findUnique.mockResolvedValue(null);
     orgAccess.findMember.mockResolvedValue(null);
 
-    await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'x', idempotencyKey: 'k', name: 'G', description: null, priceAmount: 0, capacity: 1 }),
-    ).rejects.toThrow(OrganizationAccessDeniedError);
+    await expect(execute()).rejects.toThrow(OrganizationAccessDeniedError);
+    expect(operation.execute).not.toHaveBeenCalled();
   });
 
   it('throws InsufficientRoleError when actor is VIEWER', async () => {
-    prisma.idempotencyRecord.findUnique.mockResolvedValue(null);
     orgAccess.findMember.mockResolvedValue({ role: 'VIEWER', status: 'ACTIVE' });
 
-    await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'x', idempotencyKey: 'k', name: 'G', description: null, priceAmount: 0, capacity: 1 }),
-    ).rejects.toThrow(InsufficientRoleError);
+    await expect(execute()).rejects.toThrow(InsufficientRoleError);
   });
 
   it('throws EventNotFoundError when event does not exist', async () => {
-    prisma.idempotencyRecord.findUnique.mockResolvedValue(null);
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(null);
 
-    await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'x', idempotencyKey: 'k', name: 'G', description: null, priceAmount: 0, capacity: 1 }),
-    ).rejects.toThrow(EventNotFoundError);
+    await expect(execute()).rejects.toThrow(EventNotFoundError);
   });
 
-  it('throws EventNotInDraftError when event is not DRAFT', async () => {
-    prisma.idempotencyRecord.findUnique.mockResolvedValue(null);
+  it('delegates DRAFT validation so a completed replay can succeed after publication', async () => {
+    const cached = makeTicketType({ id: 'tt-cached' });
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ status: 'PUBLISHED' }));
+    operation.execute.mockResolvedValue({ ticketType: cached, cached: true });
 
-    await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'x', idempotencyKey: 'k', name: 'G', description: null, priceAmount: 0, capacity: 1 }),
-    ).rejects.toThrow(EventNotInDraftError);
+    await expect(execute()).resolves.toEqual({ ticketType: cached, cached: true });
+    expect(operation.execute).toHaveBeenCalled();
   });
 
-  it('throws EventCurrencyNotSetError when event has no currency', async () => {
-    prisma.idempotencyRecord.findUnique.mockResolvedValue(null);
+  it('delegates currency validation to the atomic operation', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ currency: null }));
+    operation.execute.mockResolvedValue({ ticketType: makeTicketType(), cached: false });
 
-    await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'x', idempotencyKey: 'k', name: 'G', description: null, priceAmount: 0, capacity: 1 }),
-    ).rejects.toThrow(EventCurrencyNotSetError);
+    await expect(execute()).resolves.toEqual({
+      ticketType: expect.objectContaining({ id: 'tt-1' }),
+      cached: false,
+    });
   });
 });

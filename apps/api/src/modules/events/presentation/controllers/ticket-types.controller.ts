@@ -19,6 +19,7 @@ import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
 import { CurrentActor } from '../../../../shared/kernel/current-actor.decorator';
 import type { ICurrentActor } from '../../../../shared/kernel/actor.types';
 import { CreateTicketTypeUseCase } from '../../application/use-cases/ticket-types/create-ticket-type.use-case';
+import { IdempotencyKeyConflictError } from '../../application/errors/idempotency-key-conflict.error';
 import { ListEventTicketTypesUseCase } from '../../application/use-cases/ticket-types/list-event-ticket-types.use-case';
 import { UpdateTicketTypeUseCase } from '../../application/use-cases/ticket-types/update-ticket-type.use-case';
 import {
@@ -37,6 +38,14 @@ import { UpdateTicketTypeDto } from '../dto/ticket-types/update-ticket-type.dto'
 import { TicketTypeResponse } from '../dto/ticket-types/ticket-type.response';
 
 const uuidPipe = new ParseUUIDPipe({ version: '4' });
+const IDEMPOTENCY_KEY_MAX_LENGTH = 255;
+
+function hasControlCharacters(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
+  });
+}
 
 @ApiTags('ticket-types')
 @Controller('organizations/:organizationId/events/:eventId/ticket-types')
@@ -57,15 +66,22 @@ export class TicketTypesController {
     @Body() dto: CreateTicketTypeDto,
     @CurrentActor() actor: ICurrentActor,
   ): Promise<TicketTypeResponse> {
-    if (!idempotencyKey) {
-      throw new UnprocessableEntityException('Idempotency-Key header is required');
+    const normalizedIdempotencyKey = idempotencyKey?.trim();
+    if (
+      !normalizedIdempotencyKey ||
+      normalizedIdempotencyKey.length > IDEMPOTENCY_KEY_MAX_LENGTH ||
+      hasControlCharacters(normalizedIdempotencyKey)
+    ) {
+      throw new UnprocessableEntityException(
+        'Idempotency-Key must contain 1 to 255 printable characters',
+      );
     }
     try {
       const { ticketType } = await this.createTicketType.execute({
         organizationId,
         eventId,
         actorId: actor.userId,
-        idempotencyKey,
+        idempotencyKey: normalizedIdempotencyKey,
         name: dto.name,
         description: dto.description ?? null,
         priceAmount: dto.priceAmount,
@@ -78,6 +94,7 @@ export class TicketTypesController {
       if (err instanceof InsufficientRoleError) throw new ForbiddenException(err.message);
       if (err instanceof EventNotInDraftError) throw new UnprocessableEntityException(err.message);
       if (err instanceof EventCurrencyNotSetError) throw new UnprocessableEntityException(err.message);
+      if (err instanceof IdempotencyKeyConflictError) throw new ConflictException(err.message);
       throw err;
     }
   }

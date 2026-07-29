@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useId } from 'react';
+import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/shared/ui/primitives/button';
 import { toMinorUnits } from '@/shared/lib/money';
@@ -10,6 +10,11 @@ import { ApiError } from '../api/ticket-types.api';
 import { useCreateTicketType } from '../hooks/use-create-ticket-type';
 import { createTicketTypeSchema, type CreateTicketTypeFormData } from '../schemas';
 import type { TicketType } from '../types';
+import {
+  completeIdempotencyOperation,
+  createEmptyIdempotencyOperation,
+  resolveIdempotencyOperation,
+} from '../lib/idempotency-operation';
 
 interface CreateTicketTypeFormProps {
   organizationId: string;
@@ -26,7 +31,7 @@ export function CreateTicketTypeForm({
   onSuccess,
   onCancel,
 }: CreateTicketTypeFormProps) {
-  const uid = useId();
+  const operationRef = useRef(createEmptyIdempotencyOperation());
   const mutation = useCreateTicketType(organizationId, eventId, devUserId);
 
   const {
@@ -39,17 +44,25 @@ export function CreateTicketTypeForm({
   });
 
   async function onSubmit(data: CreateTicketTypeFormData) {
+    const input = {
+      name: data.name,
+      priceAmount: toMinorUnits(data.priceAmount),
+      capacity: data.capacity,
+      description: data.description ?? null,
+    };
+    const operation = resolveIdempotencyOperation(
+      operationRef.current,
+      input,
+      () => crypto.randomUUID(),
+    );
+    operationRef.current = operation.state;
+
     try {
-      const idempotencyKey = `${uid}-${Date.now()}`;
       const ticketType = await mutation.mutateAsync({
-        input: {
-          name: data.name,
-          priceAmount: toMinorUnits(data.priceAmount),
-          capacity: data.capacity,
-          description: data.description ?? null,
-        },
-        idempotencyKey,
+        input,
+        idempotencyKey: operation.key,
       });
+      operationRef.current = completeIdempotencyOperation();
       onSuccess(ticketType);
     } catch {
       // error handled via mutation.error

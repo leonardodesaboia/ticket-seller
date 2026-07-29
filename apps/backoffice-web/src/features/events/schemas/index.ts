@@ -31,7 +31,13 @@ export const updateEventConfigurationSchema = z
     startsAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
     endsAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
     timezone: z.string().min(1).max(100).optional(),
-    onlineInfo: z.string().max(2000).nullable().optional(),
+    onlineInfo: z
+      .union([
+        z.string().trim().min(1, 'Informe um link ou instrução válida').max(2000),
+        z.literal('').transform(() => undefined),
+      ])
+      .optional(),
+    clearOnlineInfo: z.literal(true).optional(),
     venueId: z.string().uuid().nullable().optional(),
     currency: z
       .string()
@@ -48,6 +54,10 @@ export const updateEventConfigurationSchema = z
       return true;
     },
     { message: 'Data de término deve ser após a data de início', path: ['endsAt'] },
-  );
+  )
+  .refine((data) => !(data.onlineInfo && data.clearOnlineInfo), {
+    message: 'Substitua ou remova a configuração online, não execute as duas ações',
+    path: ['onlineInfo'],
+  });
 
 export type UpdateEventConfigurationFormData = z.infer<typeof updateEventConfigurationSchema>;

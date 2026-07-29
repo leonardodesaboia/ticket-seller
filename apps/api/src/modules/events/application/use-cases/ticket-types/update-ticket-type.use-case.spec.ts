@@ -36,7 +36,6 @@ describe('UpdateTicketTypeUseCase', () => {
 
   beforeEach(() => {
     ticketTypeRepository = {
-      create: jest.fn(),
       findByEventAndId: jest.fn(),
       findByEvent: jest.fn(),
       update: jest.fn(),

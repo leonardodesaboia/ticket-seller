@@ -60,3 +60,10 @@ export class InvalidDateRangeError extends Error {
     this.name = 'InvalidDateRangeError';
   }
 }
+
+export class InvalidOnlineConfigurationUpdateError extends Error {
+  constructor() {
+    super('Invalid online configuration update');
+    this.name = 'InvalidOnlineConfigurationUpdateError';
+  }
+}

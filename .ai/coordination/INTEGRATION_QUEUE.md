@@ -2,7 +2,13 @@ Fila de integração
 
 Última atualização: 2026-07-29
 
-(fila vazia — todas as tarefas da fase atual foram integradas)
+| Ordem | Tarefa | Status |
+| --- | --- | --- |
+| 1 | TASK-020A | MERGED |
+| 2 | TASK-021 | MERGED |
+| 3 | TASK-022 | WAITING |
+| 4 | TASK-023 | WAITING |
+| 5 | TASK-024 | WAITING |
 
 Histórico recente
 Ordem	Tarefa	Status	Data

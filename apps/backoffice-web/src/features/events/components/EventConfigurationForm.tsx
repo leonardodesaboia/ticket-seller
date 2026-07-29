@@ -44,6 +44,7 @@ export function EventConfigurationForm({
     formState: { errors, isSubmitting },
   } = useForm<UpdateEventConfigurationFormData>({
     resolver: zodResolver(updateEventConfigurationSchema),
+    shouldUnregister: true,
     defaultValues: {
       expectedVersion: event.version,
       format: (event.format as 'IN_PERSON' | 'ONLINE' | 'HYBRID' | undefined) ?? undefined,
@@ -51,6 +52,7 @@ export function EventConfigurationForm({
       endsAt: event.endsAt ?? '',
       timezone: event.timezone ?? '',
       onlineInfo: undefined,
+      clearOnlineInfo: undefined,
       venueId: event.venueId ?? null,
       currency: event.currency ?? '',
     },
@@ -74,6 +76,7 @@ export function EventConfigurationForm({
       if (data.endsAt) payload.endsAt = data.endsAt;
       if (data.timezone) payload.timezone = data.timezone;
       if (data.onlineInfo !== undefined) payload.onlineInfo = data.onlineInfo;
+      if (data.clearOnlineInfo) payload.clearOnlineInfo = true;
       if (data.venueId !== undefined) payload.venueId = data.venueId;
       if (data.currency) payload.currency = data.currency;
 
@@ -218,22 +221,46 @@ export function EventConfigurationForm({
         </div>
       )}
 
-      {/* Online info (ONLINE / HYBRID) — not stored in response, send-only */}
+      {/* Online access information is private and write-only. */}
       {showOnlineInfo && (
         <div className="flex flex-col gap-1">
           <label htmlFor="cfg-online-info" className="text-sm font-medium text-foreground">
-            Link / informações online{' '}
+            Substituir link / informações online{' '}
             <span className="text-xs text-muted-foreground">(não exibido publicamente)</span>
           </label>
+          <p id="cfg-online-info-help" className="text-xs text-muted-foreground">
+            {event.onlineConfigured
+              ? 'Já existe uma configuração privada. Deixe em branco para preservá-la.'
+              : 'Nenhuma configuração online foi cadastrada.'}
+          </p>
           <input
             id="cfg-online-info"
             type="text"
             placeholder="https://..."
+            aria-describedby="cfg-online-info-help"
             {...register('onlineInfo')}
             className={inputClass(!!errors.onlineInfo)}
           />
           {errors.onlineInfo && (
             <span className="text-xs text-destructive">{errors.onlineInfo.message}</span>
+          )}
+          {event.onlineConfigured && (
+            <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
+              <Controller
+                name="clearOnlineInfo"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    type="checkbox"
+                    checked={field.value === true}
+                    onChange={(changeEvent) =>
+                      field.onChange(changeEvent.target.checked ? true : undefined)
+                    }
+                  />
+                )}
+              />
+              Remover explicitamente a configuração online existente
+            </label>
           )}
         </div>
       )}

@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import { Event } from '../../domain/event.entity';
-import { EventNotFoundError, EventVersionConflictError } from '../../domain/event.errors';
+import {
+  EventNotFoundError,
+  EventNotInDraftError,
+  EventVersionConflictError,
+} from '../../domain/event.errors';
+import { EventCurrencyLockedError } from '../../domain/ticket-types/ticket-type.errors';
 import type {
   CreateEventInput,
   IEventRepository,
@@ -127,7 +132,9 @@ export class PrismaEventRepository implements IEventRepository {
         throw new EventVersionConflictError();
       }
 
-      const updated = await tx.event.findFirst({ where: { id: input.eventId } });
+      const updated = await tx.event.findFirst({
+        where: { id: input.eventId, organizationId: input.organizationId },
+      });
       if (!updated) throw new EventNotFoundError();
 
       const changedFields: string[] = [];
@@ -157,6 +164,31 @@ export class PrismaEventRepository implements IEventRepository {
 
   async updateConfiguration(input: UpdateEventConfigurationInput): Promise<Event> {
     return this.prisma.$transaction(async (tx) => {
+      const lockedEvents = await tx.$queryRaw<
+        Array<{ status: string; version: number; currency: string | null }>
+      >`
+        SELECT status, version, currency
+        FROM events
+        WHERE id = ${input.eventId}::uuid
+          AND organization_id = ${input.organizationId}::uuid
+        FOR UPDATE
+      `;
+      const lockedEvent = lockedEvents[0];
+      if (!lockedEvent) throw new EventNotFoundError();
+      if (lockedEvent.status !== 'DRAFT') throw new EventNotInDraftError();
+      if (lockedEvent.version !== input.expectedVersion) throw new EventVersionConflictError();
+
+      if (input.currency !== undefined && input.currency !== lockedEvent.currency) {
+        const activeTicketTypes = await tx.ticketType.count({
+          where: {
+            eventId: input.eventId,
+            organizationId: input.organizationId,
+            status: 'ACTIVE',
+          },
+        });
+        if (activeTicketTypes > 0) throw new EventCurrencyLockedError();
+      }
+
       const updateData: Record<string, unknown> = {
         version: { increment: 1 },
       };
@@ -182,7 +214,9 @@ export class PrismaEventRepository implements IEventRepository {
         throw new EventVersionConflictError();
       }
 
-      const updated = await tx.event.findFirst({ where: { id: input.eventId } });
+      const updated = await tx.event.findFirst({
+        where: { id: input.eventId, organizationId: input.organizationId },
+      });
       if (!updated) throw new EventNotFoundError();
 
       const changedFields = Object.keys(updateData).filter((k) => k !== 'version');

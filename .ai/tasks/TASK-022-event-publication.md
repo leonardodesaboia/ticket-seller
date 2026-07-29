@@ -4,6 +4,13 @@
 
 IN_PROGRESS
 
+## Checkpoint de 2026-07-29
+
+A fundação de banco e o suporte seguro a extensões RFC 9457 foram implementados
+e validados. O caso de uso/adapter/controller de publicação ainda não foi
+implementado. O estado completo para retomada está em
+`.ai/reports/EXECUTION-HANDOFF-2026-07-29-publication-phase.md`.
+
 ## Objetivo
 
 Implementar a transição atômica e idempotente `DRAFT → PUBLISHED`.

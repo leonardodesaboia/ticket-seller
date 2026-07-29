@@ -2,7 +2,11 @@ Tarefas ativas
 
 Última atualização: 2026-07-29
 
-(nenhuma tarefa ativa no momento — TASK-020 integrada)
+| Tarefa | Status | Responsável |
+| --- | --- | --- |
+| TASK-022 — Event Publication | IN_PROGRESS (checkpoint salvo) | Database Owner concluído/backend publication pausado |
+| TASK-023 — Public Event Catalog API | BLOCKED | Public catalog owner |
+| TASK-024 — Publish Flow and Marketplace | BLOCKED | Frontend owners |
 
 Estados
 BLOCKED: dependências ainda não integradas;
@@ -33,6 +37,8 @@ TASK-017: Event Management Backoffice — MERGED em 2026-07-28
 TASK-018: Event Schedule and Venue Foundation — MERGED em 2026-07-29
 TASK-019: Ticket Types Foundation — MERGED em 2026-07-29
 TASK-020: Event Configuration Backoffice — MERGED em 2026-07-29
+TASK-020A: Correções da auditoria TASK-018 a TASK-020 — MERGED em 2026-07-29
+TASK-021: Publication Readiness — MERGED em 2026-07-29
 
 Regras
 uma tarefa deve aparecer uma única vez;

@@ -139,6 +139,137 @@ describe('Ticket Types API', () => {
       expect(count).toBe(1);
     });
 
+    it('replays the completed response after the event becomes PUBLISHED', async () => {
+      const payload = { name: 'Replay after publish', priceAmount: 20000, capacity: 10 };
+      const created = await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', testUserId)
+        .set('Idempotency-Key', 'key-replay-published')
+        .send(payload)
+        .expect(201);
+
+      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+
+      const replay = await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', testUserId)
+        .set('Idempotency-Key', 'key-replay-published')
+        .send(payload)
+        .expect(201);
+
+      expect(replay.body.id).toBe(created.body.id);
+      await expect(prisma.ticketType.count({ where: { eventId } })).resolves.toBe(1);
+    });
+
+    it('returns 409 for a different payload after the event becomes PUBLISHED', async () => {
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', testUserId)
+        .set('Idempotency-Key', 'key-conflict-published')
+        .send({ name: 'Original', priceAmount: 20000, capacity: 10 })
+        .expect(201);
+
+      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', testUserId)
+        .set('Idempotency-Key', 'key-conflict-published')
+        .send({ name: 'Changed', priceAmount: 20000, capacity: 10 })
+        .expect(409);
+    });
+
+    it('returns 409 when the same key is reused with a different description', async () => {
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', testUserId)
+        .set('Idempotency-Key', 'key-description-conflict')
+        .send({
+          name: 'VIP',
+          description: 'First description',
+          priceAmount: 20000,
+          capacity: 10,
+        })
+        .expect(201);
+
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', testUserId)
+        .set('Idempotency-Key', 'key-description-conflict')
+        .send({
+          name: 'VIP',
+          description: 'Different description',
+          priceAmount: 20000,
+          capacity: 10,
+        })
+        .expect(409);
+
+      await expect(prisma.ticketType.count({ where: { eventId } })).resolves.toBe(1);
+    });
+
+    it('atomically serializes concurrent requests with the same key', async () => {
+      const makeRequest = () =>
+        supertest(app.getHttpServer())
+          .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+          .set('X-Dev-User-Id', testUserId)
+          .set('Idempotency-Key', 'key-concurrent')
+          .send({ name: 'Concurrent', priceAmount: 5000, capacity: 100 });
+
+      const [first, second] = await Promise.all([makeRequest(), makeRequest()]);
+
+      expect(first.status).toBe(201);
+      expect(second.status).toBe(201);
+      expect(first.body.id).toBe(second.body.id);
+      await expect(prisma.ticketType.count({ where: { eventId } })).resolves.toBe(1);
+      await expect(
+        prisma.outboxEvent.count({
+          where: { type: 'ticket-type.created.v1', aggregateId: first.body.id as string },
+        }),
+      ).resolves.toBe(1);
+      await expect(
+        prisma.idempotencyRecord.count({
+          where: {
+            idempotencyKey: `ticket-type-create:${organizationId}:${eventId}:key-concurrent`,
+            completedAt: { not: null },
+          },
+        }),
+      ).resolves.toBe(1);
+    });
+
+    it('authorizes the actor before replaying a cached response', async () => {
+      const payload = { name: 'Restricted replay', priceAmount: 5000, capacity: 100 };
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', testUserId)
+        .set('Idempotency-Key', 'key-restricted-replay')
+        .send(payload)
+        .expect(201);
+
+      const outsider = await prisma.user.create({
+        data: { email: `replay-outsider-${Date.now()}@test.com`, displayName: 'Outsider' },
+      });
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', outsider.id)
+        .set('Idempotency-Key', 'key-restricted-replay')
+        .send(payload)
+        .expect(404);
+      await prisma.user.delete({ where: { id: outsider.id } });
+
+      const viewer = await prisma.user.create({
+        data: { email: `replay-viewer-${Date.now()}@test.com`, displayName: 'Viewer' },
+      });
+      await prisma.organizationMember.create({
+        data: { organizationId, userId: viewer.id, role: 'VIEWER', status: 'ACTIVE' },
+      });
+      await supertest(app.getHttpServer())
+        .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+        .set('X-Dev-User-Id', viewer.id)
+        .set('Idempotency-Key', 'key-restricted-replay')
+        .send(payload)
+        .expect(403);
+    });
+
     it('writes ticket-type.created.v1 to outbox', async () => {
       const res = await supertest(app.getHttpServer())
         .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
@@ -161,6 +292,24 @@ describe('Ticket Types API', () => {
         .send({ name: 'Test', priceAmount: 1000, capacity: 10 })
         .expect(422);
     });
+
+    it.each(['   ', 'x'.repeat(256)])(
+      'rejects invalid Idempotency-Key %p without effects',
+      async (idempotencyKey) => {
+        await supertest(app.getHttpServer())
+          .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
+          .set('X-Dev-User-Id', testUserId)
+          .set('Idempotency-Key', idempotencyKey)
+          .send({ name: 'Test', priceAmount: 1000, capacity: 10 })
+          .expect(422);
+
+        await expect(prisma.ticketType.count({ where: { eventId } })).resolves.toBe(0);
+        await expect(prisma.idempotencyRecord.count()).resolves.toBe(0);
+        await expect(
+          prisma.outboxEvent.count({ where: { type: 'ticket-type.created.v1' } }),
+        ).resolves.toBe(0);
+      },
+    );
 
     it('returns 422 when event has no currency set', async () => {
       const eventNoCurrency = await prisma.event.create({
@@ -186,6 +335,14 @@ describe('Ticket Types API', () => {
         .set('Idempotency-Key', 'key-published')
         .send({ name: 'General', priceAmount: 1000, capacity: 50 })
         .expect(422);
+
+      await expect(
+        prisma.idempotencyRecord.findUnique({
+          where: {
+            idempotencyKey: `ticket-type-create:${organizationId}:${publishedEvent.id}:key-published`,
+          },
+        }),
+      ).resolves.toBeNull();
     });
 
     it('returns 400 when priceAmount is negative', async () => {

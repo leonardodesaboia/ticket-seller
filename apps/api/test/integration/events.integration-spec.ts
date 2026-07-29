@@ -521,6 +521,54 @@ describe('Events API', () => {
       expect(res.body.currency).toBe('BRL');
     });
 
+    it('serializes currency change with concurrent ticket type creation', async () => {
+      let releaseTransaction = (): void => undefined;
+      const release = new Promise<void>((resolve) => {
+        releaseTransaction = resolve;
+      });
+      let signalLockAcquired = (): void => undefined;
+      const lockAcquired = new Promise<void>((resolve) => {
+        signalLockAcquired = resolve;
+      });
+
+      const ticketCreation = prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT id
+          FROM events
+          WHERE id = ${eventId}::uuid
+            AND organization_id = ${organizationId}::uuid
+          FOR UPDATE
+        `;
+        await tx.ticketType.create({
+          data: {
+            eventId,
+            organizationId,
+            name: 'Concurrent',
+            priceAmount: 1000,
+            capacity: 10,
+          },
+        });
+        signalLockAcquired();
+        await release;
+      });
+
+      await lockAcquired;
+      const currencyChange = supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, currency: 'USD' });
+
+      const responsePromise = currencyChange.then((response) => response);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      releaseTransaction();
+      await ticketCreation;
+      const response = await responsePromise;
+
+      expect(response.status).toBe(422);
+      const stored = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+      expect(stored.currency).toBeNull();
+    });
+
     it('returns 200 and updates venueId when venue belongs to same org', async () => {
       const venue = await prisma.venue.create({
         data: {
@@ -679,7 +727,7 @@ describe('Events API', () => {
       await prisma.user.delete({ where: { id: stranger.id } });
     });
 
-    it('onlineInfo is accepted but NOT included in EventResponse', async () => {
+    it('exposes only onlineConfigured after setting private onlineInfo', async () => {
       const res = await supertest(app.getHttpServer())
         .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
         .set('X-Dev-User-Id', testUserId)
@@ -687,6 +735,62 @@ describe('Events API', () => {
         .expect(200);
 
       expect(res.body).not.toHaveProperty('onlineInfo');
+      expect(res.body.onlineConfigured).toBe(true);
+
+      const outbox = await prisma.outboxEvent.findFirstOrThrow({
+        where: { type: 'event.configuration-updated.v1', aggregateId: eventId },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(JSON.stringify(outbox.payload)).not.toContain('meet.example.com/secret');
+      expect(outbox.payload).toMatchObject({ changedFields: ['onlineInfo'] });
+    });
+
+    it('preserves private onlineInfo when omitted during a format change', async () => {
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { onlineInfo: 'private-access' },
+      });
+
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, format: 'IN_PERSON' })
+        .expect(200);
+
+      expect(res.body.onlineConfigured).toBe(true);
+      const stored = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+      expect(stored.onlineInfo).toBe('private-access');
+    });
+
+    it('clears private onlineInfo only with clearOnlineInfo true', async () => {
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { onlineInfo: 'private-access' },
+      });
+
+      const res = await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, clearOnlineInfo: true })
+        .expect(200);
+
+      expect(res.body.onlineConfigured).toBe(false);
+      const stored = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+      expect(stored.onlineInfo).toBeNull();
+    });
+
+    it.each([
+      { onlineInfo: null },
+      { onlineInfo: '' },
+      { onlineInfo: '   ' },
+      { onlineInfo: 'x'.repeat(2001) },
+      { onlineInfo: 'private-access', clearOnlineInfo: true },
+    ])('returns 400 for invalid onlineInfo command %p', async (body) => {
+      await supertest(app.getHttpServer())
+        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
+        .set('X-Dev-User-Id', testUserId)
+        .send({ expectedVersion: 1, ...body })
+        .expect(400);
     });
   });
 });

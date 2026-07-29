@@ -8,6 +8,7 @@ import {
   EventVersionConflictError,
   InsufficientRoleError,
   InvalidDateRangeError,
+  InvalidOnlineConfigurationUpdateError,
   InvalidTimezoneError,
   OrganizationAccessDeniedError,
 } from '../../domain/event.errors';
@@ -17,12 +18,7 @@ import {
   ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../domain/ports/organization-access.port';
-import { VENUE_ACCESS_PORT, type IVenueAccessPort } from '../../domain/ports/venue-access.port';
-import {
-  TICKET_TYPE_REPOSITORY,
-  type ITicketTypeRepository,
-} from '../../domain/ticket-types/ticket-type-repository.port';
-import { EventCurrencyLockedError } from '../../domain/ticket-types/ticket-type.errors';
+import { VENUE_ACCESS_PORT, type IVenueAccessPort } from '../ports/venue-access.port';
 
 export interface UpdateEventConfigurationCommand {
   organizationId: string;
@@ -34,6 +30,7 @@ export interface UpdateEventConfigurationCommand {
   endsAt?: Date;
   timezone?: string;
   onlineInfo?: string | null;
+  clearOnlineInfo?: boolean;
   venueId?: string | null;
   currency?: string;
 }
@@ -53,7 +50,6 @@ export class UpdateEventConfigurationUseCase {
     @Inject(EVENT_REPOSITORY) private readonly eventRepository: IEventRepository,
     @Inject(ORGANIZATION_ACCESS_PORT) private readonly orgAccess: IOrganizationAccessPort,
     @Inject(VENUE_ACCESS_PORT) private readonly venueAccess: IVenueAccessPort,
-    @Inject(TICKET_TYPE_REPOSITORY) private readonly ticketTypeRepository: ITicketTypeRepository,
   ) {}
 
   async execute(command: UpdateEventConfigurationCommand): Promise<Event> {
@@ -84,15 +80,20 @@ export class UpdateEventConfigurationUseCase {
       throw new EventVersionConflictError();
     }
 
-    if (command.timezone !== undefined && !isValidIANATimezone(command.timezone)) {
-      throw new InvalidTimezoneError(command.timezone);
+    const onlineInfo = command.onlineInfo;
+    const hasOnlineInfo = onlineInfo !== undefined;
+    if (
+      (hasOnlineInfo &&
+        (onlineInfo === null ||
+          onlineInfo.trim().length === 0 ||
+          onlineInfo.length > 2000)) ||
+      (hasOnlineInfo && command.clearOnlineInfo === true)
+    ) {
+      throw new InvalidOnlineConfigurationUpdateError();
     }
 
-    if (command.currency !== undefined && command.currency !== event.currency) {
-      const ticketTypeCount = await this.ticketTypeRepository.countActiveByEvent(command.eventId);
-      if (ticketTypeCount > 0) {
-        throw new EventCurrencyLockedError();
-      }
+    if (command.timezone !== undefined && !isValidIANATimezone(command.timezone)) {
+      throw new InvalidTimezoneError(command.timezone);
     }
 
     const effectiveStartsAt = command.startsAt ?? event.startsAt;
@@ -120,6 +121,7 @@ export class UpdateEventConfigurationUseCase {
       ...(command.endsAt !== undefined && { endsAt: command.endsAt }),
       ...(command.timezone !== undefined && { timezone: command.timezone }),
       ...(command.onlineInfo !== undefined && { onlineInfo: command.onlineInfo }),
+      ...(command.clearOnlineInfo === true && { onlineInfo: null }),
       ...(command.venueId !== undefined && { venueId: command.venueId }),
       ...(command.currency !== undefined && { currency: command.currency }),
     });
