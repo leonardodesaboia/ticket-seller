@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-07-29 (TASK-017)
+Última atualização: 2026-07-29 (TASK-020)
 
 Fase
 
@@ -51,6 +51,9 @@ TASK-014 — Backoffice UI. (CONCLUÍDA)
 TASK-015 — ListOrganizationEvents + ParseUUIDPipe. (CONCLUÍDA)
 TASK-016 — UpdateEvent com controle de concorrência. (CONCLUÍDA)
 TASK-017 — Event Management Backoffice. (CONCLUÍDA)
+TASK-018 — Event Schedule, Venue e Currency Foundation. (CONCLUÍDA)
+TASK-019 — Ticket Types Foundation. (CONCLUÍDA)
+TASK-020 — Event Configuration Backoffice. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -110,4 +113,7 @@ multi-cloud ativa.
 - backoffice UI completa: organizations/new, events/new, events/[id] com TanStack Query, React Hook Form + Zod, design tokens — TASK-014;
 - ListOrganizationEvents: GET /api/v1/organizations/:orgId/events com paginação keyset (createdAt DESC + id DESC), cursor base64url, ParseUUIDPipe em todos os parâmetros UUID, Fastify adapter corrigido nos testes de integração — TASK-015;
 - UpdateEvent: PATCH /api/v1/organizations/:orgId/events/:eventId, coluna version INTEGER (migration 20260729000002_event_version), optimistic locking via updateMany WHERE version=N, 409 Conflict + 422 UnprocessableEntity + 403 Forbidden, outbox event.updated.v1 atômico com changedFields — TASK-016;
-- backoffice event management: listagem paginada /organizations/[id]/events, formulário de edição /organizations/[id]/events/[id]/edit com detecção de conflito 409 — TASK-017.
+- backoffice event management: listagem paginada /organizations/[id]/events, formulário de edição /organizations/[id]/events/[id]/edit com detecção de conflito 409 — TASK-017;
+- event schedule/venue/currency: migration events (format, startsAt, endsAt, timezone, onlineInfo, venueId, currency), módulo venues (POST/GET), PATCH /events/:id/configuration com optimistic lock, outbox, cross-module IVenueAccessPort — TASK-018;
+- ticket types: migration ticket_types, domínio dentro de events/domain/ticket-types/, POST/GET/PATCH com idempotência scoped (orgId:eventId:key), deactivation via status=INACTIVE, currency lock (422 quando há ingressos ativos) — TASK-019;
+- backoffice configuração: VenueSelect com criação inline, TicketTypeList com deactivation + version conflict, EventConfigurationForm com campos condicionais por formato, página /configuration integrada, utilitário money.ts (toMinorUnits/toDisplayValue) — TASK-020.

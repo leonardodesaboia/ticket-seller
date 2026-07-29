@@ -45,17 +45,21 @@ apps/
 │       ├── app/
 │       │   ├── layout, page, providers.tsx
 │       │   └── organizations/[organizationId]/
-│       │       ├── events/           — listagem paginada (EventList + load-more)
-│       │       ├── events/new/       — criação de evento
-│       │       ├── events/[eventId]/ — detalhe do evento
-│       │       └── events/[eventId]/edit/ — formulário de edição (apenas DRAFT, 409 detection)
+│       │       ├── events/                       — listagem paginada (EventList + load-more)
+│       │       ├── events/new/                   — criação de evento
+│       │       ├── events/[eventId]/             — detalhe + links para configurar/editar
+│       │       ├── events/[eventId]/edit/        — formulário de edição (apenas DRAFT, 409 detection)
+│       │       └── events/[eventId]/configuration/ — configuração: schedule, venue, currency, ticket types
 │       ├── features/
 │       │   ├── organizations/ — types, schemas, api, hooks, CreateOrganizationForm
-│       │   └── events/        — types, schemas, api, hooks, CreateEventForm, EventDetail,
-│       │                         EventList, EditEventForm, useListEvents, useUpdateEvent
+│       │   ├── events/        — types, schemas, api, hooks, CreateEventForm, EventDetail,
+│       │   │                    EventList, EditEventForm, EventConfigurationForm,
+│       │   │                    useListEvents, useUpdateEvent, useUpdateEventConfiguration
+│       │   ├── venues/        — types, schemas, api, hooks, VenueSelect, CreateVenueForm
+│       │   └── ticket-types/  — types, schemas, api, hooks, TicketTypeList, CreateTicketTypeForm
 │       └── shared/
 │           ├── api/      — api-client.ts
-│           ├── lib/      — utils.ts (cn)
+│           ├── lib/      — utils.ts (cn), money.ts (toMinorUnits, toDisplayValue)
 │           └── ui/
 │               └── primitives/ — button.tsx
 ├── worker/                — PREVISTO

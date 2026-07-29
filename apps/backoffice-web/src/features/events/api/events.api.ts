@@ -1,5 +1,11 @@
 import { API_BASE_URL } from '@/shared/api/api-client';
-import type { CreateEventInput, Event, ListEventsResponse, UpdateEventInput } from '../types';
+import type {
+  CreateEventInput,
+  Event,
+  ListEventsResponse,
+  UpdateEventInput,
+  UpdateEventConfigurationInput,
+} from '../types';
 
 export class ApiError extends Error {
   constructor(
@@ -98,6 +104,32 @@ export async function updateEvent(
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new ApiError(res.status, extractDetail(body, 'Erro ao atualizar evento'), body);
+  }
+
+  return body as Event;
+}
+
+export async function updateEventConfiguration(
+  organizationId: string,
+  eventId: string,
+  input: UpdateEventConfigurationInput,
+  devUserId: string,
+): Promise<Event> {
+  const res = await fetch(
+    `${API_BASE_URL}/organizations/${organizationId}/events/${eventId}/configuration`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dev-User-Id': devUserId,
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new ApiError(res.status, extractDetail(body, 'Erro ao atualizar configuração'), body);
   }
 
   return body as Event;

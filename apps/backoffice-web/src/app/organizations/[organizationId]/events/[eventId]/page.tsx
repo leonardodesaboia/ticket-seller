@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { EventDetail } from '../../../../../features/events';
 import { useGetEvent } from '../../../../../features/events/hooks/use-get-event';
@@ -35,6 +36,23 @@ export default function EventPage() {
   return (
     <main className="mx-auto max-w-2xl p-8">
       <EventDetail event={event} />
+
+      {event.status === 'DRAFT' && (
+        <div className="mt-6 flex gap-3">
+          <Link
+            href={`/organizations/${organizationId}/events/${eventId}/configuration`}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Configurar evento
+          </Link>
+          <Link
+            href={`/organizations/${organizationId}/events/${eventId}/edit`}
+            className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+          >
+            Editar título/descrição
+          </Link>
+        </div>
+      )}
     </main>
   );
 }
