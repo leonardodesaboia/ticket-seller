@@ -11,7 +11,7 @@ apps/ — Aplicações executáveis.
 ```text
 apps/
 ├── api/                   — API NestJS + Fastify (ATIVA)
-│   ├── prisma/            — schema.prisma, migrations (4 aplicadas)
+│   ├── prisma/            — schema.prisma, migrations (5 aplicadas)
 │   ├── src/
 │   │   ├── main.ts
 │   │   ├── app.module.ts
@@ -27,10 +27,11 @@ apps/
 │   │   ├── shared/kernel/ — actor.types.ts, current-actor.decorator.ts
 │   │   └── modules/
 │   │       ├── organizations/ — POST /api/v1/organizations (hexagonal completo)
-│   │       └── events/        — POST/GET /api/v1/organizations/:id/events/:id (hexagonal completo)
+│   │       └── events/        — POST/GET/PATCH /api/v1/organizations/:id/events (hexagonal completo)
+│   │                            ParseUUIDPipe em todos os params UUID; version (optimistic locking)
 │   └── test/
 │       ├── e2e/          — health.e2e-spec.ts
-│       └── integration/  — database, organizations, events (Testcontainers)
+│       └── integration/  — database, organizations, events (Testcontainers, FastifyAdapter)
 ├── marketplace-web/       — Next.js 15 + App Router (ATIVA)
 │   └── src/
 │       ├── app/          — layout, page, loading, error, not-found, globals.css
@@ -41,10 +42,17 @@ apps/
 │               └── primitives/ — button.tsx
 ├── backoffice-web/        — Next.js 15 + App Router (ATIVA)
 │   └── src/
-│       ├── app/          — layout, page, providers.tsx
+│       ├── app/
+│       │   ├── layout, page, providers.tsx
+│       │   └── organizations/[organizationId]/
+│       │       ├── events/           — listagem paginada (EventList + load-more)
+│       │       ├── events/new/       — criação de evento
+│       │       ├── events/[eventId]/ — detalhe do evento
+│       │       └── events/[eventId]/edit/ — formulário de edição (apenas DRAFT, 409 detection)
 │       ├── features/
 │       │   ├── organizations/ — types, schemas, api, hooks, CreateOrganizationForm
-│       │   └── events/        — types, schemas, api, hooks, CreateEventForm, EventDetail
+│       │   └── events/        — types, schemas, api, hooks, CreateEventForm, EventDetail,
+│       │                         EventList, EditEventForm, useListEvents, useUpdateEvent
 │       └── shared/
 │           ├── api/      — api-client.ts
 │           ├── lib/      — utils.ts (cn)

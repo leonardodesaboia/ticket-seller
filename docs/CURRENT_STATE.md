@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-07-29 (TASK-013)
+Última atualização: 2026-07-29 (TASK-017)
 
 Fase
 
@@ -44,6 +44,13 @@ TASK-007 — Application Structure Standards. (CONCLUÍDA)
 TASK-008 — Database Foundation. (CONCLUÍDA)
 TASK-009 — Backoffice Web Bootstrap. (CONCLUÍDA)
 TASK-010 — Continuous Integration. (CONCLUÍDA)
+TASK-011 — Actor Foundation. (CONCLUÍDA)
+TASK-012 — CreateOrganization. (CONCLUÍDA)
+TASK-013 — CreateEvent + GetEvent. (CONCLUÍDA)
+TASK-014 — Backoffice UI. (CONCLUÍDA)
+TASK-015 — ListOrganizationEvents + ParseUUIDPipe. (CONCLUÍDA)
+TASK-016 — UpdateEvent com controle de concorrência. (CONCLUÍDA)
+TASK-017 — Event Management Backoffice. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -99,4 +106,8 @@ multi-cloud ativa.
 - actor foundation: IActorAdapter port, DevelopmentActorAdapter (lê X-Dev-User-Id, desabilitado em production), ActorGuard, CurrentActor decorator — TASK-011;
 - CreateOrganization: POST /api/v1/organizations, módulo hexagonal completo (domain, application, infrastructure, presentation), criação atômica via $transaction (org + OWNER member + outbox event), 6 testes de integração — TASK-012;
 - backoffice features: organizations/new, organizations/[id]/events/new, organizations/[id]/events/[id] com TanStack Query, React Hook Form + Zod — TASK-014;
-- CreateEvent + GetEvent: POST e GET /api/v1/organizations/:organizationId/events/:eventId, módulo hexagonal completo com IOrganizationAccessPort port, role check (OWNER/ADMIN/EVENT_MANAGER para criar), evento nasce como DRAFT, 11 testes de integração — TASK-013.
+- CreateEvent + GetEvent: POST e GET /api/v1/organizations/:organizationId/events/:eventId, módulo hexagonal completo com IOrganizationAccessPort port, role check (OWNER/ADMIN/EVENT_MANAGER para criar), evento nasce como DRAFT, outbox event.created.v1 atômico, 11 testes de integração — TASK-013;
+- backoffice UI completa: organizations/new, events/new, events/[id] com TanStack Query, React Hook Form + Zod, design tokens — TASK-014;
+- ListOrganizationEvents: GET /api/v1/organizations/:orgId/events com paginação keyset (createdAt DESC + id DESC), cursor base64url, ParseUUIDPipe em todos os parâmetros UUID, Fastify adapter corrigido nos testes de integração — TASK-015;
+- UpdateEvent: PATCH /api/v1/organizations/:orgId/events/:eventId, coluna version INTEGER (migration 20260729000002_event_version), optimistic locking via updateMany WHERE version=N, 409 Conflict + 422 UnprocessableEntity + 403 Forbidden, outbox event.updated.v1 atômico com changedFields — TASK-016;
+- backoffice event management: listagem paginada /organizations/[id]/events, formulário de edição /organizations/[id]/events/[id]/edit com detecção de conflito 409 — TASK-017.
