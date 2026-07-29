@@ -21,7 +21,7 @@ if grep -En "$FORBIDDEN_PATTERN" "$file"; then
 echo "Import proibido em domínio: $file"
 FAILED=1
 fi
-done < <(find "$ROOT" -type f -path '/domain/' -name '*.ts')
+done < <(find "$ROOT" -type f -path '*/domain/*' -name '*.ts')
 
 echo "Verificando Prisma em controllers de módulos de negócio..."
 
