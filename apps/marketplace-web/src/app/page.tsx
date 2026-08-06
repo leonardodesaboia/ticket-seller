@@ -1,8 +1,11 @@
-export default function Page() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <h1 className="text-4xl font-bold">Ticket Seller</h1>
-      <p className="mt-4 text-lg text-muted-foreground">Marketplace de ingressos multi-tenant</p>
-    </main>
-  );
+import { CatalogHome } from '@/features/public-event-catalog';
+import { listPublicEvents } from '@/shared/api/public-events.api';
+
+// The catalog is backed by a live API (cached 60s at the fetch layer), so it is
+// rendered per-request rather than prerendered at build time.
+export const dynamic = 'force-dynamic';
+
+export default async function Page() {
+  const { data } = await listPublicEvents({ limit: 20 });
+  return <CatalogHome events={data} />;
 }

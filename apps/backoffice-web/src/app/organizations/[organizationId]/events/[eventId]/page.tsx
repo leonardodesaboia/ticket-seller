@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { EventDetail } from '../../../../../features/events';
 import { useGetEvent } from '../../../../../features/events/hooks/use-get-event';
+import { PublishEventPanel } from '../../../../../features/publish-event';
 
 const DEV_USER_ID = process.env['NEXT_PUBLIC_DEV_USER_ID'] ?? '';
 
@@ -38,20 +39,29 @@ export default function EventPage() {
       <EventDetail event={event} />
 
       {event.status === 'DRAFT' && (
-        <div className="mt-6 flex gap-3">
-          <Link
-            href={`/organizations/${organizationId}/events/${eventId}/configuration`}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Configurar evento
-          </Link>
-          <Link
-            href={`/organizations/${organizationId}/events/${eventId}/edit`}
-            className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
-          >
-            Editar título/descrição
-          </Link>
-        </div>
+        <>
+          <div className="mt-6 flex gap-3">
+            <Link
+              href={`/organizations/${organizationId}/events/${eventId}/configuration`}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Configurar evento
+            </Link>
+            <Link
+              href={`/organizations/${organizationId}/events/${eventId}/edit`}
+              className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+            >
+              Editar título/descrição
+            </Link>
+          </div>
+
+          <PublishEventPanel
+            organizationId={organizationId}
+            eventId={eventId}
+            version={event.version}
+            devUserId={DEV_USER_ID}
+          />
+        </>
       )}
     </main>
   );
