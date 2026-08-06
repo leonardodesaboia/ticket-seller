@@ -4,7 +4,7 @@ Tarefas ativas
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
-| TASK-024 — Publish Flow and Marketplace | READY (TASK-023 integrada em develop; planejamento em andamento) | Frontend owners |
+| TASK-024 — Publish Flow and Marketplace | IN_PROGRESS (implementação em task/024, buildando; pendência: teste do painel + revisão) | Frontend owners |
 
 Estados
 BLOCKED: dependências ainda não integradas;
