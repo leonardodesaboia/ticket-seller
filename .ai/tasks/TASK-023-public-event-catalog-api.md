@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED
+IN_REVIEW (implementação concluída, revisada e validada em task/023-public-event-catalog-api; aguardando integração em develop). Relatório: `.ai/reports/TASK-023-public-event-catalog-api.md`.
 
 ## Objetivo
 

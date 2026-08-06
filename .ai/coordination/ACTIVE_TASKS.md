@@ -4,7 +4,7 @@ Tarefas ativas
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
-| TASK-023 — Public Event Catalog API | IN_PROGRESS (branch a partir de develop) | Public catalog owner |
+| TASK-023 — Public Event Catalog API | IN_REVIEW (concluída em task/023-public-event-catalog-api, aguardando integração em develop) | Public catalog owner |
 | TASK-024 — Publish Flow and Marketplace | BLOCKED (aguarda TASK-023 integrada em develop) | Frontend owners |
 
 Estados
