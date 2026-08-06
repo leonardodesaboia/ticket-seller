@@ -6,8 +6,8 @@ Fila de integração
 | --- | --- | --- |
 | 1 | TASK-020A | MERGED |
 | 2 | TASK-021 | MERGED |
-| 3 | TASK-022 | READY (revisado, aguardando merge) |
-| 4 | TASK-023 | WAITING |
+| 3 | TASK-022 | MERGED em develop (commit 26a0a72) |
+| 4 | TASK-023 | IN_PROGRESS |
 | 5 | TASK-024 | WAITING |
 
 Histórico recente

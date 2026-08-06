@@ -2,7 +2,7 @@
 
 ## Status
 
-IN_REVIEW (aguardando integração)
+COMPLETED (integrada em develop, commit 26a0a72, 2026-08-06)
 
 ## Checkpoint de 2026-08-06
 
