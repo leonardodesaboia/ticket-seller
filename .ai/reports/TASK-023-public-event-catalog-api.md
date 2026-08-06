@@ -2,10 +2,10 @@ Relatório da TASK-023 — Public Event Catalog API
 
 Status
 
-IN_REVIEW (implementação concluída, revisada e validada; aguardando integração em develop)
+COMPLETED (integrada em develop por fast-forward, commit c87914d)
 
 Data: 2026-08-06
-Branch: task/023-public-event-catalog-api (a partir de develop)
+Branch: task/023-public-event-catalog-api (a partir de develop) → develop
 
 Arquivos alterados
 
@@ -70,7 +70,7 @@ Riscos identificados
 
 Pendências
 
-- Integração da TASK-023 na `develop` (aguardando autorização; sem push, sem main).
+- Nenhuma. TASK-023 integrada em develop (c87914d). Push e integração na main permanecem pendentes de autorização explícita (fora do escopo desta tarefa).
 
 Documentação atualizada
 
