@@ -59,7 +59,12 @@ describe('Ticket Types API', () => {
     testUserId = user.id;
 
     const org = await prisma.organization.create({
-      data: { name: 'Test Org', slug: `test-org-${Date.now()}`, status: 'ACTIVE', ownerId: testUserId },
+      data: {
+        name: 'Test Org',
+        slug: `test-org-${Date.now()}`,
+        status: 'ACTIVE',
+        ownerId: testUserId,
+      },
     });
     organizationId = org.id;
 
@@ -148,7 +153,10 @@ describe('Ticket Types API', () => {
         .send(payload)
         .expect(201);
 
-      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { status: 'PUBLISHED', slug: `published-${eventId}`, publishedAt: new Date() },
+      });
 
       const replay = await supertest(app.getHttpServer())
         .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
@@ -169,7 +177,10 @@ describe('Ticket Types API', () => {
         .send({ name: 'Original', priceAmount: 20000, capacity: 10 })
         .expect(201);
 
-      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { status: 'PUBLISHED', slug: `published-${eventId}`, publishedAt: new Date() },
+      });
 
       await supertest(app.getHttpServer())
         .post(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types`)
@@ -326,7 +337,14 @@ describe('Ticket Types API', () => {
 
     it('returns 422 when event is not in DRAFT', async () => {
       const publishedEvent = await prisma.event.create({
-        data: { organizationId, title: 'Published', status: 'PUBLISHED', currency: 'BRL' },
+        data: {
+          organizationId,
+          title: 'Published',
+          status: 'PUBLISHED',
+          currency: 'BRL',
+          slug: `published-${Date.now()}`,
+          publishedAt: new Date(),
+        },
       });
 
       await supertest(app.getHttpServer())
@@ -415,8 +433,22 @@ describe('Ticket Types API', () => {
     beforeEach(async () => {
       await prisma.ticketType.createMany({
         data: [
-          { eventId, organizationId, name: 'General', priceAmount: 5000, capacity: 100, status: 'ACTIVE' },
-          { eventId, organizationId, name: 'VIP', priceAmount: 20000, capacity: 20, status: 'ACTIVE' },
+          {
+            eventId,
+            organizationId,
+            name: 'General',
+            priceAmount: 5000,
+            capacity: 100,
+            status: 'ACTIVE',
+          },
+          {
+            eventId,
+            organizationId,
+            name: 'VIP',
+            priceAmount: 20000,
+            capacity: 20,
+            status: 'ACTIVE',
+          },
         ],
       });
     });
@@ -459,14 +491,23 @@ describe('Ticket Types API', () => {
 
     beforeEach(async () => {
       const tt = await prisma.ticketType.create({
-        data: { eventId, organizationId, name: 'General', priceAmount: 5000, capacity: 100, status: 'ACTIVE' },
+        data: {
+          eventId,
+          organizationId,
+          name: 'General',
+          priceAmount: 5000,
+          capacity: 100,
+          status: 'ACTIVE',
+        },
       });
       ticketTypeId = tt.id;
     });
 
     it('returns 200 and updates name', async () => {
       const res = await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1, name: 'Updated General' })
         .expect(200);
@@ -477,7 +518,9 @@ describe('Ticket Types API', () => {
 
     it('returns 200 and deactivates ticket type', async () => {
       const res = await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1, status: 'INACTIVE' })
         .expect(200);
@@ -487,7 +530,9 @@ describe('Ticket Types API', () => {
 
     it('writes ticket-type.updated.v1 to outbox on regular update', async () => {
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1, capacity: 200 })
         .expect(200);
@@ -500,7 +545,9 @@ describe('Ticket Types API', () => {
 
     it('writes ticket-type.deactivated.v1 to outbox on deactivation', async () => {
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1, status: 'INACTIVE' })
         .expect(200);
@@ -513,13 +560,17 @@ describe('Ticket Types API', () => {
 
     it('returns 409 when version conflicts', async () => {
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1, name: 'First' })
         .expect(200);
 
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1, name: 'Conflict' })
         .expect(409);
@@ -527,7 +578,9 @@ describe('Ticket Types API', () => {
 
     it('returns 400 for invalid ticketTypeId UUID', async () => {
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${INVALID_UUID}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${INVALID_UUID}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1 })
         .expect(400);
@@ -535,7 +588,9 @@ describe('Ticket Types API', () => {
 
     it('returns 401 when header is missing', async () => {
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .send({ expectedVersion: 1 })
         .expect(401);
     });
@@ -548,7 +603,9 @@ describe('Ticket Types API', () => {
         data: { organizationId, userId: viewer.id, role: 'VIEWER', status: 'ACTIVE' },
       });
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
+        )
         .set('X-Dev-User-Id', viewer.id)
         .send({ expectedVersion: 1, name: 'New' })
         .expect(403);
@@ -556,7 +613,9 @@ describe('Ticket Types API', () => {
 
     it('returns 404 when ticket type does not exist', async () => {
       await supertest(app.getHttpServer())
-        .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${NONEXISTENT_UUID}`)
+        .patch(
+          `/api/v1/organizations/${organizationId}/events/${eventId}/ticket-types/${NONEXISTENT_UUID}`,
+        )
         .set('X-Dev-User-Id', testUserId)
         .send({ expectedVersion: 1 })
         .expect(404);
@@ -568,7 +627,14 @@ describe('Ticket Types API', () => {
   describe('Currency lock', () => {
     it('returns 422 when changing currency after ticket types exist', async () => {
       await prisma.ticketType.create({
-        data: { eventId, organizationId, name: 'General', priceAmount: 5000, capacity: 100, status: 'ACTIVE' },
+        data: {
+          eventId,
+          organizationId,
+          name: 'General',
+          priceAmount: 5000,
+          capacity: 100,
+          status: 'ACTIVE',
+        },
       });
 
       await supertest(app.getHttpServer())
@@ -580,7 +646,14 @@ describe('Ticket Types API', () => {
 
     it('allows updating other configuration fields when ticket types exist', async () => {
       await prisma.ticketType.create({
-        data: { eventId, organizationId, name: 'General', priceAmount: 5000, capacity: 100, status: 'ACTIVE' },
+        data: {
+          eventId,
+          organizationId,
+          name: 'General',
+          priceAmount: 5000,
+          capacity: 100,
+          status: 'ACTIVE',
+        },
       });
 
       await supertest(app.getHttpServer())

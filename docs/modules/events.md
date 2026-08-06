@@ -127,3 +127,21 @@ events_cancelled;
 event_publication_failures;
 event_updates_total;
 published_events_active.
+
+Publicação (TASK-022)
+
+Endpoint: POST /api/v1/organizations/:organizationId/events/:eventId/publish, header Idempotency-Key, body { version }.
+
+Transição atômica e idempotente DRAFT → PUBLISHED em uma única transação:
+autorização antes do replay; SELECT ... FOR UPDATE tenant-scoped; readiness
+recalculada sob lock pela PublicationReadinessPolicy; optimistic concurrency por
+versão; slug global imutável (título normalizado + UUID) e publishedAt gerado no
+servidor; outbox event.published.v1 (eventId, organizationId, version, slug,
+publishedAt, startsAt); auditoria event.published; nunca expõe onlineInfo.
+
+Chave de idempotência escopada ao ator; catch de P2002 restrito à constraint da
+chave de idempotência. Erros: 409 EVENT_VERSION_CONFLICT, 409 EVENT_NOT_DRAFT,
+409 IDEMPOTENCY_KEY_REUSED, 422 EVENT_PUBLICATION_NOT_READY (com version e
+issues). Constraint de banco events_published_fields_check garante slug +
+published_at em PUBLISHED; índice parcial (starts_at, id) WHERE status =
+'PUBLISHED'. Evento publicado fica congelado para edição nesta fase.

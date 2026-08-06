@@ -1,11 +1,11 @@
 Tarefas ativas
 
-Última atualização: 2026-07-29
+Última atualização: 2026-08-06
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
-| TASK-022 — Event Publication | IN_PROGRESS (checkpoint salvo) | Database Owner concluído/backend publication pausado |
-| TASK-023 — Public Event Catalog API | BLOCKED | Public catalog owner |
+| TASK-022 — Event Publication | IN_REVIEW (implementação concluída, aguardando integração) | Backend publication owner |
+| TASK-023 — Public Event Catalog API | BLOCKED (aguarda integração da TASK-022) | Public catalog owner |
 | TASK-024 — Publish Flow and Marketplace | BLOCKED | Frontend owners |
 
 Estados

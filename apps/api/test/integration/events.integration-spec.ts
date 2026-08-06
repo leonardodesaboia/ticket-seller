@@ -401,7 +401,10 @@ describe('Events API', () => {
     });
 
     it('returns 422 when event is not in DRAFT', async () => {
-      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { status: 'PUBLISHED', slug: `published-${eventId}`, publishedAt: new Date() },
+      });
 
       await supertest(app.getHttpServer())
         .patch(`/api/v1/organizations/${organizationId}/events/${eventId}`)
@@ -620,7 +623,10 @@ describe('Events API', () => {
     });
 
     it('returns 422 when event is not in DRAFT', async () => {
-      await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { status: 'PUBLISHED', slug: `published-${eventId}`, publishedAt: new Date() },
+      });
 
       await supertest(app.getHttpServer())
         .patch(`/api/v1/organizations/${organizationId}/events/${eventId}/configuration`)
@@ -654,7 +660,12 @@ describe('Events API', () => {
         data: { email: `other-${Date.now()}@test.com`, displayName: 'Other' },
       });
       const otherOrg = await prisma.organization.create({
-        data: { name: 'Other Org', slug: `other-${Date.now()}`, status: 'ACTIVE', ownerId: otherUser.id },
+        data: {
+          name: 'Other Org',
+          slug: `other-${Date.now()}`,
+          status: 'ACTIVE',
+          ownerId: otherUser.id,
+        },
       });
       const otherVenue = await prisma.venue.create({
         data: {

@@ -29,6 +29,8 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   onlineInfo: null,
   venueId: null,
   currency: null,
+  slug: null,
+  publishedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -56,7 +58,9 @@ describe('UpdateEventConfigurationUseCase', () => {
   it('updates format when actor is OWNER and version matches', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
-    eventRepository.updateConfiguration.mockResolvedValue(makeEvent({ format: 'IN_PERSON', version: 2 }));
+    eventRepository.updateConfiguration.mockResolvedValue(
+      makeEvent({ format: 'IN_PERSON', version: 2 }),
+    );
 
     const result = await useCase.execute({
       organizationId: 'org-1',
@@ -76,7 +80,9 @@ describe('UpdateEventConfigurationUseCase', () => {
     orgAccess.findMember.mockResolvedValue({ role: 'ADMIN', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
     venueAccess.findVenue.mockResolvedValue({ id: 'venue-1', organizationId: 'org-1' });
-    eventRepository.updateConfiguration.mockResolvedValue(makeEvent({ venueId: 'venue-1', version: 2 }));
+    eventRepository.updateConfiguration.mockResolvedValue(
+      makeEvent({ venueId: 'venue-1', version: 2 }),
+    );
 
     const result = await useCase.execute({
       organizationId: 'org-1',
@@ -113,7 +119,9 @@ describe('UpdateEventConfigurationUseCase', () => {
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
     const startsAt = new Date('2026-08-01T18:00:00Z');
     const endsAt = new Date('2026-08-01T22:00:00Z');
-    eventRepository.updateConfiguration.mockResolvedValue(makeEvent({ startsAt, endsAt, version: 2 }));
+    eventRepository.updateConfiguration.mockResolvedValue(
+      makeEvent({ startsAt, endsAt, version: 2 }),
+    );
 
     await useCase.execute({
       organizationId: 'org-1',
@@ -133,7 +141,12 @@ describe('UpdateEventConfigurationUseCase', () => {
     orgAccess.findMember.mockResolvedValue(null);
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'x', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'x',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(OrganizationAccessDeniedError);
     expect(eventRepository.updateConfiguration).not.toHaveBeenCalled();
   });
@@ -142,7 +155,12 @@ describe('UpdateEventConfigurationUseCase', () => {
     orgAccess.findMember.mockResolvedValue({ role: 'VIEWER', status: 'ACTIVE' });
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'u', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'u',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(InsufficientRoleError);
   });
 
@@ -151,7 +169,12 @@ describe('UpdateEventConfigurationUseCase', () => {
     eventRepository.findByOrganizationAndId.mockResolvedValue(null);
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'u', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'u',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(EventNotFoundError);
   });
 
@@ -160,7 +183,12 @@ describe('UpdateEventConfigurationUseCase', () => {
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ status: 'PUBLISHED' }));
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'u', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'u',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(EventNotInDraftError);
   });
 
@@ -169,7 +197,12 @@ describe('UpdateEventConfigurationUseCase', () => {
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ version: 3 }));
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', actorId: 'u', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        actorId: 'u',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(EventVersionConflictError);
   });
 
@@ -259,7 +292,9 @@ describe('UpdateEventConfigurationUseCase', () => {
   it('allows setting the same currency value', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ currency: 'BRL' }));
-    eventRepository.updateConfiguration.mockResolvedValue(makeEvent({ currency: 'BRL', version: 2 }));
+    eventRepository.updateConfiguration.mockResolvedValue(
+      makeEvent({ currency: 'BRL', version: 2 }),
+    );
     await expect(
       useCase.execute({
         organizationId: 'org-1',
@@ -274,7 +309,9 @@ describe('UpdateEventConfigurationUseCase', () => {
   it('validates endsAt against existing startsAt when only endsAt is updated', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     const existingStartsAt = new Date('2026-08-01T20:00:00Z');
-    eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ startsAt: existingStartsAt }));
+    eventRepository.findByOrganizationAndId.mockResolvedValue(
+      makeEvent({ startsAt: existingStartsAt }),
+    );
 
     await expect(
       useCase.execute({

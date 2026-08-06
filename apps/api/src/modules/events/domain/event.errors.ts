@@ -67,3 +67,25 @@ export class InvalidOnlineConfigurationUpdateError extends Error {
     this.name = 'InvalidOnlineConfigurationUpdateError';
   }
 }
+
+export class EventNotDraftError extends Error {
+  constructor() {
+    super('Only draft events can be published');
+    this.name = 'EventNotDraftError';
+  }
+}
+
+export class EventPublicationNotReadyError extends Error {
+  constructor(
+    public readonly version: number,
+    public readonly issues: ReadonlyArray<{
+      code: string;
+      field: string;
+      section: string;
+      message: string;
+    }>,
+  ) {
+    super('Event is not ready to be published');
+    this.name = 'EventPublicationNotReadyError';
+  }
+}

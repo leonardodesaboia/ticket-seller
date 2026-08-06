@@ -13,6 +13,8 @@ export class Event {
     public readonly onlineInfo: string | null,
     public readonly venueId: string | null,
     public readonly currency: string | null,
+    public readonly slug: string | null,
+    public readonly publishedAt: Date | null,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
   ) {}
