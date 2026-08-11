@@ -40,6 +40,7 @@ TASK-021: Publication Readiness — MERGED em 2026-07-29
 TASK-022: Event Publication — MERGED em develop 2026-08-06 (commit 26a0a72)
 TASK-023: Public Event Catalog API — MERGED em develop 2026-08-06 (commit c87914d)
 TASK-026: Reservation Holds — MERGED em develop 2026-08-11
+TASK-027: Order Foundation — MERGED em develop 2026-08-11
 
 Regras
 uma tarefa deve aparecer uma única vez;

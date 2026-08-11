@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED (aguarda TASK-026 integrada)
+MERGED em develop
 
 ## Objetivo
 

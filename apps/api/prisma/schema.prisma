@@ -59,6 +59,7 @@ model Organization {
   ticketTypes      TicketType[]
   ticketInventories TicketInventory[]
   reservations     Reservation[]
+  orders           Order[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -161,6 +162,7 @@ model Event {
   ticketTypes       TicketType[]
   ticketInventories TicketInventory[]
   reservations      Reservation[]
+  orders            Order[]
 
   @@index([organizationId])
   @@index([status])
@@ -186,6 +188,7 @@ model TicketType {
   organization    Organization      @relation(fields: [organizationId], references: [id])
   ticketInventory TicketInventory?
   reservationItems ReservationItem[]
+  orderItems       OrderItem[]
 
   @@index([eventId])
   @@index([organizationId])
@@ -247,6 +250,7 @@ model Reservation {
   organization Organization       @relation(fields: [organizationId], references: [id])
   event        Event              @relation(fields: [eventId], references: [id])
   items        ReservationItem[]
+  order        Order?
 
   @@index([organizationId, eventId])
   @@index([expiresAt])
@@ -270,4 +274,45 @@ model ReservationItem {
   @@index([reservationId])
   @@index([ticketTypeId])
   @@map("reservation_items")
+}
+
+model Order {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  eventId        String      @map("event_id") @db.Uuid
+  reservationId  String      @unique @map("reservation_id") @db.Uuid
+  status         String      @default("PENDING_PAYMENT") @db.VarChar(30)
+  currency       String      @db.VarChar(3)
+  subtotalAmount BigInt      @map("subtotal_amount")
+  totalAmount    BigInt      @map("total_amount")
+  idempotencyKey String?     @unique @map("idempotency_key") @db.VarChar(255)
+  expiresAt      DateTime    @map("expires_at") @db.Timestamptz
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  event        Event        @relation(fields: [eventId], references: [id])
+  reservation  Reservation  @relation(fields: [reservationId], references: [id])
+  items        OrderItem[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String     @map("order_id") @db.Uuid
+  ticketTypeId    String     @map("ticket_type_id") @db.Uuid
+  nameSnapshot    String     @map("name_snapshot") @db.VarChar(500)
+  unitPriceAmount BigInt     @map("unit_price_amount")
+  quantity        Int
+  subtotalAmount  BigInt     @map("subtotal_amount")
+
+  order      Order      @relation(fields: [orderId], references: [id])
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
 }
