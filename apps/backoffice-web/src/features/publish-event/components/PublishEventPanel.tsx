@@ -69,6 +69,9 @@ export function PublishEventPanel({
           operationRef.current = completeIdempotencyOperation();
           setConfirming(false);
         },
+        onError: () => {
+          setConfirming(false);
+        },
       },
     );
   }

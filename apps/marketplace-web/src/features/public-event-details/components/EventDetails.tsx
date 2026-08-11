@@ -65,9 +65,9 @@ export function EventDetails({ event }: EventDetailsProps) {
           <p className="text-sm text-muted-foreground">Nenhum ingresso disponível.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {event.ticketTypes.map((ticketType) => (
+            {event.ticketTypes.map((ticketType, index) => (
               <li
-                key={ticketType.name}
+                key={`${ticketType.name}-${index}`}
                 className="flex items-start justify-between gap-4 rounded-md border border-input p-3"
               >
                 <div className="flex flex-col">

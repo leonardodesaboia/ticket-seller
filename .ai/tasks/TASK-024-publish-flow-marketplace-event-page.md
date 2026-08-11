@@ -2,7 +2,7 @@
 
 ## Status
 
-IN_PROGRESS (implementação concluída e buildando em task/024-publish-flow-marketplace, commit 50d84f6; pendência: reintroduzir teste do PublishEventPanel + revisão independente). Relatório: `.ai/reports/TASK-024-publish-flow-marketplace-event-page.md`.
+CONCLUÍDA (task/024-publish-flow-marketplace; 42/42 testes; revisão independente executada; aguardando integração na develop). Relatório: `.ai/reports/TASK-024-publish-flow-marketplace-event-page.md`.
 
 ## Objetivo
 
