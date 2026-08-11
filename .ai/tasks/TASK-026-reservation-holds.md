@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED (aguarda TASK-025 integrada)
+READY (TASK-025 integrada; aguarda implementação)
 
 ## Objetivo
 

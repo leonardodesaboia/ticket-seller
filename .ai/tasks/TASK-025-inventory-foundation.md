@@ -2,7 +2,7 @@
 
 ## Status
 
-READY
+CONCLUÍDA (task/025-inventory-foundation; 137 unit + 168 integration tests; revisão aplicada; integrada em develop).
 
 ## Objetivo
 
