@@ -43,16 +43,53 @@ describe('TicketInventory', () => {
       expect(inventory.available).toBe(0);
     });
 
-    it('reflects correct available for zero capacity', () => {
-      const inventory = makeInventory({ capacity: 0, reserved: 0, committed: 0 });
-      expect(inventory.available).toBe(0);
-    });
-
     it('does not go negative when calculated from valid DB-enforced state', () => {
       // The CHECK constraint in the DB ensures reserved + committed <= capacity.
       // The entity trusts this invariant; available should not be negative.
       const inventory = makeInventory({ capacity: 10, reserved: 10, committed: 0 });
       expect(inventory.available).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('constructor invariants', () => {
+    it('throws when capacity is 0', () => {
+      expect(() => makeInventory({ capacity: 0, reserved: 0, committed: 0 })).toThrow(
+        'capacity must be greater than 0',
+      );
+    });
+
+    it('throws when capacity is negative', () => {
+      expect(() => makeInventory({ capacity: -1, reserved: 0, committed: 0 })).toThrow(
+        'capacity must be greater than 0',
+      );
+    });
+
+    it('throws when reserved is negative', () => {
+      expect(() => makeInventory({ capacity: 100, reserved: -1, committed: 0 })).toThrow(
+        'reserved must be >= 0',
+      );
+    });
+
+    it('throws when committed is negative', () => {
+      expect(() => makeInventory({ capacity: 100, reserved: 0, committed: -1 })).toThrow(
+        'committed must be >= 0',
+      );
+    });
+
+    it('throws when reserved exceeds capacity', () => {
+      expect(() => makeInventory({ capacity: 10, reserved: 11, committed: 0 })).toThrow(
+        'reserved + committed exceeds capacity',
+      );
+    });
+
+    it('throws when reserved + committed exceeds capacity', () => {
+      expect(() => makeInventory({ capacity: 10, reserved: 6, committed: 5 })).toThrow(
+        'reserved + committed exceeds capacity',
+      );
+    });
+
+    it('accepts reserved + committed exactly equal to capacity', () => {
+      expect(() => makeInventory({ capacity: 10, reserved: 6, committed: 4 })).not.toThrow();
     });
   });
 });

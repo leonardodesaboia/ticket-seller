@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import { TicketInventory } from '../../domain/ticket-inventory.entity';
-import { InsufficientInventoryError } from '../../domain/inventory.errors';
+import { InsufficientInventoryError, InventoryNotFoundError } from '../../domain/inventory.errors';
 import type {
   AvailabilityResult,
   IInventoryRepository,
   InitializeInventoryItem,
 } from '../../domain/ports/inventory-repository.port';
-import type { InventoryInitializationPort } from '../../application/ports/inventory-initialization.port';
 
 interface RawInventoryRow {
   id: string;
@@ -43,7 +42,7 @@ function toEntity(row: RawInventoryRow): TicketInventory {
 }
 
 @Injectable()
-export class PrismaInventoryRepository implements IInventoryRepository, InventoryInitializationPort {
+export class PrismaInventoryRepository implements IInventoryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByTicketTypeId(
@@ -75,17 +74,15 @@ export class PrismaInventoryRepository implements IInventoryRepository, Inventor
   async initializeForEvent(items: InitializeInventoryItem[]): Promise<void> {
     if (items.length === 0) return;
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const item of items) {
-        await tx.$executeRaw`
-          INSERT INTO ticket_inventory
-            (ticket_type_id, event_id, organization_id, capacity)
-          VALUES
-            (${item.ticketTypeId}::uuid, ${item.eventId}::uuid, ${item.organizationId}::uuid, ${item.capacity})
-          ON CONFLICT (ticket_type_id) DO NOTHING
-        `;
-      }
-    });
+    for (const item of items) {
+      await this.prisma.$executeRaw`
+        INSERT INTO ticket_inventory
+          (ticket_type_id, event_id, organization_id, capacity)
+        VALUES
+          (${item.ticketTypeId}::uuid, ${item.eventId}::uuid, ${item.organizationId}::uuid, ${item.capacity})
+        ON CONFLICT (ticket_type_id) DO NOTHING
+      `;
+    }
   }
 
   async tryReserve(
@@ -117,7 +114,7 @@ export class PrismaInventoryRepository implements IInventoryRepository, Inventor
     ticketTypeId: string,
     quantity: number,
   ): Promise<void> {
-    await this.prisma.$executeRaw`
+    const affected = await this.prisma.$executeRaw`
       UPDATE ticket_inventory
       SET reserved   = GREATEST(reserved - ${quantity}, 0),
           version    = version + 1,
@@ -125,9 +122,12 @@ export class PrismaInventoryRepository implements IInventoryRepository, Inventor
       WHERE ticket_type_id = ${ticketTypeId}::uuid
         AND organization_id = ${organizationId}::uuid
     `;
+    if (affected === 0) {
+      throw new InventoryNotFoundError(ticketTypeId);
+    }
   }
 
-  async getAvailability(ticketTypeIds: string[]): Promise<AvailabilityResult[]> {
+  async getAvailability(ticketTypeIds: string[], organizationId: string): Promise<AvailabilityResult[]> {
     if (ticketTypeIds.length === 0) return [];
 
     // TODO TASK-026: subtract active reservations via join
@@ -135,6 +135,8 @@ export class PrismaInventoryRepository implements IInventoryRepository, Inventor
       SELECT ticket_type_id, (capacity - committed) AS available_quantity
       FROM ticket_inventory
       WHERE ticket_type_id = ANY(${ticketTypeIds}::uuid[])
+        AND organization_id = ${organizationId}::uuid
+      ORDER BY ticket_type_id
     `;
 
     return rows.map((row) => ({

@@ -36,7 +36,7 @@ export class GetAvailabilityUseCase {
       return { eventSlug: query.eventSlug, items: [] };
     }
 
-    const items = await this.inventoryRepository.getAvailability(ticketTypeIds);
+    const items = await this.inventoryRepository.getAvailability(ticketTypeIds, event.organizationId);
     return { eventSlug: query.eventSlug, items };
   }
 }

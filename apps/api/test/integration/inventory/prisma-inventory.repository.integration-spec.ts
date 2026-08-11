@@ -138,7 +138,7 @@ describe('PrismaInventoryRepository', () => {
         { ticketTypeId: ttId, eventId, organizationId: orgId, capacity: 100 },
       ]);
 
-      const result = await repository.getAvailability([ttId]);
+      const result = await repository.getAvailability([ttId], orgId);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
@@ -148,7 +148,7 @@ describe('PrismaInventoryRepository', () => {
     });
 
     it('returns empty array for empty input', async () => {
-      const result = await repository.getAvailability([]);
+      const result = await repository.getAvailability([], orgId);
       expect(result).toEqual([]);
     });
 
@@ -159,9 +159,44 @@ describe('PrismaInventoryRepository', () => {
       ]);
       const nonExistentId = '00000000-0000-0000-0000-000000000001';
 
-      const result = await repository.getAvailability([ttId, nonExistentId]);
+      const result = await repository.getAvailability([ttId, nonExistentId], orgId);
       expect(result).toHaveLength(1);
       expect(result[0]!.ticketTypeId).toBe(ttId);
+    });
+
+    it('does not return inventory from a different organization', async () => {
+      const ttId = await createTicketType(80);
+      await repository.initializeForEvent([
+        { ticketTypeId: ttId, eventId, organizationId: orgId, capacity: 80 },
+      ]);
+      const wrongOrgId = '00000000-0000-0000-0000-000000000099';
+
+      const result = await repository.getAvailability([ttId], wrongOrgId);
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('tenant isolation', () => {
+    it('findByTicketTypeId returns null when called with a wrong organizationId', async () => {
+      const ttId = await createTicketType(100);
+      await repository.initializeForEvent([
+        { ticketTypeId: ttId, eventId, organizationId: orgId, capacity: 100 },
+      ]);
+      const wrongOrgId = '00000000-0000-0000-0000-000000000099';
+
+      const result = await repository.findByTicketTypeId(wrongOrgId, ttId);
+      expect(result).toBeNull();
+    });
+
+    it('findByEventId returns empty array when called with a wrong organizationId', async () => {
+      const ttId = await createTicketType(100);
+      await repository.initializeForEvent([
+        { ticketTypeId: ttId, eventId, organizationId: orgId, capacity: 100 },
+      ]);
+      const wrongOrgId = '00000000-0000-0000-0000-000000000099';
+
+      const result = await repository.findByEventId(wrongOrgId, eventId);
+      expect(result).toEqual([]);
     });
   });
 

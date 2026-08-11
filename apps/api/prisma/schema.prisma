@@ -52,11 +52,12 @@ model Organization {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz
 
-  owner       User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
-  members     OrganizationMember[]
-  events      Event[]
-  venues      Venue[]
-  ticketTypes TicketType[]
+  owner            User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  members          OrganizationMember[]
+  events           Event[]
+  venues           Venue[]
+  ticketTypes      TicketType[]
+  ticketInventories TicketInventory[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -218,8 +219,9 @@ model TicketInventory {
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz
 
-  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
-  event      Event      @relation(fields: [eventId], references: [id])
+  ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
+  event        Event        @relation(fields: [eventId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
 
   @@index([eventId])
   @@index([organizationId])

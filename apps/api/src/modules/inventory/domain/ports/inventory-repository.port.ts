@@ -32,7 +32,7 @@ export interface IInventoryRepository {
     quantity: number,
   ): Promise<TicketInventory>;
   releaseHold(organizationId: string, ticketTypeId: string, quantity: number): Promise<void>;
-  getAvailability(ticketTypeIds: string[]): Promise<AvailabilityResult[]>;
+  getAvailability(ticketTypeIds: string[], organizationId: string): Promise<AvailabilityResult[]>;
 }
 
 export const INVENTORY_REPOSITORY = Symbol('INVENTORY_REPOSITORY');

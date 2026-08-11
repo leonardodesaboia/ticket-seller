@@ -15,7 +15,7 @@ export class PublicAvailabilityController {
   async getEventAvailability(@Param('slug') slug: string): Promise<AvailabilityResponse> {
     const result = await this.getAvailability.execute({ eventSlug: slug });
     if (!result) {
-      throw new NotFoundException(`Event with slug '${slug}' not found or not published`);
+      throw new NotFoundException('Event not found or not published');
     }
     const response = new AvailabilityResponse();
     response.eventSlug = result.eventSlug;

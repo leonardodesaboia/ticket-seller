@@ -76,6 +76,7 @@ export class PrismaPublicEventQueryAdapter implements IPublicEventQueryPort {
       where: { slug, status: 'PUBLISHED' },
       select: {
         slug: true,
+        organizationId: true,
         title: true,
         description: true,
         format: true,
@@ -97,6 +98,7 @@ export class PrismaPublicEventQueryAdapter implements IPublicEventQueryPort {
 
     return {
       slug: event.slug,
+      organizationId: event.organizationId,
       title: event.title,
       description: event.description,
       format: event.format,

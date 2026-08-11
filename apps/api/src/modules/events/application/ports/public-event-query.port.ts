@@ -18,6 +18,7 @@ export interface PublicEventListResult {
 
 export interface PublicEventDetail {
   slug: string;
+  organizationId: string;
   title: string;
   description: string | null;
   format: string | null;

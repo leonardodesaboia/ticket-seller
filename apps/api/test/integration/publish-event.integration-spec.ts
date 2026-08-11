@@ -334,4 +334,94 @@ describe('Publish Event API', () => {
   it('returns 404 for a valid but nonexistent event UUID', async () => {
     await publish(NONEXISTENT_UUID, { version: 4 }).expect(404);
   });
+
+  it('creates ticket_inventory rows for ACTIVE ticket types on publish', async () => {
+    const eventId = await createReadyEvent(); // creates one ACTIVE ticket type with capacity 100
+
+    await publish(eventId, { version: 4 }).expect(200);
+
+    const inventory = await prisma.$queryRaw<
+      Array<{ capacity: number; reserved: number; committed: number }>
+    >`
+      SELECT ti.capacity, ti.reserved, ti.committed
+      FROM ticket_inventory ti
+      JOIN ticket_types tt ON ti.ticket_type_id = tt.id
+      WHERE ti.event_id = ${eventId}::uuid
+    `;
+    expect(inventory).toHaveLength(1);
+    expect(inventory[0]).toMatchObject({ capacity: 100, reserved: 0, committed: 0 });
+  });
+
+  it('does not create ticket_inventory rows for INACTIVE ticket types on publish', async () => {
+    // Create an event with one ACTIVE and one INACTIVE ticket type
+    const venue = await prisma.venue.create({
+      data: {
+        organizationId,
+        name: 'Mixed Venue',
+        address: 'Street 2',
+        city: 'Fortaleza',
+        state: 'CE',
+        country: 'BR',
+      },
+    });
+    const event = await prisma.event.create({
+      data: {
+        organizationId,
+        title: 'Mixed Event',
+        status: 'DRAFT',
+        version: 4,
+        format: 'IN_PERSON',
+        startsAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        endsAt: new Date(Date.now() + 26 * 60 * 60 * 1000),
+        timezone: 'America/Fortaleza',
+        venueId: venue.id,
+        currency: 'BRL',
+      },
+    });
+    const activeTt = await prisma.ticketType.create({
+      data: {
+        eventId: event.id,
+        organizationId,
+        name: 'Active Type',
+        priceAmount: 3000,
+        capacity: 50,
+        status: 'ACTIVE',
+      },
+    });
+    await prisma.ticketType.create({
+      data: {
+        eventId: event.id,
+        organizationId,
+        name: 'Inactive Type',
+        priceAmount: 2000,
+        capacity: 20,
+        status: 'INACTIVE',
+      },
+    });
+
+    await publish(event.id, { version: 4 }).expect(200);
+
+    const inventory = await prisma.$queryRaw<Array<{ ticket_type_id: string }>>`
+      SELECT ticket_type_id
+      FROM ticket_inventory
+      WHERE event_id = ${event.id}::uuid
+    `;
+    expect(inventory).toHaveLength(1);
+    expect(inventory[0]?.ticket_type_id).toBe(activeTt.id);
+  });
+
+  it('emits inventory.initialized.v1 outbox events for each ACTIVE ticket type on publish', async () => {
+    const eventId = await createReadyEvent();
+
+    await publish(eventId, { version: 4 }).expect(200);
+
+    const outbox = await prisma.outboxEvent.findMany({
+      where: { type: 'inventory.initialized.v1' },
+    });
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]?.payload).toMatchObject({
+      eventId,
+      capacity: 100,
+    });
+  });
 });

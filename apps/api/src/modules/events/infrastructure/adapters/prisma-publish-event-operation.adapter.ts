@@ -195,6 +195,23 @@ export class PrismaPublishEventOperationAdapter implements IPublishEventOperatio
             `;
           }
 
+          if (activeTicketTypes.length > 0) {
+            await tx.outboxEvent.createMany({
+              data: activeTicketTypes.map((tt) => ({
+                aggregateType: 'TicketInventory',
+                aggregateId: tt.id,
+                type: 'inventory.initialized.v1',
+                version: '1',
+                organizationId: updated.organizationId,
+                payload: {
+                  ticketTypeId: tt.id,
+                  eventId: updated.id,
+                  capacity: tt.capacity,
+                },
+              })),
+            });
+          }
+
           const responseBody = this.toResponse(updated);
           await tx.idempotencyRecord.update({
             where: { idempotencyKey: input.scopedKey },

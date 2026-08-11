@@ -24,6 +24,21 @@ export class TicketInventory {
   readonly updatedAt: Date;
 
   constructor(props: TicketInventoryProps) {
+    if (props.capacity <= 0) {
+      throw new Error('TicketInventory invariant violated: capacity must be greater than 0');
+    }
+    if (props.reserved < 0) {
+      throw new Error('TicketInventory invariant violated: reserved must be >= 0');
+    }
+    if (props.committed < 0) {
+      throw new Error('TicketInventory invariant violated: committed must be >= 0');
+    }
+    if (props.reserved + props.committed > props.capacity) {
+      throw new Error(
+        'TicketInventory invariant violated: reserved + committed exceeds capacity',
+      );
+    }
+
     this.id = props.id;
     this.ticketTypeId = props.ticketTypeId;
     this.eventId = props.eventId;

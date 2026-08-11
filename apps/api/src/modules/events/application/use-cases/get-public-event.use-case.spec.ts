@@ -4,6 +4,7 @@ import { GetPublicEventUseCase } from './get-public-event.use-case';
 
 const detail: PublicEventDetail = {
   slug: 'rock-fest-evt-1',
+  organizationId: 'org-id-1',
   title: 'Rock Fest',
   description: null,
   format: 'IN_PERSON',
