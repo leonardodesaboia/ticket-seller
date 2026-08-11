@@ -42,6 +42,7 @@ export class PublicVenueResponse {
 }
 
 export class PublicTicketTypeResponse {
+  @ApiProperty() ticketTypeId!: string;
   @ApiProperty() name!: string;
   @ApiProperty({ nullable: true }) description!: string | null;
   @ApiProperty() price!: number;
@@ -72,6 +73,7 @@ export class PublicEventDetailResponse {
     response.currency = detail.currency;
     response.venue = detail.venue;
     response.ticketTypes = detail.ticketTypes.map((ticketType) => ({
+      ticketTypeId: ticketType.id,
       name: ticketType.name,
       description: ticketType.description,
       price: ticketType.priceAmount,

@@ -182,6 +182,19 @@ export class PrismaPublishEventOperationAdapter implements IPublishEventOperatio
             },
           });
 
+          // Initialize inventory for all ACTIVE ticket types as part of the same
+          // transaction so that a published event always has inventory records.
+          const activeTicketTypes = snapshot.ticketTypes.filter((tt) => tt.status === 'ACTIVE');
+          for (const tt of activeTicketTypes) {
+            await tx.$executeRaw`
+              INSERT INTO ticket_inventory
+                (ticket_type_id, event_id, organization_id, capacity)
+              VALUES
+                (${tt.id}::uuid, ${updated.id}::uuid, ${updated.organizationId}::uuid, ${tt.capacity})
+              ON CONFLICT (ticket_type_id) DO NOTHING
+            `;
+          }
+
           const responseBody = this.toResponse(updated);
           await tx.idempotencyRecord.update({
             where: { idempotencyKey: input.scopedKey },

@@ -32,6 +32,7 @@ export interface PublicEventDetail {
     country: string;
   } | null;
   ticketTypes: Array<{
+    id: string;
     name: string;
     description: string | null;
     priceAmount: number;

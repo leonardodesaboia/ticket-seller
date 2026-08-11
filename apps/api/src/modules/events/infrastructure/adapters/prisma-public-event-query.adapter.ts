@@ -86,7 +86,7 @@ export class PrismaPublicEventQueryAdapter implements IPublicEventQueryPort {
         venue: { select: { name: true, city: true, state: true, country: true } },
         ticketTypes: {
           where: { status: 'ACTIVE' },
-          select: { name: true, description: true, priceAmount: true },
+          select: { id: true, name: true, description: true, priceAmount: true },
           // Cheapest first, then by name — a stable, meaningful public order
           // (ticket type ids are random UUIDs and must not drive presentation).
           orderBy: [{ priceAmount: 'asc' }, { name: 'asc' }],
@@ -106,6 +106,7 @@ export class PrismaPublicEventQueryAdapter implements IPublicEventQueryPort {
       currency: event.currency,
       venue: event.venue,
       ticketTypes: event.ticketTypes.map((ticketType) => ({
+        id: ticketType.id,
         name: ticketType.name,
         description: ticketType.description,
         priceAmount: ticketType.priceAmount,

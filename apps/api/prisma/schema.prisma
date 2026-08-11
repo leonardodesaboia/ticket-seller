@@ -154,9 +154,10 @@ model Event {
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  venue          Venue?       @relation(fields: [venueId], references: [id])
-  ticketTypes    TicketType[]
+  organization      Organization      @relation(fields: [organizationId], references: [id])
+  venue             Venue?            @relation(fields: [venueId], references: [id])
+  ticketTypes       TicketType[]
+  ticketInventories TicketInventory[]
 
   @@index([organizationId])
   @@index([status])
@@ -166,20 +167,21 @@ model Event {
 }
 
 model TicketType {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventId        String       @map("event_id") @db.Uuid
-  organizationId String       @map("organization_id") @db.Uuid
-  name           String       @db.VarChar(500)
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId        String            @map("event_id") @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  name           String            @db.VarChar(500)
   description    String?
-  priceAmount    Int          @map("price_amount")
+  priceAmount    Int               @map("price_amount")
   capacity       Int
-  status         String       @default("ACTIVE") @db.VarChar(50)
-  version        Int          @default(1)
-  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  status         String            @default("ACTIVE") @db.VarChar(50)
+  version        Int               @default(1)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz
 
-  event          Event        @relation(fields: [eventId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  event           Event             @relation(fields: [eventId], references: [id])
+  organization    Organization      @relation(fields: [organizationId], references: [id])
+  ticketInventory TicketInventory?
 
   @@index([eventId])
   @@index([organizationId])
@@ -202,4 +204,24 @@ model AuditEntry {
   @@index([organizationId, occurredAt])
   @@index([resourceType, resourceId])
   @@map("audit_entries")
+}
+
+model TicketInventory {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketTypeId   String     @unique @map("ticket_type_id") @db.Uuid
+  eventId        String     @map("event_id") @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  capacity       Int
+  reserved       Int        @default(0)
+  committed      Int        @default(0)
+  version        Int        @default(1)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+  event      Event      @relation(fields: [eventId], references: [id])
+
+  @@index([eventId])
+  @@index([organizationId])
+  @@map("ticket_inventory")
 }

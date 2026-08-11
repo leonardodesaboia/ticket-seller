@@ -71,6 +71,7 @@ describe('Publish Event API', () => {
   afterEach(async () => {
     await prisma.auditEntry.deleteMany();
     await prisma.outboxEvent.deleteMany();
+    await prisma.$executeRaw`DELETE FROM ticket_inventory`;
     await prisma.ticketType.deleteMany();
     await prisma.idempotencyRecord.deleteMany();
     await prisma.event.deleteMany();

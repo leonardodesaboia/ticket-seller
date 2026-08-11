@@ -77,5 +77,6 @@ import { PublicEventsController } from './presentation/controllers/public-events
       useClass: PrismaPublicEventQueryAdapter,
     },
   ],
+  exports: [PUBLIC_EVENT_QUERY_PORT],
 })
 export class EventsModule {}

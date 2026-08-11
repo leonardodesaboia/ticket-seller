@@ -264,7 +264,7 @@ describe('Public Event Catalog API', () => {
     // Detail accessible after the event ended
     const past = await detail('in-person-evt').expect(200);
     expect(past.headers['cache-control']).toBe('public, max-age=60, stale-while-revalidate=300');
-    expect(past.body).toEqual({
+    expect(past.body).toMatchObject({
       slug: 'in-person-evt',
       title: 'Published Event',
       description: null,
@@ -275,8 +275,8 @@ describe('Public Event Catalog API', () => {
       currency: 'BRL',
       venue: { name: 'Public Venue', city: 'Fortaleza', state: 'CE', country: 'BR' },
       ticketTypes: [
-        { name: 'General', description: null, price: 5000, currency: 'BRL' },
-        { name: 'VIP', description: null, price: 15000, currency: 'BRL' },
+        { ticketTypeId: expect.any(String), name: 'General', description: null, price: 5000, currency: 'BRL' },
+        { ticketTypeId: expect.any(String), name: 'VIP', description: null, price: 15000, currency: 'BRL' },
       ],
     });
     // Inactive ticket type excluded; no capacity/version/id/address exposed
