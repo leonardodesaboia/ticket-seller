@@ -130,13 +130,20 @@ export class PrismaInventoryRepository implements IInventoryRepository {
   async getAvailability(ticketTypeIds: string[], organizationId: string): Promise<AvailabilityResult[]> {
     if (ticketTypeIds.length === 0) return [];
 
-    // TODO TASK-026: subtract active reservations via join
     const rows = await this.prisma.$queryRaw<RawAvailabilityRow[]>`
-      SELECT ticket_type_id, (capacity - committed) AS available_quantity
-      FROM ticket_inventory
-      WHERE ticket_type_id = ANY(${ticketTypeIds}::uuid[])
-        AND organization_id = ${organizationId}::uuid
-      ORDER BY ticket_type_id
+      SELECT ti.ticket_type_id,
+             (ti.capacity - COALESCE(active.total_reserved, 0) - ti.committed) AS available_quantity
+      FROM ticket_inventory ti
+      LEFT JOIN (
+        SELECT ri.ticket_type_id, SUM(ri.quantity) AS total_reserved
+        FROM reservation_items ri
+        JOIN reservations r ON r.id = ri.reservation_id
+        WHERE r.status = 'ACTIVE' AND r.expires_at > NOW()
+        GROUP BY ri.ticket_type_id
+      ) active ON active.ticket_type_id = ti.ticket_type_id
+      WHERE ti.ticket_type_id = ANY(${ticketTypeIds}::uuid[])
+        AND ti.organization_id = ${organizationId}::uuid
+      ORDER BY ti.ticket_type_id
     `;
 
     return rows.map((row) => ({

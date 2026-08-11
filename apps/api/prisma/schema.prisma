@@ -58,6 +58,7 @@ model Organization {
   venues           Venue[]
   ticketTypes      TicketType[]
   ticketInventories TicketInventory[]
+  reservations     Reservation[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -159,6 +160,7 @@ model Event {
   venue             Venue?            @relation(fields: [venueId], references: [id])
   ticketTypes       TicketType[]
   ticketInventories TicketInventory[]
+  reservations      Reservation[]
 
   @@index([organizationId])
   @@index([status])
@@ -183,6 +185,7 @@ model TicketType {
   event           Event             @relation(fields: [eventId], references: [id])
   organization    Organization      @relation(fields: [organizationId], references: [id])
   ticketInventory TicketInventory?
+  reservationItems ReservationItem[]
 
   @@index([eventId])
   @@index([organizationId])
@@ -226,4 +229,45 @@ model TicketInventory {
   @@index([eventId])
   @@index([organizationId])
   @@map("ticket_inventory")
+}
+
+model Reservation {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String            @map("organization_id") @db.Uuid
+  eventId               String            @map("event_id") @db.Uuid
+  status                String            @default("ACTIVE") @db.VarChar(20)
+  continuationTokenHash String            @map("continuation_token_hash") @db.VarChar(64)
+  idempotencyKey        String?           @unique @map("idempotency_key") @db.VarChar(255)
+  expiresAt             DateTime          @map("expires_at") @db.Timestamptz
+  currency              String            @db.VarChar(3)
+  subtotalAmount        BigInt            @default(0) @map("subtotal_amount")
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  event        Event              @relation(fields: [eventId], references: [id])
+  items        ReservationItem[]
+
+  @@index([organizationId, eventId])
+  @@index([expiresAt])
+  @@index([status])
+  @@map("reservations")
+}
+
+model ReservationItem {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservationId   String      @map("reservation_id") @db.Uuid
+  ticketTypeId    String      @map("ticket_type_id") @db.Uuid
+  quantity        Int
+  nameSnapshot    String      @map("name_snapshot") @db.VarChar(500)
+  unitPriceAmount BigInt      @map("unit_price_amount")
+  currency        String      @db.VarChar(3)
+  subtotalAmount  BigInt      @map("subtotal_amount")
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  ticketType  TicketType  @relation(fields: [ticketTypeId], references: [id])
+
+  @@index([reservationId])
+  @@index([ticketTypeId])
+  @@map("reservation_items")
 }

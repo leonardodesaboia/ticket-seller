@@ -9,6 +9,7 @@ Fila de integração
 | 3 | TASK-022 | MERGED em develop (commit 26a0a72) |
 | 4 | TASK-023 | MERGED em develop (commit c87914d) |
 | 5 | TASK-024 | IN_PROGRESS |
+| 6 | TASK-026 | MERGED em develop |
 
 Histórico recente
 Ordem	Tarefa	Status	Data
