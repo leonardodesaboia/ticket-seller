@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED (aguarda contratos de TASK-025/026/027 FROZEN)
+MERGED em develop
 
 ## Objetivo
 

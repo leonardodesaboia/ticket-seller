@@ -83,9 +83,6 @@ export function EventDetails({ event }: EventDetailsProps) {
             ))}
           </ul>
         )}
-        <p className="text-sm text-muted-foreground" role="note">
-          A compra de ingressos ainda não está disponível.
-        </p>
       </section>
     </main>
   );

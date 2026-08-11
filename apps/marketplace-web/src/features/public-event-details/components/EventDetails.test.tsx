@@ -12,7 +12,7 @@ const baseEvent: PublicEventDetail = {
   timezone: 'America/Fortaleza',
   currency: 'BRL',
   venue: { name: 'Main Hall', city: 'Fortaleza', state: 'CE', country: 'BR' },
-  ticketTypes: [{ name: 'General', description: null, price: 5000, currency: 'BRL' }],
+  ticketTypes: [{ ticketTypeId: '00000000-0000-4000-8000-000000000001', name: 'General', description: null, price: 5000, currency: 'BRL' }],
 };
 
 describe('EventDetails', () => {
@@ -24,13 +24,6 @@ describe('EventDetails', () => {
     expect(screen.getByText(/Main Hall/)).toBeInTheDocument();
     expect(screen.getByText(/Fortaleza, CE, BR/)).toBeInTheDocument();
     expect(screen.getByText('R$ 50,00')).toBeInTheDocument();
-  });
-
-  it('shows the purchase-unavailable message and no purchase control', () => {
-    render(<EventDetails event={baseEvent} />);
-
-    expect(screen.getByText(/compra de ingressos ainda não está disponível/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /comprar/i })).not.toBeInTheDocument();
   });
 
   it('omits the venue section for online events', () => {

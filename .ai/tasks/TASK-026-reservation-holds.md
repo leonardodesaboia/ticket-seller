@@ -2,7 +2,7 @@
 
 ## Status
 
-READY (TASK-025 integrada; aguarda implementação)
+MERGED em develop
 
 ## Objetivo
 

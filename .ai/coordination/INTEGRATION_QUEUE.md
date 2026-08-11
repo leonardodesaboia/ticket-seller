@@ -1,6 +1,6 @@
 Fila de integração
 
-Última atualização: 2026-08-06
+Última atualização: 2026-08-11
 
 | Ordem | Tarefa | Status |
 | --- | --- | --- |
@@ -11,6 +11,7 @@ Fila de integração
 | 5 | TASK-024 | IN_PROGRESS |
 | 6 | TASK-026 | MERGED em develop |
 | 7 | TASK-027 | MERGED em develop |
+| 8 | TASK-028 | MERGED em develop |
 
 Histórico recente
 Ordem	Tarefa	Status	Data

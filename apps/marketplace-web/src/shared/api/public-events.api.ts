@@ -23,6 +23,7 @@ export interface PublicVenue {
 }
 
 export interface PublicTicketType {
+  ticketTypeId: string;
   name: string;
   description: string | null;
   price: number;
