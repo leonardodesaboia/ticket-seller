@@ -60,6 +60,7 @@ model Organization {
   ticketInventories TicketInventory[]
   reservations     Reservation[]
   orders           Order[]
+  paymentAttempts  PaymentAttempt[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -294,6 +295,7 @@ model Order {
   event        Event        @relation(fields: [eventId], references: [id])
   reservation  Reservation  @relation(fields: [reservationId], references: [id])
   items        OrderItem[]
+  paymentAttempts PaymentAttempt[]
 
   @@index([organizationId])
   @@index([status])
@@ -315,4 +317,32 @@ model OrderItem {
 
   @@index([orderId])
   @@map("order_items")
+}
+
+model PaymentAttempt {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  orderId            String    @map("order_id") @db.Uuid
+  provider           String    @db.VarChar(50)
+  externalPaymentId  String?   @unique @map("external_payment_id") @db.VarChar(255)
+  status             String    @default("PENDING") @db.VarChar(20)
+  paymentMethod      String    @map("payment_method") @db.VarChar(50)
+  amount             BigInt
+  currency           String    @db.VarChar(3)
+  idempotencyKey     String?   @unique @map("idempotency_key") @db.VarChar(255)
+  failureCode        String?   @map("failure_code") @db.VarChar(100)
+  checkoutData       Json?     @map("checkout_data")
+  expiresAt          DateTime  @map("expires_at") @db.Timestamptz
+  version            Int       @default(1)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("payment_attempts")
 }
