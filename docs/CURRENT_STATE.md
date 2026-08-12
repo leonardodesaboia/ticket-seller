@@ -1,14 +1,14 @@
 Estado atual
 
-Última atualização: 2026-08-12 (TASK-033)
+Última atualização: 2026-08-12 (TASK-037)
 
 Fase
 
-Pagamentos, confirmação de pedido e emissão de ingressos (MVP completo).
+Credencial segura, admissão e check-in (MVP parcial).
 
 Objetivo da fase
 
-Implementar o fluxo de ponta a ponta: seleção de método de pagamento → webhook de confirmação → emissão de ingressos → visualização no marketplace.
+Implementar credencial rotacionável por ticket (QR payload), motor de admissão puro, API de check-in transacional com prevenção de double check-in e interface de operador no backoffice.
 
 Implementado
 diretórios iniciais;
@@ -61,6 +61,10 @@ TASK-030 — Payment Attempt. (CONCLUÍDA)
 TASK-031 — Payment Webhooks & Order Confirmation. (CONCLUÍDA)
 TASK-032 — Ticket Issuance. (CONCLUÍDA)
 TASK-033 — Checkout Payment UI. (CONCLUÍDA)
+TASK-034 — Ticket Credential & QR Foundation. (CONCLUÍDA)
+TASK-035 — Ticket Validation & Admission Engine. (CONCLUÍDA)
+TASK-036 — Check-in API & Audit Trail. (CONCLUÍDA)
+TASK-037 — Check-in Operator Interface. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -78,7 +82,12 @@ inventory transita de reserved para committed apenas na confirmação de pagamen
 tickets só são emitidos a partir de order efetivamente PAID;
 emissão de tickets ocorre na mesma transação de confirmação do webhook;
 rawBody: true no Fastify para preservar corpo bruto do webhook;
-idempotência ponta a ponta: UNIQUE constraints + ON CONFLICT DO NOTHING + FOR UPDATE.
+idempotência ponta a ponta: UNIQUE constraints + ON CONFLICT DO NOTHING + FOR UPDATE;
+credencial de ticket armazena apenas SHA-256 do token — plaintext nunca persiste;
+QR payload = token opaco de 64 hex — sem PII, preço, orderId ou organizationId;
+double check-in impedido por partial unique index (ticket_id) WHERE result='ADMITTED' no PostgreSQL;
+AdmissionPolicy é função pura sem IO — 7 códigos estáveis de decisão;
+$transaction sequencial para rotação de credencial (não CTE) — garante visibilidade correta no partial unique index.
 Decisões pendentes
 nome comercial;
 provedor real de pagamentos;
@@ -95,9 +104,7 @@ Nenhum problema técnico registrado.
 Fora do escopo atual
 reembolso;
 chargeback;
-check-in;
-PDF de ingresso;
-QR Code visual;
+QR Code visual (imagem PNG/SVG);
 transferência de ingresso;
 workers assíncronos;
 notificações;
@@ -106,7 +113,10 @@ integração real com PSP;
 aplicação nativa;
 Kubernetes;
 microserviços;
-multi-cloud ativa.
+multi-cloud ativa;
+check-in offline;
+reversão de check-in;
+PDF de ingresso.
 
 ## Implementado
 
@@ -150,3 +160,7 @@ multi-cloud ativa.
 - payment webhooks e confirmação de order: tabela payment_webhook_events, ProcessPaymentWebhookUseCase com FOR UPDATE + ON CONFLICT DO NOTHING, validação de amount/currency, transição PENDING_PAYMENT → PAID atômica com commit de inventory e outbox, rawBody: true no Fastify, 7 testes unitários + 9 integração (1 concorrência) — TASK-031.
 - ticket issuance: tabela tickets com UNIQUE(order_item_id, unit_index), IssueTicketsUseCase dentro da transação de webhook APPROVED (PAID → tickets → TICKETS_ISSUED), public_code = 64 chars hex aleatório, GET /public/orders/:orderId/tickets com token de reserva, 8 testes unitários + 9 integração (1 concorrência) — TASK-032.
 - checkout payment UI: public-payments.api.ts tipado, SelectMethodView (PIX/Cartão + aria), usePaymentPolling (3s, 5min timeout, visibility-aware), PaymentStatusView (qrCodeText PIX ou placeholder cartão), ConfirmationView + TicketList (aria-labels), CheckoutPage com máquina de estados completa (LOADING → SELECTING_METHOD → PIX/CARD_WAITING → CONFIRMED), aprovação inferida apenas do polling de status no backend, 60 testes unitários — TASK-033.
+- ticket credential & QR foundation: tabela ticket_credentials com partial unique index (ticket_id) WHERE status='ACTIVE', token_hash = SHA-256(token) — plaintext nunca armazenado, POST rotaciona credencial a cada chamada, GET retorna hasCredential, IssueTicketCredentialUseCase, PrismaTicketCredentialRepository com rotação via $transaction sequencial, endpoints POST/GET /public/orders/:orderId/tickets/:ticketId/credential, 7 testes unitários + 10 integração (1 concorrência) — TASK-034.
+- ticket admission engine: AdmissionPolicy pura (sem IO, sem DI) com 7 códigos estáveis (VALID, INVALID_CREDENTIAL, TICKET_CANCELLED, ALREADY_CHECKED_IN, EVENT_NOT_ACTIVE, WRONG_EVENT, TRANSFER_PENDING), AdmissionContext sem PII, ordem de avaliação determinística e testada, 23 testes unitários — TASK-035.
+- check-in API & audit trail: tabela check_ins com partial unique index (ticket_id) WHERE result='ADMITTED' (prevenção de double check-in no banco), PerformCheckInUseCase com replay por Idempotency-Key, PostgresError 23505 → ALREADY_CHECKED_IN, INVALID_CREDENTIAL sem ticket real não persiste, POST /api/v1/organizations/:orgId/events/:eventId/check-ins com ActorGuard, 6 testes unitários + 10 integração (1 concorrência) — TASK-036.
+- check-in operator interface (backoffice): CameraScanner com jsQR frame-a-frame + stream encerrado no unmount, ManualEntryForm como fallback, DecisionFeedback com role=alert e 7 mensagens pt-BR, CheckInPage com máquina de estado SCANNING→VALIDATING→FEEDBACK→SCANNING (2s loop), detecção de offline, Idempotency-Key por scan, rota /organizations/[orgId]/events/[eventId]/check-in, 36 testes unitários — TASK-037.
