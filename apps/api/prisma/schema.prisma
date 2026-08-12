@@ -63,6 +63,7 @@ model Organization {
   paymentAttempts  PaymentAttempt[]
   tickets          Ticket[]
   ticketCredentials TicketCredential[]
+  checkIns         CheckIn[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -167,6 +168,7 @@ model Event {
   reservations      Reservation[]
   orders            Order[]
   tickets           Ticket[]
+  checkIns          CheckIn[]
 
   @@index([organizationId])
   @@index([status])
@@ -397,6 +399,7 @@ model Ticket {
   orderItem    OrderItem    @relation(fields: [orderItemId], references: [id])
   ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
   credentials  TicketCredential[]
+  checkIns     CheckIn[]
 
   @@unique([orderItemId, unitIndex])
   @@index([orderId])
@@ -418,8 +421,33 @@ model TicketCredential {
 
   ticket       Ticket       @relation(fields: [ticketId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
+  checkIns     CheckIn[]
 
   @@index([ticketId])
   @@index([organizationId])
   @@map("ticket_credentials")
+}
+
+model CheckIn {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  eventId           String    @map("event_id") @db.Uuid
+  ticketId          String    @map("ticket_id") @db.Uuid
+  credentialId      String    @map("credential_id") @db.Uuid
+  performedByUserId String?   @map("performed_by_user_id") @db.Uuid
+  result            String    @db.VarChar(30)
+  idempotencyKey    String?   @unique @map("idempotency_key") @db.VarChar(100)
+  checkedInAt       DateTime  @default(now()) @map("checked_in_at") @db.Timestamptz
+  source            String    @default("SCANNER") @db.VarChar(20)
+  notes             String?
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  event        Event             @relation(fields: [eventId], references: [id])
+  ticket       Ticket            @relation(fields: [ticketId], references: [id])
+  credential   TicketCredential  @relation(fields: [credentialId], references: [id])
+
+  @@index([eventId])
+  @@index([ticketId])
+  @@index([organizationId])
+  @@map("check_ins")
 }

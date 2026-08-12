@@ -12,6 +12,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
+import { CheckInModule } from './modules/checkin/checkin.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TicketsModule } from './modules/tickets/tickets.module';
     OrdersModule,
     PaymentsModule,
     TicketsModule,
+    CheckInModule,
   ],
 })
 export class AppModule {}
