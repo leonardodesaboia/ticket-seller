@@ -337,12 +337,37 @@ model PaymentAttempt {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  order        Order        @relation(fields: [orderId], references: [id])
+  organization  Organization          @relation(fields: [organizationId], references: [id])
+  order         Order                 @relation(fields: [orderId], references: [id])
+  webhookEvents PaymentWebhookEvent[]
 
   @@index([orderId])
   @@index([organizationId])
   @@index([status])
   @@index([expiresAt])
   @@map("payment_attempts")
+}
+
+model PaymentWebhookEvent {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider          String    @db.VarChar(50)
+  providerEventId   String    @map("provider_event_id") @db.VarChar(255)
+  paymentAttemptId  String?   @map("payment_attempt_id") @db.Uuid
+  externalPaymentId String    @map("external_payment_id") @db.VarChar(255)
+  eventType         String    @map("event_type") @db.VarChar(100)
+  rawStatus         String    @map("raw_status") @db.VarChar(100)
+  amount            BigInt?
+  currency          String?   @db.VarChar(3)
+  processedAt       DateTime? @map("processed_at") @db.Timestamptz
+  failedAt          DateTime? @map("failed_at") @db.Timestamptz
+  errorMessage      String?   @map("error_message")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  paymentAttempt PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id])
+
+  @@unique([provider, providerEventId])
+  @@index([externalPaymentId])
+  @@index([paymentAttemptId])
+  @@index([processedAt])
+  @@map("payment_webhook_events")
 }
