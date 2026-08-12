@@ -72,6 +72,7 @@ afterEach(async () => {
   if (!prisma) return;
   await prisma.$executeRawUnsafe('DELETE FROM payment_webhook_events');
   await prisma.$executeRawUnsafe('DELETE FROM payment_attempts');
+  await prisma.$executeRawUnsafe('DELETE FROM tickets');
   await prisma.$executeRawUnsafe('DELETE FROM order_items');
   await prisma.$executeRawUnsafe('DELETE FROM orders');
   await prisma.$executeRawUnsafe('DELETE FROM reservation_items');
@@ -209,7 +210,7 @@ function sendWebhook(body: Buffer, signature: string) {
 }
 
 describe('Payment webhook — PAYMENT_APPROVED', () => {
-  it('returns 200 and marks order as PAID', async () => {
+  it('returns 200 and marks order as TICKETS_ISSUED (PAID → tickets emitted in same tx)', async () => {
     const fixture = await createWebhookFixture();
     const body = buildWebhookBody(fixture.externalPaymentId, 'PAYMENT_APPROVED', fixture.attemptAmount);
     const sig = signFakeWebhook(body);
@@ -219,7 +220,7 @@ describe('Payment webhook — PAYMENT_APPROVED', () => {
     const order = await prisma.$queryRaw<Array<{ status: string }>>`
       SELECT status FROM orders WHERE id = ${fixture.orderId}::uuid
     `;
-    expect(order[0]!.status).toBe('PAID');
+    expect(order[0]!.status).toBe('TICKETS_ISSUED');
 
     const attempt = await prisma.$queryRaw<Array<{ status: string }>>`
       SELECT status FROM payment_attempts WHERE id = ${fixture.paymentAttemptId}::uuid
@@ -274,7 +275,7 @@ describe('Payment webhook — PAYMENT_APPROVED', () => {
     const order = await prisma.$queryRaw<Array<{ status: string }>>`
       SELECT status FROM orders WHERE id = ${fixture.orderId}::uuid
     `;
-    expect(order[0]!.status).toBe('PAID');
+    expect(order[0]!.status).toBe('TICKETS_ISSUED');
 
     // Inventory committed should reflect exactly 2 tickets (the quantity), not 4
     const inventory = await prisma.$queryRaw<Array<{ committed: number }>>`
@@ -347,7 +348,7 @@ describe('Payment webhook — missing body or signature', () => {
 });
 
 describe('Payment webhook — concurrency', () => {
-  it('two simultaneous APPROVED webhooks result in order PAID exactly once', async () => {
+  it('two simultaneous APPROVED webhooks result in order TICKETS_ISSUED exactly once', async () => {
     const fixture = await createWebhookFixture();
     const eventId = randomUUID();
     const body = buildWebhookBody(fixture.externalPaymentId, 'PAYMENT_APPROVED', fixture.attemptAmount, 'BRL', eventId);
@@ -364,7 +365,7 @@ describe('Payment webhook — concurrency', () => {
     const order = await prisma.$queryRaw<Array<{ status: string }>>`
       SELECT status FROM orders WHERE id = ${fixture.orderId}::uuid
     `;
-    expect(order[0]!.status).toBe('PAID');
+    expect(order[0]!.status).toBe('TICKETS_ISSUED');
 
     // Inventory committed exactly once (2 tickets)
     const inventory = await prisma.$queryRaw<Array<{ committed: number }>>`
