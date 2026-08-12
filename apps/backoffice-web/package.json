@@ -17,13 +17,13 @@
     "@ticket-seller/design-tokens": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.441.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.83.0",
     "tailwind-merge": "^2.5.2",
-    "jsqr": "^1.4.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
