@@ -10,6 +10,7 @@ import { VenuesModule } from './modules/venues/venues.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { OrdersModule } from './modules/orders/orders.module';
     InventoryModule,
     ReservationsModule,
     OrdersModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
