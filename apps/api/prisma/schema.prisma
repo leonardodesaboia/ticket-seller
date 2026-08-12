@@ -61,6 +61,7 @@ model Organization {
   reservations     Reservation[]
   orders           Order[]
   paymentAttempts  PaymentAttempt[]
+  tickets          Ticket[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -164,6 +165,7 @@ model Event {
   ticketInventories TicketInventory[]
   reservations      Reservation[]
   orders            Order[]
+  tickets           Ticket[]
 
   @@index([organizationId])
   @@index([status])
@@ -190,6 +192,7 @@ model TicketType {
   ticketInventory TicketInventory?
   reservationItems ReservationItem[]
   orderItems       OrderItem[]
+  tickets          Ticket[]
 
   @@index([eventId])
   @@index([organizationId])
@@ -296,6 +299,7 @@ model Order {
   reservation  Reservation  @relation(fields: [reservationId], references: [id])
   items        OrderItem[]
   paymentAttempts PaymentAttempt[]
+  tickets      Ticket[]
 
   @@index([organizationId])
   @@index([status])
@@ -314,6 +318,7 @@ model OrderItem {
 
   order      Order      @relation(fields: [orderId], references: [id])
   ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+  tickets    Ticket[]
 
   @@index([orderId])
   @@map("order_items")
@@ -370,4 +375,31 @@ model PaymentWebhookEvent {
   @@index([paymentAttemptId])
   @@index([processedAt])
   @@map("payment_webhook_events")
+}
+
+model Ticket {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  eventId        String   @map("event_id") @db.Uuid
+  orderId        String   @map("order_id") @db.Uuid
+  orderItemId    String   @map("order_item_id") @db.Uuid
+  ticketTypeId   String   @map("ticket_type_id") @db.Uuid
+  unitIndex      Int      @map("unit_index")
+  publicCode     String   @unique @map("public_code") @db.VarChar(64)
+  status         String   @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  event        Event        @relation(fields: [eventId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+  orderItem    OrderItem    @relation(fields: [orderItemId], references: [id])
+  ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
+
+  @@unique([orderItemId, unitIndex])
+  @@index([orderId])
+  @@index([organizationId])
+  @@index([eventId])
+  @@index([ticketTypeId])
+  @@map("tickets")
 }

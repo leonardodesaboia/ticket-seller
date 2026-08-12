@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import {
@@ -162,6 +163,38 @@ export class ProcessPaymentWebhookUseCase {
           AND ti.organization_id = ${attempt.organization_id}::uuid
       `;
 
+      // Issue tickets: one row per (order_item_id, unit_index)
+      const orderItems = await tx.$queryRaw<Array<{
+        id: string; ticket_type_id: string; quantity: number; event_id: string;
+      }>>`
+        SELECT oi.id, oi.ticket_type_id, oi.quantity, o.event_id
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE oi.order_id = ${attempt.order_id}::uuid
+      `;
+
+      for (const item of orderItems) {
+        for (let unitIndex = 0; unitIndex < item.quantity; unitIndex++) {
+          const publicCode = crypto.randomBytes(32).toString('hex');
+          const ticketId = crypto.randomUUID();
+          await tx.$executeRaw`
+            INSERT INTO tickets
+              (id, organization_id, event_id, order_id, order_item_id, ticket_type_id, unit_index, public_code)
+            VALUES
+              (${ticketId}::uuid, ${attempt.organization_id}::uuid, ${item.event_id}::uuid,
+               ${attempt.order_id}::uuid, ${item.id}::uuid, ${item.ticket_type_id}::uuid,
+               ${unitIndex}, ${publicCode})
+            ON CONFLICT (order_item_id, unit_index) DO NOTHING
+          `;
+        }
+      }
+
+      // Update order to TICKETS_ISSUED
+      await tx.$executeRaw`
+        UPDATE orders SET status = 'TICKETS_ISSUED', updated_at = NOW()
+        WHERE id = ${attempt.order_id}::uuid AND status = 'PAID'
+      `;
+
       // Outbox events
       const orderId = attempt.order_id;
       const orgId = attempt.organization_id;
@@ -173,6 +206,10 @@ export class ProcessPaymentWebhookUseCase {
           ('order', ${orderId}, 'order.paid.v1', '1',
            ${JSON.stringify({ orderId, organizationId: orgId })}::jsonb, ${orgId}::uuid),
           ('inventory', ${orderId}, 'inventory.committed.v1', '1',
+           ${JSON.stringify({ orderId, organizationId: orgId })}::jsonb, ${orgId}::uuid),
+          ('order', ${orderId}, 'order.tickets-issued.v1', '1',
+           ${JSON.stringify({ orderId, organizationId: orgId })}::jsonb, ${orgId}::uuid),
+          ('tickets', ${orderId}, 'tickets.issued.v1', '1',
            ${JSON.stringify({ orderId, organizationId: orgId })}::jsonb, ${orgId}::uuid)
       `;
 

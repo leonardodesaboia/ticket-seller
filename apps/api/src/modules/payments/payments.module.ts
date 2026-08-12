@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PaymentsInfrastructureModule } from './infrastructure/payments.infrastructure.module';
+import { TicketsModule } from '../tickets/tickets.module';
 import { PAYMENT_GATEWAY_PORT } from './domain/ports/payment-gateway.port';
 import { PAYMENT_ATTEMPT_REPOSITORY } from './domain/ports/payment-attempt-repository.port';
 import { ORDER_ACCESS_PORT } from './application/ports/order-access.port';
@@ -13,7 +14,7 @@ import { PrismaPaymentAttemptRepository } from './infrastructure/repositories/pr
 import { OrderAccessAdapter } from './infrastructure/adapters/order-access.adapter';
 
 @Module({
-  imports: [PaymentsInfrastructureModule],
+  imports: [PaymentsInfrastructureModule, TicketsModule],
   controllers: [PublicPaymentsController, PaymentWebhookController],
   providers: [
     CreatePaymentAttemptUseCase,
