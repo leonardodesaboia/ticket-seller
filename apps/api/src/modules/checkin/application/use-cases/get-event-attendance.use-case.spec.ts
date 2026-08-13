@@ -1,9 +1,9 @@
-import { NotFoundException } from '@nestjs/common';
 import { GetEventAttendanceUseCase } from './get-event-attendance.use-case';
 import {
   EventAttendanceData,
   ICheckInRepository,
 } from '../../domain/ports/check-in-repository.port';
+import { EventNotFoundError } from '../../domain/checkin.errors';
 
 function makeMockRepo(attendanceData: EventAttendanceData | null): ICheckInRepository {
   return {
@@ -67,11 +67,11 @@ describe('GetEventAttendanceUseCase', () => {
     expect(result.recentCheckIns).toEqual([]);
   });
 
-  it('3. throws NotFoundException when event does not belong to organization', async () => {
+  it('3. throws EventNotFoundError when event does not belong to organization', async () => {
     const repo = makeMockRepo(null);
 
     const useCase = new GetEventAttendanceUseCase(repo);
-    await expect(useCase.execute('other-org', 'event-1')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('other-org', 'event-1')).rejects.toThrow(EventNotFoundError);
   });
 
   it('4. formats performedByUserId as 8-char prefix (digits from UUID without dashes)', async () => {

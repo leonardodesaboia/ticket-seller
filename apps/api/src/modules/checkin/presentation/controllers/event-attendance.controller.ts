@@ -1,7 +1,8 @@
-import { Controller, Get, HttpCode, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, NotFoundException, Param, UseGuards } from '@nestjs/common';
 import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
 import { GetEventAttendanceUseCase } from '../../application/use-cases/get-event-attendance.use-case';
 import { EventAttendanceResponseDto } from '../dto/event-attendance.response';
+import { EventNotFoundError } from '../../domain/checkin.errors';
 
 @Controller('organizations/:orgId/events/:eventId')
 @UseGuards(ActorGuard)
@@ -14,7 +15,13 @@ export class EventAttendanceController {
     @Param('orgId') orgId: string,
     @Param('eventId') eventId: string,
   ): Promise<EventAttendanceResponseDto> {
-    const result = await this.getEventAttendance.execute(orgId, eventId);
+    let result: Awaited<ReturnType<GetEventAttendanceUseCase['execute']>>;
+    try {
+      result = await this.getEventAttendance.execute(orgId, eventId);
+    } catch (err) {
+      if (err instanceof EventNotFoundError) throw new NotFoundException('Event not found');
+      throw err;
+    }
 
     return {
       totalIssued: result.totalIssued,

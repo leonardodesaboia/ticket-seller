@@ -12,7 +12,10 @@ import {
   TICKET_REPOSITORY,
   ITicketRepository,
 } from '../../domain/ports/ticket-repository.port';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import {
+  CHECK_IN_ACCESS_FOR_TRANSFER_PORT,
+  ICheckInAccessForTransferPort,
+} from '../ports/check-in-access-for-transfer.port';
 import { TicketInvalidTokenError } from '../../domain/ticket.errors';
 import { TicketAlreadyAdmittedError, TransferAlreadyPendingError } from '../../domain/ticket-transfer.errors';
 
@@ -36,7 +39,8 @@ export class InitiateTransferUseCase {
     private readonly orderAccess: ITicketOrderAccessPort,
     @Inject(TICKET_REPOSITORY)
     private readonly ticketRepo: ITicketRepository,
-    private readonly prisma: PrismaService,
+    @Inject(CHECK_IN_ACCESS_FOR_TRANSFER_PORT)
+    private readonly checkInAccess: ICheckInAccessForTransferPort,
   ) {}
 
   async execute(input: InitiateTransferInput): Promise<InitiateTransferResult> {
@@ -50,15 +54,8 @@ export class InitiateTransferUseCase {
     if (!ticket) throw new TicketInvalidTokenError();
 
     // Check if ticket has been admitted
-    const admittedRows = await this.prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM check_ins
-      WHERE ticket_id = ${input.ticketId}::uuid
-        AND result = 'ADMITTED'
-      LIMIT 1
-    `;
-    if (admittedRows.length > 0) {
-      throw new TicketAlreadyAdmittedError(input.ticketId);
-    }
+    const admitted = await this.checkInAccess.hasAdmittedCheckIn(input.ticketId);
+    if (admitted) throw new TicketAlreadyAdmittedError(input.ticketId);
 
     // Check for existing pending transfer
     const existing = await this.transferRepo.findPendingByTicketId(

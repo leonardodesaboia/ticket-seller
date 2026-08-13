@@ -84,7 +84,7 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
         <div className="w-full max-w-md rounded-lg border border-input bg-background p-8 shadow-sm">
           <h1 className="mb-4 text-xl font-bold text-foreground">Transferência concluída!</h1>
           <p className="text-sm text-muted-foreground">
-            Ingresso transferido! Acesse o app do remetente para gerar um novo QR Code.
+            Ingresso transferido! Você já pode gerar seu novo QR Code no app.
           </p>
         </div>
       </main>

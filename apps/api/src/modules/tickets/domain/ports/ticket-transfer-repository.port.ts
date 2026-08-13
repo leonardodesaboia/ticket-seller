@@ -11,6 +11,12 @@ export interface CreateTransferData {
 
 export type PrismaTransactionClient = Prisma.TransactionClient;
 
+export interface AcceptAtomicParams {
+  transferId: string;
+  ticketId: string;
+  organizationId: string;
+}
+
 export interface ITicketTransferRepository {
   /** Find a PENDING transfer for a given ticket and organization. */
   findPendingByTicketId(ticketId: string, organizationId: string): Promise<TicketTransfer | null>;
@@ -22,6 +28,8 @@ export interface ITicketTransferRepository {
   cancel(id: string): Promise<void>;
   /** Accept a transfer inside an optional transaction client. */
   accept(id: string, tx?: PrismaTransactionClient): Promise<void>;
+  /** Atomically accept a transfer: locks ticket, verifies status, revokes old credentials, issues new credential. Returns the new plaintext credential token. */
+  acceptAtomically(params: AcceptAtomicParams): Promise<string>;
 }
 
 export const TICKET_TRANSFER_REPOSITORY = Symbol('TICKET_TRANSFER_REPOSITORY');

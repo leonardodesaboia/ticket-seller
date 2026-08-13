@@ -1,8 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   CHECK_IN_REPOSITORY,
   ICheckInRepository,
 } from '../../domain/ports/check-in-repository.port';
+import { EventNotFoundError } from '../../domain/checkin.errors';
 
 export interface AttendanceByTicketType {
   ticketTypeId: string;
@@ -37,7 +38,7 @@ export class GetEventAttendanceUseCase {
     const data = await this.checkInRepo.getEventAttendance(organizationId, eventId);
 
     if (data === null) {
-      throw new NotFoundException('Event not found for this organization');
+      throw new EventNotFoundError();
     }
 
     const byTicketType: AttendanceByTicketType[] = data.byTicketType.map((row) => ({
