@@ -64,6 +64,7 @@ model Organization {
   tickets          Ticket[]
   ticketCredentials TicketCredential[]
   checkIns         CheckIn[]
+  ticketTransfers  TicketTransfer[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -398,8 +399,9 @@ model Ticket {
   order        Order        @relation(fields: [orderId], references: [id])
   orderItem    OrderItem    @relation(fields: [orderItemId], references: [id])
   ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
-  credentials  TicketCredential[]
-  checkIns     CheckIn[]
+  credentials     TicketCredential[]
+  checkIns        CheckIn[]
+  ticketTransfers TicketTransfer[]
 
   @@unique([orderItemId, unitIndex])
   @@index([orderId])
@@ -450,4 +452,24 @@ model CheckIn {
   @@index([ticketId])
   @@index([organizationId])
   @@map("check_ins")
+}
+
+model TicketTransfer {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId       String    @map("ticket_id") @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  claimTokenHash String    @map("claim_token_hash") @db.VarChar(64)
+  status         String    @default("PENDING") @db.VarChar(20)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz
+  cancelledAt    DateTime? @map("cancelled_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  ticket       Ticket       @relation(fields: [ticketId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([claimTokenHash])
+  @@map("ticket_transfers")
 }
