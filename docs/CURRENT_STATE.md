@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-12 (TASK-037)
+Última atualização: 2026-08-13 (TASK-040)
 
 Fase
 
@@ -65,6 +65,9 @@ TASK-034 — Ticket Credential & QR Foundation. (CONCLUÍDA)
 TASK-035 — Ticket Validation & Admission Engine. (CONCLUÍDA)
 TASK-036 — Check-in API & Audit Trail. (CONCLUÍDA)
 TASK-037 — Check-in Operator Interface. (CONCLUÍDA)
+TASK-038 — Ticket Transfer Foundation. (CONCLUÍDA)
+TASK-039 — Ticket Transfer Experience. (CONCLUÍDA)
+TASK-040 — Event Attendance & Operations Dashboard. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -87,7 +90,11 @@ credencial de ticket armazena apenas SHA-256 do token — plaintext nunca persis
 QR payload = token opaco de 64 hex — sem PII, preço, orderId ou organizationId;
 double check-in impedido por partial unique index (ticket_id) WHERE result='ADMITTED' no PostgreSQL;
 AdmissionPolicy é função pura sem IO — 7 códigos estáveis de decisão;
-$transaction sequencial para rotação de credencial (não CTE) — garante visibilidade correta no partial unique index.
+$transaction sequencial para rotação de credencial (não CTE) — garante visibilidade correta no partial unique index;
+transferência de ticket com rotação atômica de credencial no aceite — SELECT FOR UPDATE serializa aceites concorrentes;
+claim_token_hash (SHA-256) persiste; claimToken plaintext nunca armazenado;
+partial unique index (ticket_id) WHERE status='PENDING' garante no máximo uma transferência pendente por ticket;
+link de aceite público sem autenticação de usuário — design deliberado para MVP.
 Decisões pendentes
 nome comercial;
 provedor real de pagamentos;
@@ -164,3 +171,6 @@ PDF de ingresso.
 - ticket admission engine: AdmissionPolicy pura (sem IO, sem DI) com 7 códigos estáveis (VALID, INVALID_CREDENTIAL, TICKET_CANCELLED, ALREADY_CHECKED_IN, EVENT_NOT_ACTIVE, WRONG_EVENT, TRANSFER_PENDING), AdmissionContext sem PII, ordem de avaliação determinística e testada, 23 testes unitários — TASK-035.
 - check-in API & audit trail: tabela check_ins com partial unique index (ticket_id) WHERE result='ADMITTED' (prevenção de double check-in no banco), PerformCheckInUseCase com replay por Idempotency-Key, PostgresError 23505 → ALREADY_CHECKED_IN, INVALID_CREDENTIAL sem ticket real não persiste, POST /api/v1/organizations/:orgId/events/:eventId/check-ins com ActorGuard, 6 testes unitários + 10 integração (1 concorrência) — TASK-036.
 - check-in operator interface (backoffice): CameraScanner com jsQR frame-a-frame + stream encerrado no unmount, ManualEntryForm como fallback, DecisionFeedback com role=alert e 7 mensagens pt-BR, CheckInPage com máquina de estado SCANNING→VALIDATING→FEEDBACK→SCANNING (2s loop), detecção de offline, Idempotency-Key por scan, rota /organizations/[orgId]/events/[eventId]/check-in, 36 testes unitários — TASK-037.
+- ticket transfer foundation: tabela ticket_transfers com partial unique index (ticket_id) WHERE status='PENDING', claim_token_hash = SHA-256 (plaintext nunca persistido), InitiateTransfer / CancelTransfer / AcceptTransfer use cases, rotação atômica de credencial no aceite via $transaction sequencial com SELECT FOR UPDATE, transferPending real no ticket-access.adapter via EXISTS subquery, POST/DELETE /public/orders/:orderId/tickets/:ticketId/transfer e POST /public/transfers/:claimToken/accept, 17 testes unitários + 9 integração (1 concorrência) — TASK-038.
+- ticket transfer experience (marketplace): transfers.api.ts tipado, TicketCard com botão "Transferir", InitiateTransferModal com aviso de invalidação do QR + link de claim + CancelTransferButton, AcceptTransferPage com estados CONFIRMING/ACCEPTING/SUCCESS/EXPIRED/ALREADY_ACCEPTED/ERROR, rota /transfer/accept/[claimToken] (Server Component Next.js 15), 12 testes unitários — TASK-039.
+- event attendance dashboard: GetEventAttendanceUseCase com SQL nativo (COUNT + GROUP BY sem N+1), GET /organizations/:orgId/events/:eventId/attendance com ActorGuard e isolamento cross-tenant, performedByUserId truncado a 8 chars, attendanceRate seguro contra divisão por zero, AttendanceDashboard (backoffice) com polling 15s e pause em visibilityState=hidden, AttendanceStats + RecentCheckIns, rota /organizations/[organizationId]/events/[eventId]/dashboard, 17 testes unitários (5 use case + 6 hook + 4 stats + 3 recent + 4 dashboard) + 3 integração — TASK-040.

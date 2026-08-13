@@ -4,7 +4,6 @@ Tarefas ativas
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
-| TASK-024 — Publish Flow and Marketplace | IN_PROGRESS (implementação em task/024, buildando; pendência: teste do painel + revisão) | Frontend owners |
 
 Estados
 BLOCKED: dependências ainda não integradas;
@@ -42,6 +41,10 @@ TASK-023: Public Event Catalog API — MERGED em develop 2026-08-06 (commit c879
 TASK-026: Reservation Holds — MERGED em develop 2026-08-11
 TASK-027: Order Foundation — MERGED em develop 2026-08-11
 TASK-028: Marketplace Reservation & Checkout Preparation — MERGED em develop 2026-08-11
+TASK-038: Ticket Transfer Foundation — MERGED em develop 2026-08-13
+TASK-039: Ticket Transfer Experience — MERGED em develop 2026-08-13
+TASK-040: Event Attendance & Operations Dashboard — MERGED em develop 2026-08-13
+TASK-FIX: Correções da revisão TASK-038/039/040 — MERGED em develop 2026-08-13
 
 Regras
 uma tarefa deve aparecer uma única vez;
