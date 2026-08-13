@@ -1,14 +1,14 @@
 Estado atual
 
-Última atualização: 2026-08-12 (TASK-037)
+Última atualização: 2026-08-13 (TASK-041)
 
 Fase
 
-Credencial segura, admissão e check-in (MVP parcial).
+Cancelamentos, reembolsos e notificações (MVP parcial).
 
 Objetivo da fase
 
-Implementar credencial rotacionável por ticket (QR payload), motor de admissão puro, API de check-in transacional com prevenção de double check-in e interface de operador no backoffice.
+Implementar cancelamento de orders e tickets com liberação de estoque, reembolsos via PSP, tratamento de chargebacks e notificações transacionais por e-mail.
 
 Implementado
 diretórios iniciais;
@@ -65,6 +65,12 @@ TASK-034 — Ticket Credential & QR Foundation. (CONCLUÍDA)
 TASK-035 — Ticket Validation & Admission Engine. (CONCLUÍDA)
 TASK-036 — Check-in API & Audit Trail. (CONCLUÍDA)
 TASK-037 — Check-in Operator Interface. (CONCLUÍDA)
+TASK-041 — Order & Ticket Cancellation Foundation. (CONCLUÍDA)
+TASK-042 — Refund Processing. (PLANEJADA)
+TASK-043 — Event Cancellation & Mass Refunds. (PLANEJADA)
+TASK-044 — Chargebacks & Payment Disputes. (PLANEJADA)
+TASK-045 — Notification Foundation. (PLANEJADA)
+TASK-046 — Transactional Notifications. (PLANEJADA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -102,8 +108,6 @@ Problemas conhecidos
 Nenhum problema técnico registrado.
 
 Fora do escopo atual
-reembolso;
-chargeback;
 QR Code visual (imagem PNG/SVG);
 transferência de ingresso;
 workers assíncronos;

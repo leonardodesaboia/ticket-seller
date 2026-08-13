@@ -285,18 +285,21 @@ model ReservationItem {
 }
 
 model Order {
-  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String      @map("organization_id") @db.Uuid
-  eventId        String      @map("event_id") @db.Uuid
-  reservationId  String      @unique @map("reservation_id") @db.Uuid
-  status         String      @default("PENDING_PAYMENT") @db.VarChar(30)
-  currency       String      @db.VarChar(3)
-  subtotalAmount BigInt      @map("subtotal_amount")
-  totalAmount    BigInt      @map("total_amount")
-  idempotencyKey String?     @unique @map("idempotency_key") @db.VarChar(255)
-  expiresAt      DateTime    @map("expires_at") @db.Timestamptz
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String    @map("organization_id") @db.Uuid
+  eventId              String    @map("event_id") @db.Uuid
+  reservationId        String    @unique @map("reservation_id") @db.Uuid
+  status               String    @default("PENDING_PAYMENT") @db.VarChar(30)
+  currency             String    @db.VarChar(3)
+  subtotalAmount       BigInt    @map("subtotal_amount")
+  totalAmount          BigInt    @map("total_amount")
+  idempotencyKey       String?   @unique @map("idempotency_key") @db.VarChar(255)
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz
+  cancelledAt          DateTime? @map("cancelled_at") @db.Timestamptz
+  cancellationReason   String?   @map("cancellation_reason") @db.VarChar(255)
+  cancellationSource   String?   @map("cancellation_source") @db.VarChar(30)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   organization Organization @relation(fields: [organizationId], references: [id])
   event        Event        @relation(fields: [eventId], references: [id])
@@ -398,6 +401,8 @@ model Ticket {
   event        Event        @relation(fields: [eventId], references: [id])
   order        Order        @relation(fields: [orderId], references: [id])
   orderItem    OrderItem    @relation(fields: [orderItemId], references: [id])
+  cancelledAt  DateTime? @map("cancelled_at") @db.Timestamptz
+
   ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
   credentials     TicketCredential[]
   checkIns        CheckIn[]

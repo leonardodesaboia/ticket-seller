@@ -1,10 +1,10 @@
 Tarefas ativas
 
-Última atualização: 2026-08-11
+Última atualização: 2026-08-13
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
-| TASK-024 — Publish Flow and Marketplace | IN_PROGRESS (implementação em task/024, buildando; pendência: teste do painel + revisão) | Frontend owners |
+| TASK-041 — Order & Ticket Cancellation Foundation | READY_TO_MERGE (branch task/041-cancellation-foundation, aguardando merge em develop) | Backend |
 
 Estados
 BLOCKED: dependências ainda não integradas;
@@ -42,6 +42,15 @@ TASK-023: Public Event Catalog API — MERGED em develop 2026-08-06 (commit c879
 TASK-026: Reservation Holds — MERGED em develop 2026-08-11
 TASK-027: Order Foundation — MERGED em develop 2026-08-11
 TASK-028: Marketplace Reservation & Checkout Preparation — MERGED em develop 2026-08-11
+TASK-029: Payment Port & Gateway Adapter — MERGED em develop 2026-08-12
+TASK-030: Payment Attempt — MERGED em develop 2026-08-12
+TASK-031: Payment Webhooks & Order Confirmation — MERGED em develop 2026-08-12
+TASK-032: Ticket Issuance — MERGED em develop 2026-08-12
+TASK-033: Checkout Payment UI — MERGED em develop 2026-08-12
+TASK-034: Ticket Credential & QR Foundation — MERGED em develop 2026-08-12
+TASK-035: Ticket Validation & Admission Engine — MERGED em develop 2026-08-12
+TASK-036: Check-in API & Audit Trail — MERGED em develop 2026-08-12
+TASK-037: Check-in Operator Interface — MERGED em develop 2026-08-12
 
 Regras
 uma tarefa deve aparecer uma única vez;

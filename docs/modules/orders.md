@@ -1,14 +1,31 @@
-Módulo: Orders
-Responsabilidade
+# Módulo: Orders
+
+## Responsabilidade
 
 Controlar o pedido de compra, seus itens, valores, estados e vínculo com reservas e pagamentos.
 
-Não é responsabilidade
-decidir disponibilidade do estoque;
-processar cartão ou Pix;
-emitir ingresso diretamente;
-calcular repasse do produtor;
-realizar check-in.
+## Não é responsabilidade
+
+- decidir disponibilidade do estoque;
+- processar cartão ou Pix;
+- emitir ingresso diretamente;
+- calcular repasse do produtor;
+- realizar check-in.
+
+---
+
+## Implementado (MVP)
+
+### Cancellation Foundation (TASK-041)
+
+- `POST /api/v1/public/orders/:orderId/cancellations` — comprador cancela PENDING_PAYMENT via `x-reservation-token` (hex64). Sem `X-Organization-Id`. Outbox `order.cancelled.v1` com `requiresRefund: false`.
+- `POST /api/v1/organizations/:orgId/orders/:orderId/cancellations` — admin cancela PENDING_PAYMENT ou TICKETS_ISSUED. Outbox `order.cancelled.v1` com `requiresRefund: true` para pós-pagamento.
+- `evaluateCancellationEligibility` — função pura: 5 códigos (`CANCELLATION_ALLOWED`, `ORDER_ALREADY_CANCELLED`, `ORDER_IN_TERMINAL_STATE`, `TICKET_ALREADY_USED`, `TICKET_TRANSFER_PENDING`).
+- `SELECT ... FOR UPDATE` antes de toda mutação — idempotente sob concorrência.
+- Inventário liberado atomicamente: `reserved` (pré-pagamento) ou `committed` (pós-pagamento).
+- Tickets → `CANCELLED`, credentials → `REVOKED` no cancelamento pós-pagamento.
+- Auditoria em `audit_entries` para operações admin.
+- 12 testes unitários + 10 integração (Testcontainers, 1 concorrência).
 Entidades
 Order
 
