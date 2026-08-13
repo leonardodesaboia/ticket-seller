@@ -3,9 +3,25 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import { CheckIn, CheckInResult, CheckInSource } from '../../domain/check-in.entity';
 import {
+  AttendanceByTicketTypeRow,
   CreateCheckInData,
+  EventAttendanceData,
   ICheckInRepository,
+  RecentCheckInRow,
 } from '../../domain/ports/check-in-repository.port';
+
+interface RawMetricsRow {
+  ticket_type_id: string;
+  ticket_type_name: string;
+  total_issued: bigint;
+  total_admitted: bigint;
+}
+
+interface RawRecentRow {
+  checked_in_at: Date;
+  ticket_type_name: string;
+  performed_by_user_id: string | null;
+}
 
 interface RawCheckInRow {
   id: string;
@@ -98,5 +114,62 @@ export class PrismaCheckInRepository implements ICheckInRepository {
 
     if (!rows[0]) throw new Error('createCheckIn: no row returned');
     return toEntity(rows[0]);
+  }
+
+  async getEventAttendance(organizationId: string, eventId: string): Promise<EventAttendanceData | null> {
+    // Cross-tenant guard: verify event belongs to organization
+    const eventRows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM events
+      WHERE id = ${eventId}::uuid
+        AND organization_id = ${organizationId}::uuid
+      LIMIT 1
+    `;
+    if (!eventRows[0]) return null;
+
+    // Metrics per ticket type — no N+1
+    const metricsRows = await this.prisma.$queryRaw<RawMetricsRow[]>`
+      SELECT
+        tt.id AS ticket_type_id,
+        tt.name AS ticket_type_name,
+        COUNT(DISTINCT t.id) AS total_issued,
+        COUNT(DISTINCT ci.ticket_id) AS total_admitted
+      FROM tickets t
+      JOIN ticket_types tt ON tt.id = t.ticket_type_id
+      LEFT JOIN check_ins ci ON ci.ticket_id = t.id AND ci.result = 'ADMITTED'
+      WHERE t.organization_id = ${organizationId}::uuid
+        AND t.event_id = ${eventId}::uuid
+      GROUP BY tt.id, tt.name
+    `;
+
+    const byTicketType: AttendanceByTicketTypeRow[] = metricsRows.map((row) => ({
+      ticketTypeId: row.ticket_type_id,
+      ticketTypeName: row.ticket_type_name,
+      totalIssued: Number(row.total_issued),
+      totalAdmitted: Number(row.total_admitted),
+    }));
+
+    // Last 20 ADMITTED check-ins
+    const recentRows = await this.prisma.$queryRaw<RawRecentRow[]>`
+      SELECT
+        ci.checked_in_at,
+        tt.name AS ticket_type_name,
+        ci.performed_by_user_id
+      FROM check_ins ci
+      JOIN tickets t ON t.id = ci.ticket_id
+      JOIN ticket_types tt ON tt.id = t.ticket_type_id
+      WHERE ci.organization_id = ${organizationId}::uuid
+        AND ci.event_id = ${eventId}::uuid
+        AND ci.result = 'ADMITTED'
+      ORDER BY ci.checked_in_at DESC
+      LIMIT 20
+    `;
+
+    const recentCheckIns: RecentCheckInRow[] = recentRows.map((row) => ({
+      checkedInAt: row.checked_in_at,
+      ticketTypeName: row.ticket_type_name,
+      performedByUserId: row.performed_by_user_id,
+    }));
+
+    return { byTicketType, recentCheckIns };
   }
 }

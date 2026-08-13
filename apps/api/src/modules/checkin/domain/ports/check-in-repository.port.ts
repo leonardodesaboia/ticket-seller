@@ -15,6 +15,24 @@ export interface CreateCheckInData {
   notes: string | null;
 }
 
+export interface AttendanceByTicketTypeRow {
+  ticketTypeId: string;
+  ticketTypeName: string;
+  totalIssued: number;
+  totalAdmitted: number;
+}
+
+export interface RecentCheckInRow {
+  checkedInAt: Date;
+  ticketTypeName: string;
+  performedByUserId: string | null;
+}
+
+export interface EventAttendanceData {
+  byTicketType: AttendanceByTicketTypeRow[];
+  recentCheckIns: RecentCheckInRow[];
+}
+
 export interface ICheckInRepository {
   /**
    * Find a check-in by idempotency key for replay.
@@ -34,4 +52,10 @@ export interface ICheckInRepository {
    * ON CONFLICT on partial unique index (ticket_id WHERE result='ADMITTED') → throws PostgresError 23505.
    */
   createCheckIn(data: CreateCheckInData): Promise<CheckIn>;
+
+  /**
+   * Returns attendance metrics for an event, scoped by organization.
+   * Returns null if the event does not belong to the organization (cross-tenant guard).
+   */
+  getEventAttendance(organizationId: string, eventId: string): Promise<EventAttendanceData | null>;
 }
