@@ -45,13 +45,13 @@ function makeTransfer(): TicketTransfer {
 function buildUseCase({
   orderResult = { id: ORDER_ID, organizationId: ORG_ID, status: 'PAID' },
   tickets = [makeTicket()],
-  admittedRows = [] as Array<{ id: string }>,
+  hasAdmittedCheckIn = false,
   pendingTransfer = null as TicketTransfer | null,
   createResult = makeTransfer(),
 }: {
   orderResult?: { id: string; organizationId: string; status: string } | null;
   tickets?: Ticket[];
-  admittedRows?: Array<{ id: string }>;
+  hasAdmittedCheckIn?: boolean;
   pendingTransfer?: TicketTransfer | null;
   createResult?: TicketTransfer;
 } = {}) {
@@ -68,19 +68,20 @@ function buildUseCase({
     create: jest.fn().mockResolvedValue(createResult),
     cancel: jest.fn(),
     accept: jest.fn(),
+    acceptAtomically: jest.fn(),
   };
-  const prisma = {
-    $queryRaw: jest.fn().mockResolvedValue(admittedRows),
+  const checkInAccess = {
+    hasAdmittedCheckIn: jest.fn().mockResolvedValue(hasAdmittedCheckIn),
   };
 
   const useCase = new InitiateTransferUseCase(
     transferRepo as never,
     orderAccess as never,
     ticketRepo as never,
-    prisma as never,
+    checkInAccess as never,
   );
 
-  return { useCase, orderAccess, ticketRepo, transferRepo, prisma };
+  return { useCase, orderAccess, ticketRepo, transferRepo, checkInAccess };
 }
 
 describe('InitiateTransferUseCase', () => {
@@ -111,7 +112,7 @@ describe('InitiateTransferUseCase', () => {
   });
 
   it('throws TicketAlreadyAdmittedError when check-in exists', async () => {
-    const { useCase } = buildUseCase({ admittedRows: [{ id: 'some-checkin-id' }] });
+    const { useCase } = buildUseCase({ hasAdmittedCheckIn: true });
     await expect(
       useCase.execute({ orderId: ORDER_ID, ticketId: TICKET_ID, reservationToken: TOKEN }),
     ).rejects.toBeInstanceOf(TicketAlreadyAdmittedError);

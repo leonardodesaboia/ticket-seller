@@ -1,11 +1,14 @@
+import * as nodeCrypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import { TicketTransfer, TransferStatus } from '../../domain/ticket-transfer.entity';
 import {
+  AcceptAtomicParams,
   CreateTransferData,
   ITicketTransferRepository,
   PrismaTransactionClient,
 } from '../../domain/ports/ticket-transfer-repository.port';
+import { TransferAlreadyAcceptedError, TicketAlreadyAdmittedError } from '../../domain/ticket-transfer.errors';
 
 interface RawTransferRow {
   id: string;
@@ -91,5 +94,72 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
       SET status = 'ACCEPTED', accepted_at = NOW(), updated_at = NOW()
       WHERE id = ${id}::uuid
     `;
+  }
+
+  async acceptAtomically(params: AcceptAtomicParams): Promise<string> {
+    let newCredentialToken!: string;
+
+    await this.prisma.$transaction(async (tx) => {
+      // Lock ticket row
+      const ticketRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM tickets WHERE id = ${params.ticketId}::uuid FOR UPDATE
+      `;
+      if (!ticketRows[0]) throw new Error('ticket not found');
+
+      // Re-verify transfer still PENDING
+      const transferRows = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status FROM ticket_transfers WHERE id = ${params.transferId}::uuid
+      `;
+      if (!transferRows[0] || transferRows[0].status !== 'PENDING') {
+        throw new TransferAlreadyAcceptedError();
+      }
+
+      // Check admitted
+      const admittedRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM check_ins
+        WHERE ticket_id = ${params.ticketId}::uuid AND result = 'ADMITTED'
+        LIMIT 1
+      `;
+      if (admittedRows.length > 0) {
+        throw new TicketAlreadyAdmittedError(params.ticketId);
+      }
+
+      // Revoke existing active credentials
+      await tx.$executeRaw`
+        UPDATE ticket_credentials
+        SET status = 'REVOKED', revoked_at = NOW()
+        WHERE ticket_id = ${params.ticketId}::uuid AND status = 'ACTIVE'
+      `;
+
+      // Generate and insert new credential
+      const newToken = nodeCrypto.randomBytes(32).toString('hex');
+      const newTokenHash = nodeCrypto.createHash('sha256').update(newToken).digest('hex');
+      const newCredentialId = nodeCrypto.randomUUID();
+
+      const versionRows = await tx.$queryRaw<Array<{ max_version: number | null }>>`
+        SELECT MAX(version) AS max_version FROM ticket_credentials
+        WHERE ticket_id = ${params.ticketId}::uuid
+      `;
+      const newVersion = ((versionRows[0]?.max_version ?? 0) ?? 0) + 1;
+
+      await tx.$executeRaw`
+        INSERT INTO ticket_credentials (id, ticket_id, organization_id, token_hash, version)
+        VALUES (
+          ${newCredentialId}::uuid, ${params.ticketId}::uuid,
+          ${params.organizationId}::uuid, ${newTokenHash}, ${newVersion}
+        )
+      `;
+
+      // Accept the transfer
+      await tx.$executeRaw`
+        UPDATE ticket_transfers
+        SET status = 'ACCEPTED', accepted_at = NOW(), updated_at = NOW()
+        WHERE id = ${params.transferId}::uuid
+      `;
+
+      newCredentialToken = newToken;
+    });
+
+    return newCredentialToken;
   }
 }

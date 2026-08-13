@@ -39,7 +39,7 @@ describe('AcceptTransferPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('Ingresso transferido! Acesse o app do remetente para gerar um novo QR Code.'),
+        screen.getByText('Ingresso transferido! Você já pode gerar seu novo QR Code no app.'),
       ).toBeInTheDocument();
     });
 
