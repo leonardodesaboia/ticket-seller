@@ -27,6 +27,7 @@ function makeRepoMock(overrides: Partial<ICheckInRepository> = {}): ICheckInRepo
     findByIdempotencyKey: jest.fn().mockResolvedValue(null),
     existsAdmittedForTicket: jest.fn().mockResolvedValue(false),
     createCheckIn: jest.fn().mockResolvedValue(makeCheckIn()),
+    getEventAttendance: jest.fn().mockResolvedValue(null),
     ...overrides,
   };
 }
