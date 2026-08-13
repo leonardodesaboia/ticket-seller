@@ -16,16 +16,39 @@ import type { Event } from '../../../domain/event.entity';
 import type { TicketType } from '../../../domain/ticket-types/ticket-type.entity';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
-  id: 'evt-1', organizationId: 'org-1', title: 'My Event', description: null,
-  status: 'DRAFT', version: 1, format: null, startsAt: null, endsAt: null,
-  timezone: null, onlineInfo: null, venueId: null, currency: 'BRL',
-  createdAt: new Date(), updatedAt: new Date(), ...overrides,
+  id: 'evt-1',
+  organizationId: 'org-1',
+  title: 'My Event',
+  description: null,
+  status: 'DRAFT',
+  version: 1,
+  format: null,
+  startsAt: null,
+  endsAt: null,
+  timezone: null,
+  onlineInfo: null,
+  venueId: null,
+  currency: 'BRL',
+  slug: null,
+  publishedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
 });
 
 const makeTicketType = (overrides: Partial<TicketType> = {}): TicketType => ({
-  id: 'tt-1', eventId: 'evt-1', organizationId: 'org-1', name: 'General',
-  description: null, priceAmount: 5000, capacity: 100, status: 'ACTIVE',
-  version: 1, createdAt: new Date(), updatedAt: new Date(), ...overrides,
+  id: 'tt-1',
+  eventId: 'evt-1',
+  organizationId: 'org-1',
+  name: 'General',
+  description: null,
+  priceAmount: 5000,
+  capacity: 100,
+  status: 'ACTIVE',
+  version: 1,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
 });
 
 describe('UpdateTicketTypeUseCase', () => {
@@ -59,8 +82,12 @@ describe('UpdateTicketTypeUseCase', () => {
     ticketTypeRepository.update.mockResolvedValue(makeTicketType({ name: 'VIP', version: 2 }));
 
     const result = await useCase.execute({
-      organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1',
-      actorId: 'user-1', expectedVersion: 1, name: 'VIP',
+      organizationId: 'org-1',
+      eventId: 'evt-1',
+      ticketTypeId: 'tt-1',
+      actorId: 'user-1',
+      expectedVersion: 1,
+      name: 'VIP',
     });
 
     expect(result.name).toBe('VIP');
@@ -70,11 +97,17 @@ describe('UpdateTicketTypeUseCase', () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
     ticketTypeRepository.findByEventAndId.mockResolvedValue(makeTicketType());
-    ticketTypeRepository.update.mockResolvedValue(makeTicketType({ status: 'INACTIVE', version: 2 }));
+    ticketTypeRepository.update.mockResolvedValue(
+      makeTicketType({ status: 'INACTIVE', version: 2 }),
+    );
 
     const result = await useCase.execute({
-      organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1',
-      actorId: 'user-1', expectedVersion: 1, status: 'INACTIVE',
+      organizationId: 'org-1',
+      eventId: 'evt-1',
+      ticketTypeId: 'tt-1',
+      actorId: 'user-1',
+      expectedVersion: 1,
+      status: 'INACTIVE',
     });
 
     expect(result.status).toBe('INACTIVE');
@@ -83,14 +116,26 @@ describe('UpdateTicketTypeUseCase', () => {
   it('throws OrganizationAccessDeniedError when actor is not a member', async () => {
     orgAccess.findMember.mockResolvedValue(null);
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1', actorId: 'x', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        ticketTypeId: 'tt-1',
+        actorId: 'x',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(OrganizationAccessDeniedError);
   });
 
   it('throws InsufficientRoleError when actor is VIEWER', async () => {
     orgAccess.findMember.mockResolvedValue({ role: 'VIEWER', status: 'ACTIVE' });
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1', actorId: 'x', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        ticketTypeId: 'tt-1',
+        actorId: 'x',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(InsufficientRoleError);
   });
 
@@ -98,7 +143,13 @@ describe('UpdateTicketTypeUseCase', () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(null);
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1', actorId: 'x', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        ticketTypeId: 'tt-1',
+        actorId: 'x',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(EventNotFoundError);
   });
 
@@ -106,7 +157,13 @@ describe('UpdateTicketTypeUseCase', () => {
     orgAccess.findMember.mockResolvedValue({ role: 'OWNER', status: 'ACTIVE' });
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent({ status: 'PUBLISHED' }));
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1', actorId: 'x', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        ticketTypeId: 'tt-1',
+        actorId: 'x',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(EventNotInDraftError);
   });
 
@@ -115,7 +172,13 @@ describe('UpdateTicketTypeUseCase', () => {
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
     ticketTypeRepository.findByEventAndId.mockResolvedValue(null);
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1', actorId: 'x', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        ticketTypeId: 'tt-1',
+        actorId: 'x',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(TicketTypeNotFoundError);
   });
 
@@ -124,7 +187,13 @@ describe('UpdateTicketTypeUseCase', () => {
     eventRepository.findByOrganizationAndId.mockResolvedValue(makeEvent());
     ticketTypeRepository.findByEventAndId.mockResolvedValue(makeTicketType({ version: 3 }));
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'evt-1', ticketTypeId: 'tt-1', actorId: 'x', expectedVersion: 1 }),
+      useCase.execute({
+        organizationId: 'org-1',
+        eventId: 'evt-1',
+        ticketTypeId: 'tt-1',
+        actorId: 'x',
+        expectedVersion: 1,
+      }),
     ).rejects.toThrow(TicketTypeVersionConflictError);
   });
 });

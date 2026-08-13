@@ -1,14 +1,17 @@
 Fila de integração
 
-Última atualização: 2026-07-29
+Última atualização: 2026-08-11
 
 | Ordem | Tarefa | Status |
 | --- | --- | --- |
 | 1 | TASK-020A | MERGED |
 | 2 | TASK-021 | MERGED |
-| 3 | TASK-022 | WAITING |
-| 4 | TASK-023 | WAITING |
-| 5 | TASK-024 | WAITING |
+| 3 | TASK-022 | MERGED em develop (commit 26a0a72) |
+| 4 | TASK-023 | MERGED em develop (commit c87914d) |
+| 5 | TASK-024 | IN_PROGRESS |
+| 6 | TASK-026 | MERGED em develop |
+| 7 | TASK-027 | MERGED em develop |
+| 8 | TASK-028 | MERGED em develop |
 
 Histórico recente
 Ordem	Tarefa	Status	Data

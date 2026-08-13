@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED
+CONCLUÍDA (task/024-publish-flow-marketplace; 42/42 testes; revisão independente executada; aguardando integração na develop). Relatório: `.ai/reports/TASK-024-publish-flow-marketplace-event-page.md`.
 
 ## Objetivo
 

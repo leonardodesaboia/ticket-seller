@@ -2,7 +2,7 @@
 
 ## Status
 
-BLOCKED
+COMPLETED (integrada em develop por fast-forward, commit c87914d, 2026-08-06). Relatório: `.ai/reports/TASK-023-public-event-catalog-api.md`.
 
 ## Objetivo
 

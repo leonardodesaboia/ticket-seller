@@ -24,10 +24,25 @@ import { PUBLICATION_READINESS_QUERY_PORT } from './application/ports/publicatio
 import { PublicationReadinessPolicy } from './domain/publication/publication-readiness.policy';
 import { PrismaPublicationReadinessQueryAdapter } from './infrastructure/adapters/prisma-publication-readiness-query.adapter';
 import { PublicationReadinessController } from './presentation/controllers/publication-readiness.controller';
+import { PublishEventUseCase } from './application/use-cases/publish-event.use-case';
+import { PUBLISH_EVENT_OPERATION_PORT } from './application/ports/publish-event-operation.port';
+import { PrismaPublishEventOperationAdapter } from './infrastructure/adapters/prisma-publish-event-operation.adapter';
+import { PublishEventController } from './presentation/controllers/publish-event.controller';
+import { ListPublicEventsUseCase } from './application/use-cases/list-public-events.use-case';
+import { GetPublicEventUseCase } from './application/use-cases/get-public-event.use-case';
+import { PUBLIC_EVENT_QUERY_PORT } from './application/ports/public-event-query.port';
+import { PrismaPublicEventQueryAdapter } from './infrastructure/adapters/prisma-public-event-query.adapter';
+import { PublicEventsController } from './presentation/controllers/public-events.controller';
 
 @Module({
   imports: [HttpModule, VenuesModule],
-  controllers: [EventsController, TicketTypesController, PublicationReadinessController],
+  controllers: [
+    EventsController,
+    TicketTypesController,
+    PublicationReadinessController,
+    PublishEventController,
+    PublicEventsController,
+  ],
   providers: [
     CreateEventUseCase,
     GetEventUseCase,
@@ -38,6 +53,9 @@ import { PublicationReadinessController } from './presentation/controllers/publi
     ListEventTicketTypesUseCase,
     UpdateTicketTypeUseCase,
     GetPublicationReadinessUseCase,
+    PublishEventUseCase,
+    ListPublicEventsUseCase,
+    GetPublicEventUseCase,
     PublicationReadinessPolicy,
     { provide: EVENT_REPOSITORY, useClass: PrismaEventRepository },
     { provide: ORGANIZATION_ACCESS_PORT, useClass: PrismaOrganizationAccessAdapter },
@@ -50,6 +68,15 @@ import { PublicationReadinessController } from './presentation/controllers/publi
       provide: PUBLICATION_READINESS_QUERY_PORT,
       useClass: PrismaPublicationReadinessQueryAdapter,
     },
+    {
+      provide: PUBLISH_EVENT_OPERATION_PORT,
+      useClass: PrismaPublishEventOperationAdapter,
+    },
+    {
+      provide: PUBLIC_EVENT_QUERY_PORT,
+      useClass: PrismaPublicEventQueryAdapter,
+    },
   ],
+  exports: [PUBLIC_EVENT_QUERY_PORT],
 })
 export class EventsModule {}

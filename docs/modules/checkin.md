@@ -1,130 +1,221 @@
-Módulo: Check-in
-Responsabilidade
+# Módulo: Check-in
+
+## Responsabilidade
 
 Validar a entrada de participantes e registrar a utilização de ingressos.
 
-Não é responsabilidade
-emitir ingresso;
-transferir ingresso;
-receber pagamento;
-controlar estoque de venda;
-gerar repasse.
-Entidades
-CheckIn
+## Não é responsabilidade
 
-Representa a utilização confirmada de um ingresso.
+- emitir ingresso;
+- transferir ingresso;
+- receber pagamento;
+- controlar estoque de venda;
+- gerar repasse.
 
-CheckInDevice
+---
 
-Representa dispositivo autorizado.
+## Implementado (MVP)
 
-CheckInConflict
+### Tabela `check_ins`
 
-Representa conflito identificado em sincronização ou concorrência.
+Migration `20260812000015_check_ins`.
 
-Casos de uso
-Comandos
-ValidateTicket;
-PerformCheckIn;
-UndoCheckIn;
-RegisterCheckInDevice;
-RevokeCheckInDevice;
-SynchronizeOfflineCheckIns;
-ResolveCheckInConflict.
-Consultas
-GetCheckIn;
-SearchEventAttendee;
-GetEventCheckInSummary;
-ListDeviceCheckIns;
-ListCheckInConflicts.
-Resultado de validação
-VALID
-ALREADY_CHECKED_IN
-BLOCKED
-CANCELLED
-REFUNDED
-WRONG_EVENT
-INVALID_CODE
-EXPIRED
-TRANSFER_PENDING
-Invariantes
-apenas ingresso ativo pode entrar;
-ingresso só pode ter um check-in confirmado;
-check-in deve pertencer ao evento correto;
-operador deve possuir acesso ao evento;
-check-in desfeito exige permissão superior;
-check-in desfeito deve manter histórico;
-código inválido não pode revelar dados;
-sincronização offline não pode apagar conflitos;
-primeiro check-in confirmado prevalece conforme regra definida.
-Eventos de domínio
-checkin.performed.v1;
-checkin.rejected.v1;
-checkin.undone.v1;
-checkin.device-registered.v1;
-checkin.device-revoked.v1;
-checkin.conflict-detected.v1;
-checkin.conflict-resolved.v1.
-Portas
-CheckInRepository;
-TicketValidationPort;
-DeviceRepository;
-OperatorAuthorizationPort;
-OfflineSyncRepository;
-Clock;
-IdGenerator;
-IdempotencyRepository.
-Dependências permitidas
-tickets;
-events;
-organizations;
-audit;
-observabilidade.
-Dependências proibidas
-payments;
-finance;
-inventory;
-notifications síncronas.
-Multi-tenancy
+- `id UUID` — gerado pela aplicação.
+- `organization_id`, `event_id`, `ticket_id`, `ticket_credential_id` — FKs.
+- `result VARCHAR(20)` — `ADMITTED` ou `REJECTED`.
+- `admission_code VARCHAR(50)` — código estável do `AdmissionPolicy` (ex: `ALREADY_CHECKED_IN`).
+- `actor_id UUID` — operador que realizou o scan.
+- `idempotency_key TEXT UNIQUE WHERE NOT NULL` — previne duplo envio sem texto fixo.
+- `PARTIAL UNIQUE INDEX (ticket_id) WHERE result='ADMITTED'` — **fonte oficial de verdade**: no máximo uma entrada admitida por ticket no PostgreSQL.
 
-Toda operação utiliza:
+### PerformCheckInUseCase
 
-organizationId + eventId
+Fluxo principal:
 
-Operador só pode atuar nos eventos autorizados.
+1. Computa `token_hash = SHA-256(token)`.
+2. Consulta `ICheckInTicketAccessPort.findByTokenHash(tokenHash, orgId, eventId)` — JOIN em `ticket_credentials → tickets`.
+3. Monta `AdmissionContext` (sem PII).
+4. Avalia `AdmissionPolicy.evaluate(context)`.
+5. Persiste `CheckIn` via `ICheckInRepository.save(checkIn, idempotencyKey)`.
+   - `ADMITTED` + PostgresError 23505 → retorna `CheckIn` com `ALREADY_CHECKED_IN` (idempotência a nível de banco).
+   - `INVALID_CREDENTIAL` sem ticket real → **não persiste** (não há ticket FK para registrar).
+6. Retorna `CheckInResponseDto` com `allowed`, `admissionCode`, `message` (sem PII).
 
-Segurança
-dispositivo deve possuir credencial revogável;
-código do ingresso não deve ser logado integralmente;
-busca manual deve possuir rate limiting;
-respostas rejeitadas não devem expor dados pessoais;
-desfazer check-in deve ser auditado;
-modo offline deve utilizar pacote assinado.
-Concorrência
-duas leituras simultâneas do mesmo ingresso devem gerar apenas um check-in;
-cancelamento e check-in simultâneos devem ter resultado determinístico;
-sincronização de dispositivos offline pode gerar conflito explícito;
-operação crítica deve utilizar atualização atômica ou constraint.
-Idempotência
-mesma leitura com mesma chave retorna resultado equivalente;
-sincronização repetida não duplica check-ins;
-desfazer repetido não altera histórico mais de uma vez.
-Testes obrigatórios
-ingresso válido;
-leitura duplicada;
-código inválido;
-ingresso de outro evento;
-ingresso bloqueado;
-operador sem acesso;
-duas leituras simultâneas;
-cancelamento concorrente;
-sincronização repetida;
-desfazer com e sem permissão.
-Métricas
-checkins_performed;
-checkins_rejected;
-checkin_duration_ms;
-duplicate_checkins;
-checkin_conflicts;
-checkin_devices_active;
-checkin_searches;
+Replay por `Idempotency-Key`: `ON CONFLICT (idempotency_key) WHERE NOT NULL DO UPDATE SET ... RETURNING *`.
+
+### AdmissionCodes estáveis (7)
+
+| Código | Allowed | Significado |
+|--------|---------|-------------|
+| `VALID` | true | Admitido |
+| `INVALID_CREDENTIAL` | false | Token não reconhecido |
+| `TICKET_CANCELLED` | false | Ingresso cancelado |
+| `ALREADY_CHECKED_IN` | false | Já entrou |
+| `EVENT_NOT_ACTIVE` | false | Evento não publicado |
+| `WRONG_EVENT` | false | Ingresso de outro evento |
+| `TRANSFER_PENDING` | false | Transferência em andamento |
+
+### Endpoint
+
+| Método | Rota | Auth | Descrição |
+|--------|------|------|-----------|
+| POST | `/api/v1/organizations/:orgId/events/:eventId/check-ins` | ActorGuard (X-Dev-User-Id) | Realiza check-in por token |
+
+### Interface de operador (backoffice)
+
+Rota: `/organizations/[orgId]/events/[eventId]/check-in`
+
+Máquina de estado: `SCANNING → VALIDATING → FEEDBACK → SCANNING`
+
+- `CameraScanner` — jsQR frame-a-frame via `requestAnimationFrame`; `getUserMedia({ facingMode: 'environment' }`; stream encerrado no unmount.
+- `ManualEntryForm` — fallback quando câmera indisponível; validação 64 hex.
+- `DecisionFeedback` — `role="alert"`; verde (`ADMITTED`), vermelho (demais); 7 mensagens pt-BR; auto-retorno em 2s.
+- `CheckInPage` — orquestra estados, gera `Idempotency-Key` por scan, detecta offline.
+
+---
+
+## Entidades
+
+### CheckIn
+
+```typescript
+export type CheckInResult = 'ADMITTED' | 'REJECTED';
+
+export class CheckIn {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly eventId: string;
+  readonly ticketId: string;
+  readonly ticketCredentialId: string | null;
+  readonly result: CheckInResult;
+  readonly admissionCode: AdmissionCode;
+  readonly actorId: string;
+  readonly performedAt: Date;
+
+  isAdmitted(): boolean { return this.result === 'ADMITTED'; }
+}
+```
+
+---
+
+## Casos de uso implementados
+
+- `PerformCheckInUseCase` — valida credencial, avalia `AdmissionPolicy`, persiste com idempotência, detecta double check-in via PG 23505.
+
+## Casos de uso previstos
+
+- `UndoCheckIn` — requer permissão superior + auditoria.
+- `GetEventCheckInSummary` — dashboard de operações (TASK-040).
+- `SearchEventAttendee` — busca por nome ou código.
+- `SynchronizeOfflineCheckIns` — modo offline futuro.
+
+---
+
+## Invariantes
+
+- Apenas ingresso `ACTIVE` pode ser admitido.
+- Ingresso só pode ter **um** check-in `ADMITTED` — partial unique index no PostgreSQL.
+- Check-in pertence ao evento + organização corretos.
+- Operador deve ter acesso ao evento (ActorGuard + futura autorização granular).
+- `INVALID_CREDENTIAL` sem ticket real **não persiste** — não há FK válida.
+- Decisão de admissão vem **sempre** do servidor — nunca simulada no frontend.
+- Token do QR nunca logado, exibido em tela ou armazenado no frontend.
+
+---
+
+## Eventos de domínio (previstos)
+
+- `checkin.performed.v1` — admitido ou rejeitado.
+- `checkin.undone.v1` — check-in desfeito (futuro).
+
+---
+
+## Portas
+
+| Símbolo | Interface | Implementação |
+|---------|-----------|---------------|
+| `CHECK_IN_REPOSITORY` | `ICheckInRepository` | `PrismaCheckInRepository` |
+| `CHECKIN_EVENT_ACCESS_PORT` | `ICheckInEventAccessPort` | `CheckInEventAccessAdapter` |
+| `CHECKIN_TICKET_ACCESS_PORT` | `ICheckInTicketAccessPort` | `CheckInTicketAccessAdapter` |
+
+---
+
+## Dependências permitidas
+
+- `tickets` (via port — nunca import direto de implementação);
+- `events` (via port);
+- `organizations` (via guard);
+- `audit`;
+- observabilidade.
+
+## Dependências proibidas
+
+- `payments`;
+- `finance`;
+- `inventory`;
+- notificações síncronas.
+
+---
+
+## Multi-tenancy
+
+Toda operação usa `organizationId + eventId` vindos da rota — nunca inferidos de estado global. Operador só atua nos eventos autorizados.
+
+---
+
+## Segurança
+
+- Token do QR nunca logado integralmente.
+- Respostas rejeitadas não expõem dados pessoais.
+- `token_hash` **nunca** aparece em response da API.
+- Frontend nunca toma decisão de admissão sem resposta 200 do servidor com `allowed: true`.
+- `Idempotency-Key` por scan previne duplo envio.
+
+---
+
+## Concorrência
+
+- Double check-in simultâneo: `PARTIAL UNIQUE INDEX (ticket_id) WHERE result='ADMITTED'` + catch `23505 → ALREADY_CHECKED_IN` — garantia no banco, não na aplicação.
+- Double scan no frontend: `isLoading` bloqueia novo scan enquanto requisição anterior está em voo.
+- Concorrência de rede: `ON CONFLICT (idempotency_key) DO UPDATE` — replay retorna mesmo resultado.
+
+---
+
+## Idempotência
+
+- Mesmo `Idempotency-Key` → mesmo resultado (replay via `ON CONFLICT`).
+- Mesmo token sem `Idempotency-Key` → `23505` catch → `ALREADY_CHECKED_IN`.
+
+---
+
+## Testes implementados
+
+**Unitários (6):**
+- Token válido → ADMITTED.
+- Token inválido → INVALID_CREDENTIAL (sem persitir).
+- Ticket cancelado → TICKET_CANCELLED.
+- Evento inativo → EVENT_NOT_ACTIVE.
+- Replay por idempotency key → mesmo resultado.
+- Evento com orgId errado → WRONG_EVENT.
+
+**Integração (10):**
+- POST → ADMITTED (201).
+- POST → ALREADY_CHECKED_IN (token já usado).
+- POST → INVALID_CREDENTIAL (token desconhecido).
+- POST → TICKET_CANCELLED.
+- POST → WRONG_EVENT (outro evento).
+- POST → EVENT_NOT_ACTIVE.
+- Idempotency-Key replay → 200 com mesmo resultado.
+- Sem ActorGuard header → 401.
+- Concorrência: 2 POSTs simultâneos → exatamente um ADMITTED + um ALREADY_CHECKED_IN.
+- `token_hash` ausente das respostas.
+
+---
+
+## Métricas previstas
+
+- `checkins_performed`;
+- `checkins_rejected`;
+- `checkin_duration_ms`;
+- `duplicate_checkins`;
+- `checkin_conflicts`.

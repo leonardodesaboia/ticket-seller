@@ -257,6 +257,8 @@ export class PrismaEventRepository implements IEventRepository {
       row.onlineInfo,
       row.venueId,
       row.currency,
+      row.slug,
+      row.publishedAt,
       row.createdAt,
       row.updatedAt,
     );

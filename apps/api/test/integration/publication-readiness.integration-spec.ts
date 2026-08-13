@@ -152,7 +152,10 @@ describe('Publication Readiness API', () => {
 
   it('returns EVENT_NOT_DRAFT for an already published event', async () => {
     const eventId = await createReadyEvent();
-    await prisma.event.update({ where: { id: eventId }, data: { status: 'PUBLISHED' } });
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: 'PUBLISHED', slug: `published-${eventId}`, publishedAt: new Date() },
+    });
 
     const response = await getReadiness(eventId).expect(200);
 

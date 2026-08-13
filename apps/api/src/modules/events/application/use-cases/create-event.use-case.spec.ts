@@ -18,6 +18,8 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   onlineInfo: null,
   venueId: null,
   currency: null,
+  slug: null,
+  publishedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,

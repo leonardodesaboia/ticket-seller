@@ -7,6 +7,12 @@ import { HttpModule } from './platform/http/http.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { EventsModule } from './modules/events/events.module';
 import { VenuesModule } from './modules/venues/venues.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { ReservationsModule } from './modules/reservations/reservations.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { TicketsModule } from './modules/tickets/tickets.module';
+import { CheckInModule } from './modules/checkin/checkin.module';
 
 @Module({
   imports: [
@@ -25,6 +31,12 @@ import { VenuesModule } from './modules/venues/venues.module';
     OrganizationsModule,
     EventsModule,
     VenuesModule,
+    InventoryModule,
+    ReservationsModule,
+    OrdersModule,
+    PaymentsModule,
+    TicketsModule,
+    CheckInModule,
   ],
 })
 export class AppModule {}

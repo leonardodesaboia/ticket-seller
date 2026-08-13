@@ -1,12 +1,10 @@
 Tarefas ativas
 
-Última atualização: 2026-07-29
+Última atualização: 2026-08-11
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
-| TASK-022 — Event Publication | IN_PROGRESS (checkpoint salvo) | Database Owner concluído/backend publication pausado |
-| TASK-023 — Public Event Catalog API | BLOCKED | Public catalog owner |
-| TASK-024 — Publish Flow and Marketplace | BLOCKED | Frontend owners |
+| TASK-024 — Publish Flow and Marketplace | IN_PROGRESS (implementação em task/024, buildando; pendência: teste do painel + revisão) | Frontend owners |
 
 Estados
 BLOCKED: dependências ainda não integradas;
@@ -39,6 +37,11 @@ TASK-019: Ticket Types Foundation — MERGED em 2026-07-29
 TASK-020: Event Configuration Backoffice — MERGED em 2026-07-29
 TASK-020A: Correções da auditoria TASK-018 a TASK-020 — MERGED em 2026-07-29
 TASK-021: Publication Readiness — MERGED em 2026-07-29
+TASK-022: Event Publication — MERGED em develop 2026-08-06 (commit 26a0a72)
+TASK-023: Public Event Catalog API — MERGED em develop 2026-08-06 (commit c87914d)
+TASK-026: Reservation Holds — MERGED em develop 2026-08-11
+TASK-027: Order Foundation — MERGED em develop 2026-08-11
+TASK-028: Marketplace Reservation & Checkout Preparation — MERGED em develop 2026-08-11
 
 Regras
 uma tarefa deve aparecer uma única vez;

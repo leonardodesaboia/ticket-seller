@@ -127,3 +127,39 @@ events_cancelled;
 event_publication_failures;
 event_updates_total;
 published_events_active.
+
+Publicação (TASK-022)
+
+Endpoint: POST /api/v1/organizations/:organizationId/events/:eventId/publish, header Idempotency-Key, body { version }.
+
+Transição atômica e idempotente DRAFT → PUBLISHED em uma única transação:
+autorização antes do replay; SELECT ... FOR UPDATE tenant-scoped; readiness
+recalculada sob lock pela PublicationReadinessPolicy; optimistic concurrency por
+versão; slug global imutável (título normalizado + UUID) e publishedAt gerado no
+servidor; outbox event.published.v1 (eventId, organizationId, version, slug,
+publishedAt, startsAt); auditoria event.published; nunca expõe onlineInfo.
+
+Chave de idempotência escopada ao ator; catch de P2002 restrito à constraint da
+chave de idempotência. Erros: 409 EVENT_VERSION_CONFLICT, 409 EVENT_NOT_DRAFT,
+409 IDEMPOTENCY_KEY_REUSED, 422 EVENT_PUBLICATION_NOT_READY (com version e
+issues). Constraint de banco events_published_fields_check garante slug +
+published_at em PUBLISHED; índice parcial (starts_at, id) WHERE status =
+'PUBLISHED'. Evento publicado fica congelado para edição nesta fase.
+
+Catálogo público (TASK-023)
+
+Endpoints sem autenticação (sem ActorGuard/X-Dev-User-Id):
+GET /api/v1/public/events?cursor=<opaque>&limit=20 e
+GET /api/v1/public/events/:slug.
+
+Toda consulta fixa status=PUBLISHED. Listagem inclui apenas publicados em
+andamento/futuros (endsAt >= now), keyset startsAt ASC, id ASC, cursor opaco
+base64url, limite default 20 / máx 100; item enxuto (slug, título, formato,
+início, término, timezone, moeda). Detalhe por slug continua acessível após o
+término e traz venue público (nome, cidade, estado, país) e ticket types apenas
+ativos (nome, descrição, preço, moeda), ordenados por preço asc.
+
+DTO público independente do administrativo. onlineInfo, endereço completo, IDs,
+capacidade e versão nunca são selecionados nem apresentados. 404 indistinguível
+para slug inexistente e evento não publicado. Cache-Control: public,
+max-age=60, stale-while-revalidate=300.

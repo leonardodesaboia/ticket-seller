@@ -9,8 +9,11 @@ import { HttpExceptionFilter } from './platform/http/filters/http-exception.filt
 import { env } from './platform/config/env';
 
 async function bootstrap(): Promise<void> {
+  // rawBody: true instructs the FastifyAdapter to preserve the raw Buffer on req.rawBody
+  // for all requests. This is required for HMAC-SHA256 webhook signature verification.
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
     bufferLogs: true,
+    rawBody: true,
   });
 
   app.useLogger(app.get(Logger));

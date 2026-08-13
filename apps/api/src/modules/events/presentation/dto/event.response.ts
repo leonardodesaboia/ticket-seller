@@ -15,6 +15,8 @@ export class EventResponse {
   @ApiProperty({ nullable: true }) venueId!: string | null;
   @ApiProperty({ nullable: true }) currency!: string | null;
   @ApiProperty() onlineConfigured!: boolean;
+  @ApiProperty({ nullable: true }) slug!: string | null;
+  @ApiProperty({ nullable: true }) publishedAt!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 
@@ -33,6 +35,8 @@ export class EventResponse {
     res.venueId = event.venueId;
     res.currency = event.currency;
     res.onlineConfigured = event.onlineInfo !== null && event.onlineInfo.trim().length > 0;
+    res.slug = event.slug;
+    res.publishedAt = event.publishedAt ? event.publishedAt.toISOString() : null;
     res.createdAt = event.createdAt.toISOString();
     res.updatedAt = event.updatedAt.toISOString();
     return res;

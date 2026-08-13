@@ -2,7 +2,16 @@
 
 ## Status
 
-IN_PROGRESS
+COMPLETED (integrada em develop, commit 26a0a72, 2026-08-06)
+
+## Checkpoint de 2026-08-06
+
+Operação de publicação implementada com TDD: use case, port/adapter
+transacional, controller, DTO, slug e erros. Todos os testes unitários e de
+integração passam (137/137 na API). Revisão técnica/segurança independente
+executada; os dois achados ALTO (catch de P2002 restrito à chave de
+idempotência; chave de idempotência escopada ao ator) foram corrigidos.
+Relatório final em `.ai/reports/TASK-022-event-publication.md`.
 
 ## Checkpoint de 2026-07-29
 
