@@ -95,6 +95,7 @@ Representa a pessoa indicada para utilizar o ingresso.
 - `IssueTicketCredentialUseCase` — emite/rotaciona credencial; token plaintext retornado apenas uma vez.
 - `GetTicketCredentialUseCase` — verifica se credencial ativa existe.
 - `AdmissionPolicy` — lógica pura de admissão (7 códigos estáveis).
+- `CancelOrderUseCase` (via orders module) — cancela tickets de um order: `status → CANCELLED`, `cancelled_at = NOW()`, credentials → `REVOKED`, `committed` decrementado no inventário, outbox `ticket.cancelled.v1` por ticket.
 
 ## Casos de uso previstos
 
@@ -115,7 +116,7 @@ Representa a pessoa indicada para utilizar o ingresso.
 | Status | Descrição |
 |--------|-----------|
 | `ACTIVE` | Emitido após order PAID |
-| `CANCELLED` | Cancelado (futuro) |
+| `CANCELLED` | Cancelado (admin) — `cancelled_at` registrado; check-in ADMITTED bloqueia este fluxo |
 
 ## Estados da credencial
 
@@ -142,7 +143,8 @@ Representa a pessoa indicada para utilizar o ingresso.
 ## Eventos de domínio (outbox)
 
 - `tickets.issued.v1` — emitido após emissão bem-sucedida no webhook.
-- Previstos: `ticket.cancelled.v1`, `ticket.credential-rotated.v1`, `ticket.transfer-initiated.v1`, `ticket.transfer-accepted.v1`.
+- `ticket.cancelled.v1` — emitido por ticket na transação de cancelamento pós-pagamento (TASK-041).
+- Previstos: `ticket.credential-rotated.v1`, `ticket.transfer-initiated.v1`, `ticket.transfer-accepted.v1`.
 
 ---
 

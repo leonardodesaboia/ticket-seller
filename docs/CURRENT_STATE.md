@@ -1,14 +1,14 @@
 Estado atual
 
-Última atualização: 2026-08-13 (TASK-040)
+Última atualização: 2026-08-13 (TASK-041)
 
 Fase
 
-Credencial segura, admissão e check-in (MVP parcial).
+Cancelamentos, reembolsos e notificações (MVP parcial).
 
 Objetivo da fase
 
-Implementar credencial rotacionável por ticket (QR payload), motor de admissão puro, API de check-in transacional com prevenção de double check-in e interface de operador no backoffice.
+Implementar cancelamento de orders e tickets com liberação de estoque, reembolsos via PSP, tratamento de chargebacks e notificações transacionais por e-mail.
 
 Implementado
 diretórios iniciais;
@@ -68,6 +68,12 @@ TASK-037 — Check-in Operator Interface. (CONCLUÍDA)
 TASK-038 — Ticket Transfer Foundation. (CONCLUÍDA)
 TASK-039 — Ticket Transfer Experience. (CONCLUÍDA)
 TASK-040 — Event Attendance & Operations Dashboard. (CONCLUÍDA)
+TASK-041 — Order & Ticket Cancellation Foundation. (CONCLUÍDA)
+TASK-042 — Refund Processing. (PLANEJADA)
+TASK-043 — Event Cancellation & Mass Refunds. (PLANEJADA)
+TASK-044 — Chargebacks & Payment Disputes. (PLANEJADA)
+TASK-045 — Notification Foundation. (PLANEJADA)
+TASK-046 — Transactional Notifications. (PLANEJADA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -94,7 +100,10 @@ $transaction sequencial para rotação de credencial (não CTE) — garante visi
 transferência de ticket com rotação atômica de credencial no aceite — SELECT FOR UPDATE serializa aceites concorrentes;
 claim_token_hash (SHA-256) persiste; claimToken plaintext nunca armazenado;
 partial unique index (ticket_id) WHERE status='PENDING' garante no máximo uma transferência pendente por ticket;
-link de aceite público sem autenticação de usuário — design deliberado para MVP.
+link de aceite público sem autenticação de usuário — design deliberado para MVP;
+cancelamento pré-pagamento libera reserved; pós-pagamento libera committed e revoga credenciais;
+re-check de admitted check-ins e pending transfers dentro da transação (SELECT FOR UPDATE) — elimina TOCTOU;
+CancellationPolicy é função pura sem IO — 5 códigos estáveis de elegibilidade.
 Decisões pendentes
 nome comercial;
 provedor real de pagamentos;
@@ -109,12 +118,8 @@ Problemas conhecidos
 Nenhum problema técnico registrado.
 
 Fora do escopo atual
-reembolso;
-chargeback;
 QR Code visual (imagem PNG/SVG);
-transferência de ingresso;
 workers assíncronos;
-notificações;
 módulo finance;
 integração real com PSP;
 aplicação nativa;
@@ -174,3 +179,4 @@ PDF de ingresso.
 - ticket transfer foundation: tabela ticket_transfers com partial unique index (ticket_id) WHERE status='PENDING', claim_token_hash = SHA-256 (plaintext nunca persistido), InitiateTransfer / CancelTransfer / AcceptTransfer use cases, rotação atômica de credencial no aceite via $transaction sequencial com SELECT FOR UPDATE, transferPending real no ticket-access.adapter via EXISTS subquery, POST/DELETE /public/orders/:orderId/tickets/:ticketId/transfer e POST /public/transfers/:claimToken/accept, 17 testes unitários + 9 integração (1 concorrência) — TASK-038.
 - ticket transfer experience (marketplace): transfers.api.ts tipado, TicketCard com botão "Transferir", InitiateTransferModal com aviso de invalidação do QR + link de claim + CancelTransferButton, AcceptTransferPage com estados CONFIRMING/ACCEPTING/SUCCESS/EXPIRED/ALREADY_ACCEPTED/ERROR, rota /transfer/accept/[claimToken] (Server Component Next.js 15), 12 testes unitários — TASK-039.
 - event attendance dashboard: GetEventAttendanceUseCase com SQL nativo (COUNT + GROUP BY sem N+1), GET /organizations/:orgId/events/:eventId/attendance com ActorGuard e isolamento cross-tenant, performedByUserId truncado a 8 chars, attendanceRate seguro contra divisão por zero, AttendanceDashboard (backoffice) com polling 15s e pause em visibilityState=hidden, AttendanceStats + RecentCheckIns, rota /organizations/[organizationId]/events/[eventId]/dashboard, 17 testes unitários (5 use case + 6 hook + 4 stats + 3 recent + 4 dashboard) + 3 integração — TASK-040.
+- order & ticket cancellation foundation: endpoints POST /public/orders/:orderId/cancellations (comprador, token-only) e POST /organizations/:orgId/orders/:orderId/cancellations (admin), evaluateCancellationEligibility pura (5 códigos), SELECT FOR UPDATE com re-check de admitted check-ins e pending transfers dentro da transação (elimina TOCTOU), liberação atômica de reserved/committed, tickets CANCELLED + credentials REVOKED, outbox order.cancelled.v1 (requiresRefund flag) + ticket.cancelled.v1 por ticket, auditoria admin, migration cancelled_at em orders e tickets, 12 testes unitários + 10 integração (1 concorrência) — TASK-041.
