@@ -17,6 +17,7 @@ import { PrismaOrganizationAccessAdapter } from './infrastructure/adapters/prism
 import { PrismaCreateTicketTypeOperationAdapter } from './infrastructure/adapters/prisma-create-ticket-type-operation.adapter';
 import { PrismaEventRepository } from './infrastructure/repositories/prisma-event.repository';
 import { PrismaTicketTypeRepository } from './infrastructure/repositories/prisma-ticket-type.repository';
+import { PrismaEventCancellationRepository } from './infrastructure/repositories/prisma-event-cancellation.repository';
 import { EventsController } from './presentation/events.controller';
 import { TicketTypesController } from './presentation/controllers/ticket-types.controller';
 import { GetPublicationReadinessUseCase } from './application/use-cases/get-publication-readiness.use-case';
@@ -33,6 +34,9 @@ import { GetPublicEventUseCase } from './application/use-cases/get-public-event.
 import { PUBLIC_EVENT_QUERY_PORT } from './application/ports/public-event-query.port';
 import { PrismaPublicEventQueryAdapter } from './infrastructure/adapters/prisma-public-event-query.adapter';
 import { PublicEventsController } from './presentation/controllers/public-events.controller';
+import { CancelEventUseCase } from './application/use-cases/cancel-event.use-case';
+import { EVENT_CANCELLATION_REPOSITORY } from './application/ports/event-cancellation-repository.port';
+import { EventCancellationController } from './presentation/controllers/event-cancellation.controller';
 
 @Module({
   imports: [HttpModule, VenuesModule],
@@ -42,6 +46,7 @@ import { PublicEventsController } from './presentation/controllers/public-events
     PublicationReadinessController,
     PublishEventController,
     PublicEventsController,
+    EventCancellationController,
   ],
   providers: [
     CreateEventUseCase,
@@ -56,7 +61,9 @@ import { PublicEventsController } from './presentation/controllers/public-events
     PublishEventUseCase,
     ListPublicEventsUseCase,
     GetPublicEventUseCase,
+    CancelEventUseCase,
     PublicationReadinessPolicy,
+    PrismaEventCancellationRepository,
     { provide: EVENT_REPOSITORY, useClass: PrismaEventRepository },
     { provide: ORGANIZATION_ACCESS_PORT, useClass: PrismaOrganizationAccessAdapter },
     { provide: TICKET_TYPE_REPOSITORY, useClass: PrismaTicketTypeRepository },
@@ -75,6 +82,10 @@ import { PublicEventsController } from './presentation/controllers/public-events
     {
       provide: PUBLIC_EVENT_QUERY_PORT,
       useClass: PrismaPublicEventQueryAdapter,
+    },
+    {
+      provide: EVENT_CANCELLATION_REPOSITORY,
+      useExisting: PrismaEventCancellationRepository,
     },
   ],
   exports: [PUBLIC_EVENT_QUERY_PORT],
