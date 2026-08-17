@@ -59,17 +59,18 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
         return;
       }
 
-      // b. Buscar e cancelar orders elegíveis em chunks de 100
-      let offset = 0;
-
+      // b. Buscar e cancelar orders elegíveis em chunks de 100.
+      //    Inclui PAID: pagamento confirmado mas ingressos ainda não emitidos — reembolso obrigatório.
+      //    Sem OFFSET: após cada chunk os registros processados são excluídos pelo WHERE (status=CANCELLED),
+      //    então buscar sempre os primeiros CHUNK_SIZE elegíveis é o padrão correto.
       for (;;) {
         const orders = await tx.$queryRaw<RawOrderRow[]>`
           SELECT id, status, organization_id
           FROM orders
           WHERE event_id = ${eventId}::uuid
-            AND status IN ('PENDING_PAYMENT', 'TICKETS_ISSUED')
-          FOR UPDATE
-          LIMIT ${CHUNK_SIZE} OFFSET ${offset}
+            AND status IN ('PENDING_PAYMENT', 'PAID', 'TICKETS_ISSUED')
+          FOR UPDATE SKIP LOCKED
+          LIMIT ${CHUNK_SIZE}
         `;
 
         if (orders.length === 0) {
@@ -89,7 +90,7 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
                 AND status = 'PENDING'
             `;
 
-            // Release reserved inventory for each order item
+            // Release reserved inventory
             await tx.$executeRaw`
               UPDATE ticket_inventory ti
               SET reserved = ti.reserved - oi.quantity,
@@ -112,7 +113,6 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
               WHERE id = ${orderId}::uuid
             `;
 
-            // c. Outbox: order.cancelled.v1 with requiresRefund: false
             await tx.$executeRaw`
               INSERT INTO outbox_events (id, aggregate_type, aggregate_id, type, version, payload, organization_id, occurred_at)
               VALUES (
@@ -122,6 +122,44 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
                 'order.cancelled.v1',
                 '1',
                 ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: false, reason: reason ?? null })}::jsonb,
+                ${orderOrgId}::uuid,
+                NOW()
+              )
+            `;
+          } else if (order.status === 'PAID') {
+            // Payment confirmed but tickets not yet issued.
+            // Release reserved inventory (ticket issuance may not have moved it to committed yet).
+            await tx.$executeRaw`
+              UPDATE ticket_inventory ti
+              SET reserved = GREATEST(ti.reserved - oi.quantity, 0),
+                  updated_at = NOW()
+              FROM order_items oi
+              WHERE oi.order_id = ${orderId}::uuid
+                AND ti.ticket_type_id = oi.ticket_type_id
+                AND ti.organization_id = ${orderOrgId}::uuid
+            `;
+
+            // Cancel order
+            await tx.$executeRaw`
+              UPDATE orders
+              SET status = 'CANCELLED',
+                  cancelled_at = NOW(),
+                  cancellation_source = 'ADMIN',
+                  cancellation_reason = ${reason ?? null},
+                  updated_at = NOW()
+              WHERE id = ${orderId}::uuid
+            `;
+
+            // requiresRefund: true — buyer already paid
+            await tx.$executeRaw`
+              INSERT INTO outbox_events (id, aggregate_type, aggregate_id, type, version, payload, organization_id, occurred_at)
+              VALUES (
+                gen_random_uuid(),
+                'order',
+                ${orderId},
+                'order.cancelled.v1',
+                '1',
+                ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: true, reason: reason ?? null })}::jsonb,
                 ${orderOrgId}::uuid,
                 NOW()
               )
@@ -139,7 +177,7 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
               RETURNING id
             `;
 
-            // Revoke active credentials for cancelled tickets
+            // Revoke active credentials
             for (const ticket of ticketRows) {
               await tx.$executeRaw`
                 UPDATE ticket_credentials
@@ -173,7 +211,6 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
               WHERE id = ${orderId}::uuid
             `;
 
-            // c. Outbox: order.cancelled.v1 with requiresRefund: true
             await tx.$executeRaw`
               INSERT INTO outbox_events (id, aggregate_type, aggregate_id, type, version, payload, organization_id, occurred_at)
               VALUES (
@@ -188,7 +225,7 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
               )
             `;
 
-            // Outbox: ticket.cancelled.v1 for each ticket
+            // ticket.cancelled.v1 per ticket
             for (const ticket of ticketRows) {
               await tx.$executeRaw`
                 INSERT INTO outbox_events (id, aggregate_type, aggregate_id, type, version, payload, organization_id, occurred_at)
@@ -212,7 +249,6 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
         if (orders.length < CHUNK_SIZE) {
           break;
         }
-        offset += CHUNK_SIZE;
       }
 
       // d. Outbox: event.cancelled.v1
