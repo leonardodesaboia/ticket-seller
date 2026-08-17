@@ -22,6 +22,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     getSupportedMethods: jest.fn().mockReturnValue(['FAKE_PIX']),
     createPayment: jest.fn(),
     parseWebhook: jest.fn<Promise<ParsedPaymentWebhook>, [PaymentWebhookInput]>(),
+    refund: jest.fn(),
   };
 
   const makeAttemptRow = () => ({

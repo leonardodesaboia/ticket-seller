@@ -68,6 +68,7 @@ describe('CreatePaymentAttemptUseCase', () => {
     getSupportedMethods: jest.fn().mockReturnValue(['FAKE_PIX', 'FAKE_CREDIT_CARD']),
     createPayment: jest.fn().mockResolvedValue(gatewayResult),
     parseWebhook: jest.fn<Promise<ParsedPaymentWebhook>, [PaymentWebhookInput]>(),
+    refund: jest.fn(),
   };
 
   const attemptRepo: IPaymentAttemptRepository = {
