@@ -27,12 +27,20 @@ export class SendEmailUseCase {
   ) {}
 
   async execute(input: SendEmailInput): Promise<void> {
-    // Idempotency check: skip if already sent for this order+event combination
+    // Idempotency: prefer order-level deduplication; fall back to outbox-event-level
     if (input.orderId !== undefined) {
       const alreadySent = await this.notificationLog.hasBeenSent(input.orderId, input.eventType);
       if (alreadySent) {
         this.logger.log(
           `Notification already sent for orderId=${input.orderId} eventType=${input.eventType}, skipping`,
+        );
+        return;
+      }
+    } else if (input.outboxEventId !== undefined) {
+      const alreadySent = await this.notificationLog.hasBeenSentForOutboxEvent(input.outboxEventId);
+      if (alreadySent) {
+        this.logger.log(
+          `Notification already sent for outboxEventId=${input.outboxEventId} eventType=${input.eventType}, skipping`,
         );
         return;
       }

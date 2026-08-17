@@ -8,6 +8,7 @@ export interface NotificationLogEntry {
 
 export interface INotificationLogRepository {
   hasBeenSent(orderId: string, eventType: string): Promise<boolean>;
+  hasBeenSentForOutboxEvent(outboxEventId: string): Promise<boolean>;
   record(entry: NotificationLogEntry): Promise<void>;
 }
 
