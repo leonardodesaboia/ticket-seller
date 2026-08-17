@@ -6,6 +6,9 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
   CORS_ORIGINS: z.string().default('*'),
   DATABASE_URL: z.string().url(),
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.coerce.number().default(1025),
+  SMTP_FROM: z.string().default('noreply@ticket-seller.local'),
 });
 
 export type Env = z.infer<typeof envSchema>;
