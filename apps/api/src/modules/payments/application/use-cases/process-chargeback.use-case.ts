@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 
 export interface ProcessChargebackInput {
+  provider: string;
   providerEventId: string;
   externalPaymentId: string;
   amount: bigint;
@@ -32,7 +33,7 @@ export class ProcessChargebackUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(input: ProcessChargebackInput): Promise<void> {
-    const { providerEventId, externalPaymentId, amount, currency } = input;
+    const { provider, providerEventId, externalPaymentId, amount, currency } = input;
 
     // 1. Find payment attempt by external_payment_id
     const attempts = await this.prisma.$queryRaw<RawAttemptRow[]>`
@@ -60,7 +61,7 @@ export class ProcessChargebackUseCase {
          status, amount, currency)
       VALUES
         (${attempt.organization_id}::uuid, ${attempt.order_id}::uuid,
-         ${attempt.id}::uuid, 'FAKE', ${providerEventId},
+         ${attempt.id}::uuid, ${provider}, ${providerEventId},
          'OPEN', ${amount ?? null}, ${currency ?? null})
       ON CONFLICT (provider, external_dispute_id) DO NOTHING
     `;
@@ -86,7 +87,7 @@ export class ProcessChargebackUseCase {
       );
       await this.prisma.$executeRaw`
         UPDATE payment_disputes SET updated_at = NOW()
-        WHERE provider = 'FAKE' AND external_dispute_id = ${providerEventId}
+        WHERE provider = ${provider} AND external_dispute_id = ${providerEventId}
       `;
       return;
     }
@@ -98,7 +99,7 @@ export class ProcessChargebackUseCase {
       );
       await this.prisma.$executeRaw`
         UPDATE payment_disputes SET updated_at = NOW()
-        WHERE provider = 'FAKE' AND external_dispute_id = ${providerEventId}
+        WHERE provider = ${provider} AND external_dispute_id = ${providerEventId}
       `;
       return;
     }
@@ -186,7 +187,7 @@ export class ProcessChargebackUseCase {
     await this.prisma.$executeRaw`
       UPDATE payment_disputes
       SET status = 'PROCESSED', updated_at = NOW()
-      WHERE provider = 'FAKE' AND external_dispute_id = ${providerEventId}
+      WHERE provider = ${provider} AND external_dispute_id = ${providerEventId}
     `;
 
     this.logger.log(

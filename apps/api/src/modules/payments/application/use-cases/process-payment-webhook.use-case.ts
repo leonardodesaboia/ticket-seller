@@ -44,7 +44,7 @@ export class ProcessPaymentWebhookUseCase {
   async execute(input: ProcessWebhookInput): Promise<void> {
     // Step 1: Parse and validate webhook signature
     const parsed = await this.gateway.parseWebhook({
-      provider: 'FAKE',
+      provider: input.provider,
       rawBody: input.rawBody,
       signature: input.signature,
     } as PaymentWebhookInput);
@@ -93,6 +93,7 @@ export class ProcessPaymentWebhookUseCase {
     // table still records the raw event for audit purposes.
     if (eventType === 'PAYMENT_DISPUTED') {
       await this.processChargeback.execute({
+        provider: this.gateway.provider,
         providerEventId,
         externalPaymentId,
         amount,

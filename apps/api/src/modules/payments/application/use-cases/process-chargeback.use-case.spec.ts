@@ -21,6 +21,7 @@ const ORDER_PAID = {
 };
 
 const BASE_INPUT: ProcessChargebackInput = {
+  provider: 'FAKE',
   providerEventId: 'evt-dispute-1',
   externalPaymentId: 'fake_ext_1',
   amount: 10000n,

@@ -393,4 +393,68 @@ describe('POST /organizations/:orgId/events/:eventId/cancellations (event cancel
     `;
     expect(rows[0]?.status).toBe('CANCELLED');
   });
+
+  it('11. cancels event with PAID order — requiresRefund=true, reserved inventory released', async () => {
+    const fixture = await createBaseFixture();
+    const { orderId, token } = await createPendingPaymentOrder(fixture);
+
+    // Promote to PAID (without going to TICKETS_ISSUED — use raw update to simulate race window)
+    const payRes = await supertest(app.getHttpServer())
+      .post(`/api/v1/public/orders/${orderId}/payments`)
+      .set('X-Reservation-Token', token)
+      .set('Idempotency-Key', randomUUID())
+      .send({ paymentMethod: 'FAKE_PIX' })
+      .expect(201);
+
+    const paymentAttemptId: string = payRes.body.paymentAttemptId as string;
+    const rows = await prisma.$queryRaw<Array<{ external_payment_id: string; amount: bigint }>>`
+      SELECT external_payment_id, amount FROM payment_attempts WHERE id = ${paymentAttemptId}::uuid
+    `;
+    const extId = rows[0]!.external_payment_id;
+    const amount = Number(rows[0]!.amount);
+
+    // Send PAYMENT_APPROVED webhook but intercept BEFORE tickets are issued
+    // by setting order directly to PAID via raw SQL (simulates the window)
+    await prisma.$executeRaw`
+      UPDATE orders SET status = 'PAID', updated_at = NOW() WHERE id = ${orderId}::uuid
+    `;
+
+    // Make sure inventory shows reserved (simulate pre-ticket-issuance state)
+    await prisma.$executeRaw`
+      UPDATE ticket_inventory SET reserved = 1 WHERE ticket_type_id = ${fixture.ticketTypeId}::uuid
+    `;
+
+    const invBefore = await prisma.ticketInventory.findUniqueOrThrow({
+      where: { ticketTypeId: fixture.ticketTypeId },
+    });
+    expect(invBefore.reserved).toBe(1);
+    void extId; void amount; // suppress unused warning
+
+    const res = await supertest(app.getHttpServer())
+      .post(`/api/v1/organizations/${fixture.orgId}/events/${fixture.eventId}/cancellations`)
+      .set('X-Dev-User-Id', ACTOR_ID)
+      .send({})
+      .expect(200);
+
+    expect(res.body.ordersCancelledCount).toBe(1);
+
+    // Order should be CANCELLED
+    const orderRow = await prisma.$queryRaw<Array<{ status: string }>>`
+      SELECT status FROM orders WHERE id = ${orderId}::uuid
+    `;
+    expect(orderRow[0]?.status).toBe('CANCELLED');
+
+    // Reserved inventory released
+    const invAfter = await prisma.ticketInventory.findUniqueOrThrow({
+      where: { ticketTypeId: fixture.ticketTypeId },
+    });
+    expect(invAfter.reserved).toBe(0);
+
+    // Outbox with requiresRefund=true (buyer paid)
+    const orderOutbox = await prisma.outboxEvent.findFirst({
+      where: { aggregateId: orderId, type: 'order.cancelled.v1' },
+    });
+    expect(orderOutbox).not.toBeNull();
+    expect((orderOutbox!.payload as Record<string, unknown>)['requiresRefund']).toBe(true);
+  });
 });
