@@ -24,6 +24,16 @@ export class PrismaNotificationLogRepository implements INotificationLogReposito
     return rows.length > 0;
   }
 
+  async hasBeenSentForOutboxEvent(outboxEventId: string): Promise<boolean> {
+    const rows = await this.prisma.$queryRaw<NotificationLogRow[]>`
+      SELECT id
+      FROM notification_log
+      WHERE outbox_event_id = ${outboxEventId}::uuid
+      LIMIT 1
+    `;
+    return rows.length > 0;
+  }
+
   async record(entry: NotificationLogEntry): Promise<void> {
     await this.prisma.$executeRaw`
       INSERT INTO notification_log

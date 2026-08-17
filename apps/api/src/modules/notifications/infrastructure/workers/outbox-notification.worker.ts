@@ -2,15 +2,18 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import { PrismaService } from "../../../../platform/database/prisma.service";
 import { SendEmailUseCase, SendEmailInput } from "../../application/use-cases/send-email.use-case";
 
-// NOTE (TASK-045 MVP): The current schema does not have a buyer email on orders or reservations.
-// Orders and reservations are not linked to a User (no user_id on the orders table).
-// As a result, this worker uses a dev placeholder email "comprador@ticket-seller.local".
-// A future task should add buyer identity to the order model (e.g., buyer_email or user_id FK)
-// and update this worker accordingly.
-const DEV_PLACEHOLDER_EMAIL = "comprador@ticket-seller.local";
+// NOTE (TASK-045 MVP): Orders have no buyer email or user_id FK.
+// Placeholder emails are used until buyer identity is added to the order model.
+const DEV_BUYER_EMAIL = "comprador@ticket-seller.local";
+const DEV_ADMIN_EMAIL = "backoffice@ticket-seller.local";
 
-// Event types handled by this worker
-const HANDLED_TYPES = ["order.paid.v1"];
+const HANDLED_TYPES = [
+  "order.paid.v1",
+  "order.cancelled.v1",
+  "order.refunded.v1",
+  "event.cancelled.v1",
+  "order.chargeback.v1",
+];
 
 interface OutboxEventRow {
   id: string;
@@ -71,8 +74,22 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
         ? (JSON.parse(row.payload) as Record<string, unknown>)
         : row.payload;
 
-      if (row.type === "order.paid.v1") {
-        await this.handleOrderPaid(row.id, payload, row.organization_id);
+      switch (row.type) {
+        case "order.paid.v1":
+          await this.handleOrderPaid(row.id, payload, row.organization_id);
+          break;
+        case "order.cancelled.v1":
+          await this.handleOrderCancelled(row.id, payload, row.organization_id);
+          break;
+        case "order.refunded.v1":
+          await this.handleOrderRefunded(row.id, payload, row.organization_id);
+          break;
+        case "event.cancelled.v1":
+          await this.handleEventCancelled(row.id, payload, row.organization_id);
+          break;
+        case "order.chargeback.v1":
+          await this.handleOrderChargeback(row.id, payload, row.organization_id);
+          break;
       }
 
       // Mark event as processed
@@ -100,33 +117,164 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     const orderId = payload["orderId"] as string | undefined;
     if (orderId === undefined) {
-      this.logger.warn(`order.paid.v1 event id=${outboxEventId} missing orderId in payload`);
+      this.logger.warn(`order.paid.v1 event id=${outboxEventId} missing orderId`);
       return;
     }
-
-    // MVP: use placeholder email since orders have no buyer email or user link
-    const recipientEmail = DEV_PLACEHOLDER_EMAIL;
-
-    const subject = "Seu pedido foi confirmado!";
-    const text = [
-      "Olá!",
-      "",
-      `Seu pedido #${orderId} foi confirmado com sucesso.`,
-      "Em breve seus ingressos estarão disponíveis.",
-      "",
-      "Obrigado por comprar conosco!",
-    ].join("\n");
 
     const input: SendEmailInput = {
       orderId,
       eventType: "order.paid.v1",
-      recipientEmail,
-      subject,
-      text,
+      recipientEmail: DEV_BUYER_EMAIL,
+      subject: "Seu pedido foi confirmado!",
+      text: [
+        "Olá!",
+        "",
+        `Seu pedido #${orderId} foi confirmado com sucesso.`,
+        "Em breve seus ingressos estarão disponíveis.",
+        "",
+        "Obrigado por comprar conosco!",
+      ].join("\n"),
       outboxEventId,
     };
     if (organizationId !== null) input.organizationId = organizationId;
+    await this.sendEmail.execute(input);
+  }
 
+  private async handleOrderCancelled(
+    outboxEventId: string,
+    payload: Record<string, unknown>,
+    organizationId: string | null,
+  ): Promise<void> {
+    const orderId = payload["orderId"] as string | undefined;
+    if (orderId === undefined) {
+      this.logger.warn(`order.cancelled.v1 event id=${outboxEventId} missing orderId`);
+      return;
+    }
+
+    const reason = payload["reason"] as string | null | undefined;
+    const reasonLine = reason ? `\nMotivo: ${reason}` : "";
+
+    const input: SendEmailInput = {
+      orderId,
+      eventType: "order.cancelled.v1",
+      recipientEmail: DEV_BUYER_EMAIL,
+      subject: "Seu pedido foi cancelado",
+      text: [
+        "Olá!",
+        "",
+        `Seu pedido #${orderId} foi cancelado.${reasonLine}`,
+        "",
+        "Se você efetuou pagamento e o reembolso for aplicável, ele será processado em breve.",
+        "Em caso de dúvidas, entre em contato com nosso suporte.",
+      ].join("\n"),
+      outboxEventId,
+    };
+    if (organizationId !== null) input.organizationId = organizationId;
+    await this.sendEmail.execute(input);
+  }
+
+  private async handleOrderRefunded(
+    outboxEventId: string,
+    payload: Record<string, unknown>,
+    organizationId: string | null,
+  ): Promise<void> {
+    const orderId = payload["orderId"] as string | undefined;
+    if (orderId === undefined) {
+      this.logger.warn(`order.refunded.v1 event id=${outboxEventId} missing orderId`);
+      return;
+    }
+
+    const amountRaw = payload["amount"] as number | undefined;
+    const currency = (payload["currency"] as string | undefined) ?? "BRL";
+    const amountFormatted = amountRaw !== undefined
+      ? `${(amountRaw / 100).toFixed(2)} ${currency}`
+      : "valor integral";
+
+    const input: SendEmailInput = {
+      orderId,
+      eventType: "order.refunded.v1",
+      recipientEmail: DEV_BUYER_EMAIL,
+      subject: "Seu reembolso foi processado",
+      text: [
+        "Olá!",
+        "",
+        `O reembolso do seu pedido #${orderId} foi processado com sucesso.`,
+        `Valor reembolsado: ${amountFormatted}.`,
+        "",
+        "O crédito pode levar até 10 dias úteis para aparecer em seu extrato.",
+        "Obrigado por usar nossa plataforma!",
+      ].join("\n"),
+      outboxEventId,
+    };
+    if (organizationId !== null) input.organizationId = organizationId;
+    await this.sendEmail.execute(input);
+  }
+
+  private async handleEventCancelled(
+    outboxEventId: string,
+    payload: Record<string, unknown>,
+    organizationId: string | null,
+  ): Promise<void> {
+    const eventId = payload["eventId"] as string | undefined;
+    if (eventId === undefined) {
+      this.logger.warn(`event.cancelled.v1 event id=${outboxEventId} missing eventId`);
+      return;
+    }
+
+    const reason = payload["reason"] as string | null | undefined;
+    const ordersCancelled = payload["ordersCancelledCount"] as number | undefined;
+    const reasonLine = reason ? `\nMotivo: ${reason}` : "";
+
+    // No orderId for this event — idempotency is handled via outboxEventId in SendEmailUseCase
+    const input: SendEmailInput = {
+      eventType: "event.cancelled.v1",
+      recipientEmail: DEV_ADMIN_EMAIL,
+      subject: "Evento cancelado — alerta administrativo",
+      text: [
+        "Este é um alerta administrativo.",
+        "",
+        `O evento #${eventId} foi cancelado.${reasonLine}`,
+        `Pedidos afetados: ${ordersCancelled ?? "desconhecido"}.`,
+        "",
+        "Os compradores com pedidos ativos já receberam notificação individual.",
+      ].join("\n"),
+      outboxEventId,
+    };
+    if (organizationId !== null) input.organizationId = organizationId;
+    await this.sendEmail.execute(input);
+  }
+
+  private async handleOrderChargeback(
+    outboxEventId: string,
+    payload: Record<string, unknown>,
+    organizationId: string | null,
+  ): Promise<void> {
+    const orderId = payload["orderId"] as string | undefined;
+    if (orderId === undefined) {
+      this.logger.warn(`order.chargeback.v1 event id=${outboxEventId} missing orderId`);
+      return;
+    }
+
+    const externalDisputeId = payload["externalDisputeId"] as string | undefined;
+    const disputeLine = externalDisputeId ? `Disputa externa: ${externalDisputeId}` : "";
+
+    const input: SendEmailInput = {
+      orderId,
+      eventType: "order.chargeback.v1",
+      recipientEmail: DEV_ADMIN_EMAIL,
+      subject: "Alerta: chargeback recebido",
+      text: [
+        "Alerta administrativo — chargeback recebido.",
+        "",
+        `Pedido: #${orderId}`,
+        disputeLine,
+        "",
+        "O pedido foi marcado como CHARGEBACK. Os ingressos foram cancelados e",
+        "o estoque foi liberado. Analise a disputa no painel da processadora.",
+      ].filter(Boolean).join("\n"),
+      outboxEventId,
+    };
+    if (organizationId !== null) input.organizationId = organizationId;
     await this.sendEmail.execute(input);
   }
 }
