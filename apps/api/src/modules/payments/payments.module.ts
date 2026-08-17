@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '../../platform/http/http.module';
 import { PaymentsInfrastructureModule } from './infrastructure/payments.infrastructure.module';
 import { TicketsModule } from '../tickets/tickets.module';
 import { PAYMENT_GATEWAY_PORT } from './domain/ports/payment-gateway.port';
@@ -8,6 +9,7 @@ import { CreatePaymentAttemptUseCase } from './application/use-cases/create-paym
 import { GetPaymentAttemptUseCase } from './application/use-cases/get-payment-attempt.use-case';
 import { ProcessPaymentWebhookUseCase } from './application/use-cases/process-payment-webhook.use-case';
 import { ProcessRefundUseCase } from './application/use-cases/process-refund.use-case';
+import { ProcessChargebackUseCase } from './application/use-cases/process-chargeback.use-case';
 import { PublicPaymentsController } from './presentation/controllers/public-payments.controller';
 import { PaymentWebhookController } from './presentation/controllers/payment-webhook.controller';
 import { OrderRefundController } from './presentation/controllers/order-refund.controller';
@@ -16,11 +18,12 @@ import { PrismaPaymentAttemptRepository } from './infrastructure/repositories/pr
 import { OrderAccessAdapter } from './infrastructure/adapters/order-access.adapter';
 
 @Module({
-  imports: [PaymentsInfrastructureModule, TicketsModule],
+  imports: [HttpModule, PaymentsInfrastructureModule, TicketsModule],
   controllers: [PublicPaymentsController, PaymentWebhookController, OrderRefundController],
   providers: [
     CreatePaymentAttemptUseCase,
     GetPaymentAttemptUseCase,
+    ProcessChargebackUseCase,
     ProcessPaymentWebhookUseCase,
     ProcessRefundUseCase,
     { provide: PAYMENT_GATEWAY_PORT, useExisting: FakePaymentGateway },
@@ -34,6 +37,7 @@ import { OrderAccessAdapter } from './infrastructure/adapters/order-access.adapt
     CreatePaymentAttemptUseCase,
     ProcessPaymentWebhookUseCase,
     ProcessRefundUseCase,
+    ProcessChargebackUseCase,
   ],
 })
 export class PaymentsModule {}

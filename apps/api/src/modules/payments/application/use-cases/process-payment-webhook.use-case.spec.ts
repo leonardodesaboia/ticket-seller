@@ -1,4 +1,5 @@
 import { ProcessPaymentWebhookUseCase } from './process-payment-webhook.use-case';
+import { ProcessChargebackUseCase } from './process-chargeback.use-case';
 import { WebhookSignatureError } from '../../domain/payment-gateway.errors';
 import {
   ParsedPaymentWebhook,
@@ -41,6 +42,10 @@ describe('ProcessPaymentWebhookUseCase', () => {
     organization_id: 'org-1',
   });
 
+  const mockChargeback = {
+    execute: jest.fn().mockResolvedValue(undefined),
+  } as unknown as ProcessChargebackUseCase;
+
   function makePrisma(overrides: Partial<Record<string, jest.Mock>> = {}): PrismaService {
     const $executeRaw = jest.fn().mockResolvedValue(1);
     const $queryRaw = jest.fn().mockResolvedValue([makeAttemptRow()]);
@@ -59,7 +64,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('throws WebhookSignatureError when gateway rejects signature', async () => {
     (gateway.parseWebhook as jest.Mock).mockRejectedValueOnce(new WebhookSignatureError());
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
 
     await expect(
       uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'bad' }),
@@ -69,7 +74,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('does not process when webhook was already inserted (ON CONFLICT returns 0)', async () => {
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce(parsed);
     const prisma = makePrisma({ $executeRaw: jest.fn().mockResolvedValue(0) });
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -83,7 +88,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       $queryRaw: jest.fn().mockResolvedValue([]),
       $executeRaw: jest.fn().mockResolvedValue(1),
     });
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -95,7 +100,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('calls transaction for PAYMENT_APPROVED with matching amount/currency', async () => {
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce(parsed);
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -105,7 +110,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('does not call transaction when amount mismatches', async () => {
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce({ ...parsed, amount: 9999n });
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -119,7 +124,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       status: 'DECLINED',
     });
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -136,7 +141,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     const prisma = makePrisma({
       $queryRaw: jest.fn().mockResolvedValue([terminalAttempt]),
     });
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 

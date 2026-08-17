@@ -22,6 +22,9 @@ const WEBHOOK_EVENT_TYPE_TO_STATUS: Record<PaymentWebhookEventType, InternalPaym
   PAYMENT_DECLINED: 'DECLINED',
   PAYMENT_CANCELLED: 'CANCELLED',
   PAYMENT_EXPIRED: 'EXPIRED',
+  // For chargebacks the underlying payment attempt remains APPROVED;
+  // only the order transitions to CHARGEBACK via ProcessChargebackUseCase.
+  PAYMENT_DISPUTED: 'APPROVED',
 };
 
 interface FakeWebhookBody {
@@ -122,6 +125,7 @@ export class FakePaymentGateway implements PaymentGatewayPort {
       'PAYMENT_DECLINED',
       'PAYMENT_CANCELLED',
       'PAYMENT_EXPIRED',
+      'PAYMENT_DISPUTED',
     ];
 
     if (!validEventTypes.includes(body.eventType as PaymentWebhookEventType)) {
