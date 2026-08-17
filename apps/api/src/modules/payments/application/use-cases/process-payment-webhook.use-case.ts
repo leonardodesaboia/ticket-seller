@@ -6,6 +6,7 @@ import {
   PaymentGatewayPort,
   PaymentWebhookInput,
 } from '../../domain/ports/payment-gateway.port';
+import { ProcessChargebackUseCase } from './process-chargeback.use-case';
 
 export interface ProcessWebhookInput {
   provider: string;
@@ -37,6 +38,7 @@ export class ProcessPaymentWebhookUseCase {
     @Inject(PAYMENT_GATEWAY_PORT)
     private readonly gateway: PaymentGatewayPort,
     private readonly prisma: PrismaService,
+    private readonly processChargeback: ProcessChargebackUseCase,
   ) {}
 
   async execute(input: ProcessWebhookInput): Promise<void> {
@@ -85,7 +87,25 @@ export class ProcessPaymentWebhookUseCase {
       return;
     }
 
-    // Step 3: Process based on event type
+    // Step 3: Delegate PAYMENT_DISPUTED to the chargeback use case.
+    // The chargeback use case maintains its own idempotency via payment_disputes
+    // (ON CONFLICT on provider + external_dispute_id). The payment_webhook_events
+    // table still records the raw event for audit purposes.
+    if (eventType === 'PAYMENT_DISPUTED') {
+      await this.processChargeback.execute({
+        providerEventId,
+        externalPaymentId,
+        amount,
+        currency,
+      });
+      await this.prisma.$executeRaw`
+        UPDATE payment_webhook_events SET processed_at = NOW()
+        WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+      `;
+      return;
+    }
+
+    // Step 4: Process non-chargeback events
     if (eventType === 'PAYMENT_APPROVED') {
       await this.processApproved(attempt, providerEventId, amount, currency);
     } else {

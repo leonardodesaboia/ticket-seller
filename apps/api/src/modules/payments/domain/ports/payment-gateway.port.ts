@@ -13,7 +13,8 @@ export type PaymentWebhookEventType =
   | 'PAYMENT_APPROVED'
   | 'PAYMENT_DECLINED'
   | 'PAYMENT_CANCELLED'
-  | 'PAYMENT_EXPIRED';
+  | 'PAYMENT_EXPIRED'
+  | 'PAYMENT_DISPUTED';
 
 export interface CreatePaymentInput {
   idempotencyKey: string;
