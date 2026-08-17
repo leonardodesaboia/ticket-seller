@@ -12,6 +12,8 @@ import {
   PaymentProvider,
   PaymentWebhookEventType,
   PaymentWebhookInput,
+  RefundPaymentInput,
+  RefundPaymentResult,
 } from '../../../domain/ports/payment-gateway.port';
 import { GatewayError, WebhookSignatureError } from '../../../domain/payment-gateway.errors';
 
@@ -79,6 +81,12 @@ export class FakePaymentGateway implements PaymentGatewayPort {
       checkoutData,
       expiresAt,
     };
+  }
+
+  async refund(input: RefundPaymentInput): Promise<RefundPaymentResult> {
+    const externalRefundId =
+      'fake_refund_' + crypto.createHash('sha256').update(input.idempotencyKey).digest('hex').slice(0, 24);
+    return { externalRefundId, status: 'SUCCESS' };
   }
 
   async parseWebhook(input: PaymentWebhookInput): Promise<ParsedPaymentWebhook> {

@@ -58,11 +58,24 @@ export interface ParsedPaymentWebhook {
   currency: string;
 }
 
+export interface RefundPaymentInput {
+  externalPaymentId: string;
+  amount: bigint;
+  currency: string;
+  idempotencyKey: string;
+}
+
+export interface RefundPaymentResult {
+  externalRefundId: string;
+  status: 'SUCCESS' | 'FAILED';
+}
+
 export interface PaymentGatewayPort {
   readonly provider: PaymentProvider;
   getSupportedMethods(): PaymentMethod[];
   createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>;
   parseWebhook(input: PaymentWebhookInput): Promise<ParsedPaymentWebhook>;
+  refund(input: RefundPaymentInput): Promise<RefundPaymentResult>;
 }
 
 export const PAYMENT_GATEWAY_PORT = Symbol('PAYMENT_GATEWAY_PORT');
