@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { NotificationsInfrastructureModule } from './infrastructure/notifications.infrastructure.module';
-import { SendEmailUseCase } from './application/use-cases/send-email.use-case';
 
+// SendEmailUseCase is provided and exported from NotificationsInfrastructureModule.
+// Re-exporting the infrastructure module makes SendEmailUseCase available to all
+// consumers of NotificationsModule without duplicating provider registrations.
 @Module({
   imports: [NotificationsInfrastructureModule],
-  providers: [SendEmailUseCase],
-  exports: [SendEmailUseCase],
+  exports: [NotificationsInfrastructureModule],
 })
 export class NotificationsModule {}
