@@ -1,6 +1,6 @@
 Tarefas ativas
 
-Última atualização: 2026-08-13
+Última atualização: 2026-08-17
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
@@ -55,6 +55,11 @@ TASK-039: Ticket Transfer Experience — MERGED em develop 2026-08-13
 TASK-040: Event Attendance & Operations Dashboard — MERGED em develop 2026-08-13
 TASK-FIX: Correções da revisão TASK-038/039/040 — MERGED em develop 2026-08-13
 TASK-041: Order & Ticket Cancellation Foundation — MERGED em develop 2026-08-13
+TASK-042: Refund Processing — MERGED em develop 2026-08-17
+TASK-043: Event Cancellation & Mass Refunds — MERGED em develop 2026-08-17
+TASK-044: Chargebacks & Payment Disputes — MERGED em develop 2026-08-17
+TASK-045: Notification Foundation — MERGED em develop 2026-08-17
+TASK-046: Transactional Notifications — MERGED em develop 2026-08-17
 
 Regras
 uma tarefa deve aparecer uma única vez;

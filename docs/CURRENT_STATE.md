@@ -1,10 +1,10 @@
 Estado atual
 
-Última atualização: 2026-08-13 (TASK-041)
+Última atualização: 2026-08-17 (TASK-046)
 
 Fase
 
-Cancelamentos, reembolsos e notificações (MVP parcial).
+Cancelamentos, reembolsos e notificações — CONCLUÍDA.
 
 Objetivo da fase
 
@@ -69,11 +69,11 @@ TASK-038 — Ticket Transfer Foundation. (CONCLUÍDA)
 TASK-039 — Ticket Transfer Experience. (CONCLUÍDA)
 TASK-040 — Event Attendance & Operations Dashboard. (CONCLUÍDA)
 TASK-041 — Order & Ticket Cancellation Foundation. (CONCLUÍDA)
-TASK-042 — Refund Processing. (PLANEJADA)
-TASK-043 — Event Cancellation & Mass Refunds. (PLANEJADA)
-TASK-044 — Chargebacks & Payment Disputes. (PLANEJADA)
-TASK-045 — Notification Foundation. (PLANEJADA)
-TASK-046 — Transactional Notifications. (PLANEJADA)
+TASK-042 — Refund Processing. (CONCLUÍDA)
+TASK-043 — Event Cancellation & Mass Refunds. (CONCLUÍDA)
+TASK-044 — Chargebacks & Payment Disputes. (CONCLUÍDA)
+TASK-045 — Notification Foundation. (CONCLUÍDA)
+TASK-046 — Transactional Notifications. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
