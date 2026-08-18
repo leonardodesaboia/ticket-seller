@@ -1,14 +1,19 @@
 Estado atual
 
-Última atualização: 2026-08-18 (TASK-052)
+Última atualização: 2026-08-18 (TASK-052 + planejamento TASK-053 a TASK-062)
 
 Fase
 
-Módulo financeiro — CONCLUÍDA.
+Produção — PLANEJADA. Módulo financeiro — CONCLUÍDA.
 
 Objetivo da fase
 
-Implementar taxas de plataforma, ledger financeiro double-entry, saldo materializado do produtor, settlement automático, provider de payout, processamento de payout com concorrência segura e dashboard financeiro com reconciliação.
+Implementar autenticação real, membros e roles, administração de plataforma, uploads de mídia, rate limiting, observabilidade, hardening de segurança, infraestrutura de produção, backup e release readiness.
+
+Decisões arquiteturais desta fase (ver ADRs)
+- ADR-007: Auth próprio com email + senha, argon2id, JWT (access 15min + refresh 30d em cookie HttpOnly), refresh token rotation, JwtActorAdapter.
+- ADR-008: IObjectStoragePort com MinioObjectStorageAdapter (dev) e S3ObjectStorageAdapter (prod); ResendEmailAdapter para email transacional em production.
+- ADR-009: Dockerfiles multi-stage portáveis, sem acoplamento a cloud provider específica.
 
 Implementado
 diretórios iniciais;
@@ -21,11 +26,11 @@ monorepo inicializado com pnpm 11.17.0, Turborepo 2.10.7 e Node.js 22.18.0;
 TypeScript 5.9.3, ESLint 10.8.0 e Prettier 3.9.6 configurados no workspace.
 Em andamento
 
-Nenhuma tarefa em andamento.
+Nenhuma tarefa em andamento. Implementação de TASK-053 a TASK-062 aguarda autorização.
 
 Próxima fase
 
-Autenticação real (maior gap do MVP). Workers em produção, notificações por e-mail, provider real de pagamento.
+Autenticação real (maior gap do MVP — TASK-053 é o primeiro desbloqueador). Após: membros, uploads, rate limiting, observabilidade, hardening, infra, backup e release readiness.
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)
@@ -80,6 +85,16 @@ TASK-049 — Merchant Balance & Settlement. (CONCLUÍDA)
 TASK-050 — Payout Provider & Split Foundation. (CONCLUÍDA)
 TASK-051 — Payout Processing. (CONCLUÍDA)
 TASK-052 — Financial Dashboard & Reconciliation. (CONCLUÍDA)
+TASK-053 — Production Authentication & Sessions. (CONCLUÍDA)
+TASK-054 — Organization Members, Roles & Permissions. (PLANEJADA)
+TASK-055 — Platform Administration. (PLANEJADA)
+TASK-056 — Media & Uploads Foundation. (PLANEJADA)
+TASK-057 — Rate Limiting, Abuse Prevention & API Hardening. (PLANEJADA)
+TASK-058 — Observability, Reliability & Operational Alerts. (PLANEJADA)
+TASK-059 — Security Hardening & Data Protection. (PLANEJADA)
+TASK-060 — Production Infrastructure & Deployment. (PLANEJADA)
+TASK-061 — Backup, Disaster Recovery & Operational Runbooks. (PLANEJADA)
+TASK-062 — Release Readiness & E2E Certification. (PLANEJADA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;
@@ -100,4 +115,9 @@ settlement_delay_days lido de fee_policies, nunca de variável de ambiente;
 payout provider abstrato via PayoutGatewayPort (independente de PaymentGatewayPort);
 FakePayoutGateway com HMAC-SHA256 + timingSafeEqual;
 SELECT FOR UPDATE em seller_balances para serializar payouts concorrentes;
-divergência de reconciliação vai para outbox — nunca corrige ledger silenciosamente.
+divergência de reconciliação vai para outbox — nunca corrige ledger silenciosamente;
+auth própria com argon2id, JWT e refresh token rotation (ADR-007);
+IObjectStoragePort com MinIO (dev) e S3 (prod); ResendEmailAdapter para email em production (ADR-008);
+Dockerfiles multi-stage portáveis sem acoplamento a cloud provider (ADR-009);
+MFA (TOTP) adiado para pós-MVP;
+cloud target de produção não definido — Dockerfiles portáveis garantem flexibilidade.

@@ -4,6 +4,16 @@ Fila de integração
 
 | Ordem | Tarefa | Status |
 | --- | --- | --- |
+| 53 | TASK-053 | MERGED |
+| 54 | TASK-054 | WAITING |
+| 55 | TASK-055 | WAITING |
+| 56 | TASK-056 | WAITING |
+| 57 | TASK-057 | WAITING |
+| 58 | TASK-058 | WAITING |
+| 59 | TASK-059 | WAITING |
+| 60 | TASK-060 | WAITING |
+| 61 | TASK-061 | WAITING |
+| 62 | TASK-062 | WAITING |
 
 Histórico recente
 Ordem	Tarefa	Status	Data
