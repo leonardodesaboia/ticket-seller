@@ -4,9 +4,9 @@ import type { ICurrentActor } from '../../../shared/kernel/actor.types';
 
 @Injectable()
 export class DevelopmentActorAdapter implements IActorAdapter {
-  resolve(request: {
+  async resolve(request: {
     headers: Record<string, string | string[] | undefined>;
-  }): ICurrentActor | null {
+  }): Promise<ICurrentActor | null> {
     if (process.env['NODE_ENV'] === 'production') {
       return null;
     }

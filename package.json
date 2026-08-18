@@ -18,7 +18,8 @@
   },
   "pnpm": {
     "approvedBuilds": [
-      "sharp"
+      "sharp",
+      "argon2"
     ]
   },
   "devDependencies": {
