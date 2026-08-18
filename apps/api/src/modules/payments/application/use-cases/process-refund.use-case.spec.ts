@@ -6,6 +6,15 @@ import {
 } from '../../domain/refund.errors';
 import { PaymentGatewayPort } from '../../domain/ports/payment-gateway.port';
 import { PrismaService } from '../../../../platform/database/prisma.service';
+import { IFinancialRecordPort } from '../../../finance/domain/ports/financial-record.port';
+
+function makeFinancialRecord(): IFinancialRecordPort {
+  return {
+    recordSale: jest.fn().mockResolvedValue(undefined),
+    recordRefund: jest.fn().mockResolvedValue(undefined),
+    recordChargeback: jest.fn().mockResolvedValue(undefined),
+  };
+}
 
 const APPROVED_ATTEMPT = { id: 'attempt-1', external_payment_id: 'fake_ext_1' };
 const CANCELLED_ORDER = {
@@ -66,7 +75,7 @@ describe('ProcessRefundUseCase', () => {
   it('returns REFUNDED result on success', async () => {
     const gateway = makeGateway();
     const prisma = makePrisma();
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     const result = await uc.execute(input);
 
@@ -79,7 +88,7 @@ describe('ProcessRefundUseCase', () => {
   it('throws OrderNotFoundForRefundError when order does not exist', async () => {
     const gateway = makeGateway();
     const prisma = makePrisma([]);
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     await expect(uc.execute(input)).rejects.toThrow(OrderNotFoundForRefundError);
   });
@@ -88,7 +97,7 @@ describe('ProcessRefundUseCase', () => {
     const gateway = makeGateway();
     const order = { ...CANCELLED_ORDER, status: 'TICKETS_ISSUED' };
     const prisma = makePrisma([order]);
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     await expect(uc.execute(input)).rejects.toThrow(OrderNotRefundableError);
   });
@@ -97,7 +106,7 @@ describe('ProcessRefundUseCase', () => {
     const gateway = makeGateway();
     const order = { ...CANCELLED_ORDER, status: 'REFUNDED' };
     const prisma = makePrisma([order]);
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     await expect(uc.execute(input)).rejects.toThrow(OrderNotRefundableError);
   });
@@ -105,7 +114,7 @@ describe('ProcessRefundUseCase', () => {
   it('throws OrderNotRefundableError when no APPROVED payment attempt exists', async () => {
     const gateway = makeGateway();
     const prisma = makePrisma([CANCELLED_ORDER], []);
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     await expect(uc.execute(input)).rejects.toThrow(OrderNotRefundableError);
   });
@@ -118,7 +127,7 @@ describe('ProcessRefundUseCase', () => {
       external_refund_id: 'fake_refund_existing',
     };
     const prisma = makePrisma([CANCELLED_ORDER], [APPROVED_ATTEMPT], [existingRefund]);
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     const result = await uc.execute(input);
 
@@ -131,7 +140,7 @@ describe('ProcessRefundUseCase', () => {
       refund: jest.fn().mockRejectedValue(new Error('PSP timeout')),
     });
     const prisma = makePrisma();
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     await expect(uc.execute(input)).rejects.toThrow(RefundGatewayError);
     expect(prisma.$executeRaw).toHaveBeenCalled();
@@ -142,7 +151,7 @@ describe('ProcessRefundUseCase', () => {
       refund: jest.fn().mockResolvedValue({ externalRefundId: 'fake_x', status: 'FAILED' }),
     });
     const prisma = makePrisma();
-    const uc = new ProcessRefundUseCase(gateway, prisma);
+    const uc = new ProcessRefundUseCase(gateway, prisma, makeFinancialRecord());
 
     await expect(uc.execute(input)).rejects.toThrow(RefundGatewayError);
   });

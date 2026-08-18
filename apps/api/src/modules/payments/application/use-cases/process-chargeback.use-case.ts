@@ -1,5 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
+import {
+  FINANCIAL_RECORD_PORT,
+  IFinancialRecordPort,
+} from '../../../finance/domain/ports/financial-record.port';
 
 export interface ProcessChargebackInput {
   provider: string;
@@ -30,7 +34,11 @@ interface RawTicketRow {
 export class ProcessChargebackUseCase {
   private readonly logger = new Logger(ProcessChargebackUseCase.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(FINANCIAL_RECORD_PORT)
+    private readonly financialRecord: IFinancialRecordPort,
+  ) {}
 
   async execute(input: ProcessChargebackInput): Promise<void> {
     const { provider, providerEventId, externalPaymentId, amount, currency } = input;
@@ -181,6 +189,15 @@ export class ProcessChargebackUseCase {
           NOW()
         )
       `;
+
+      // 5g. Record ledger entries for chargeback
+      await this.financialRecord.recordChargeback({
+        orderId,
+        organizationId,
+        chargebackAmount: amount ?? 0n,
+        currency: currency ?? 'BRL',
+        tx,
+      });
     });
 
     // 6. Mark dispute as processed

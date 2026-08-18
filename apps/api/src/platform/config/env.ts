@@ -9,6 +9,8 @@ const envSchema = z.object({
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().default(1025),
   SMTP_FROM: z.string().default('noreply@ticket-seller.local'),
+  // Payout gateway secret — required in production, optional in development
+  FAKE_PAYOUT_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

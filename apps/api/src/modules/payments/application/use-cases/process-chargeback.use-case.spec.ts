@@ -1,5 +1,14 @@
 import { ProcessChargebackUseCase, ProcessChargebackInput } from './process-chargeback.use-case';
 import { PrismaService } from '../../../../platform/database/prisma.service';
+import { IFinancialRecordPort } from '../../../finance/domain/ports/financial-record.port';
+
+function makeFinancialRecord(): IFinancialRecordPort {
+  return {
+    recordSale: jest.fn().mockResolvedValue(undefined),
+    recordRefund: jest.fn().mockResolvedValue(undefined),
+    recordChargeback: jest.fn().mockResolvedValue(undefined),
+  };
+}
 
 const ATTEMPT_ROW = {
   id: 'attempt-1',
@@ -79,7 +88,7 @@ describe('ProcessChargebackUseCase', () => {
 
   it('PAYMENT_DISPUTED with order TICKETS_ISSUED → CHARGEBACK + tickets CANCELLED + outbox emitted', async () => {
     const prisma = makePrisma();
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await uc.execute(BASE_INPUT);
 
@@ -91,7 +100,7 @@ describe('ProcessChargebackUseCase', () => {
 
   it('PAYMENT_DISPUTED duplicated → idempotent (ON CONFLICT returns 0 rows, no transaction)', async () => {
     const prisma = makePrisma({ disputeInsertResult: 0, executeRawResults: [0] });
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await uc.execute(BASE_INPUT);
 
@@ -103,7 +112,7 @@ describe('ProcessChargebackUseCase', () => {
   it('order already CHARGEBACK → skips state transition gracefully', async () => {
     const chargebackOrder = { ...ORDER_TICKETS_ISSUED, status: 'CHARGEBACK' };
     const prisma = makePrisma({ orderRows: [chargebackOrder], executeRawResults: [1, 1] });
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await uc.execute(BASE_INPUT);
 
@@ -116,7 +125,7 @@ describe('ProcessChargebackUseCase', () => {
   it('order CANCELLED → skips state transition gracefully', async () => {
     const cancelledOrder = { ...ORDER_TICKETS_ISSUED, status: 'CANCELLED' };
     const prisma = makePrisma({ orderRows: [cancelledOrder], executeRawResults: [1, 1] });
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await uc.execute(BASE_INPUT);
 
@@ -138,7 +147,7 @@ describe('ProcessChargebackUseCase', () => {
 
     const $transaction = jest.fn();
     const prisma = { $queryRaw, $executeRaw, $transaction } as unknown as PrismaService;
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await expect(uc.execute(BASE_INPUT)).resolves.not.toThrow();
 
@@ -151,7 +160,7 @@ describe('ProcessChargebackUseCase', () => {
     const $executeRaw = jest.fn();
     const $transaction = jest.fn();
     const prisma = { $queryRaw, $executeRaw, $transaction } as unknown as PrismaService;
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await expect(uc.execute(BASE_INPUT)).resolves.not.toThrow();
 
@@ -162,7 +171,7 @@ describe('ProcessChargebackUseCase', () => {
 
   it('processes order in PAID status correctly', async () => {
     const prisma = makePrisma({ orderRows: [ORDER_PAID] });
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await uc.execute(BASE_INPUT);
 
@@ -187,7 +196,7 @@ describe('ProcessChargebackUseCase', () => {
     );
 
     const prisma = makePrisma({ transactionFn });
-    const uc = new ProcessChargebackUseCase(prisma);
+    const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord());
 
     await uc.execute(BASE_INPUT);
 

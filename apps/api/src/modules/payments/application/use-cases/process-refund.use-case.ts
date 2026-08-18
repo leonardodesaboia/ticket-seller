@@ -10,6 +10,10 @@ import {
   OrderNotRefundableError,
   RefundGatewayError,
 } from '../../domain/refund.errors';
+import {
+  FINANCIAL_RECORD_PORT,
+  IFinancialRecordPort,
+} from '../../../finance/domain/ports/financial-record.port';
 
 export interface ProcessRefundInput {
   orderId: string;
@@ -55,6 +59,8 @@ export class ProcessRefundUseCase {
     @Inject(PAYMENT_GATEWAY_PORT)
     private readonly gateway: PaymentGatewayPort,
     private readonly prisma: PrismaService,
+    @Inject(FINANCIAL_RECORD_PORT)
+    private readonly financialRecord: IFinancialRecordPort,
   ) {}
 
   async execute(input: ProcessRefundInput): Promise<ProcessRefundResult> {
@@ -188,6 +194,15 @@ export class ProcessRefundUseCase {
         WHERE id = ${orderId}::uuid
           AND status = 'CANCELLED'
       `;
+
+      // Record ledger entries for refund
+      await this.financialRecord.recordRefund({
+        orderId,
+        organizationId,
+        refundAmount: BigInt(order.total_amount),
+        currency: order.currency,
+        tx,
+      });
 
       // Outbox: order.refunded.v1
       await tx.$executeRaw`

@@ -7,6 +7,10 @@ import {
   PaymentWebhookInput,
 } from '../../domain/ports/payment-gateway.port';
 import { ProcessChargebackUseCase } from './process-chargeback.use-case';
+import {
+  FINANCIAL_RECORD_PORT,
+  IFinancialRecordPort,
+} from '../../../finance/domain/ports/financial-record.port';
 
 export interface ProcessWebhookInput {
   provider: string;
@@ -39,6 +43,8 @@ export class ProcessPaymentWebhookUseCase {
     private readonly gateway: PaymentGatewayPort,
     private readonly prisma: PrismaService,
     private readonly processChargeback: ProcessChargebackUseCase,
+    @Inject(FINANCIAL_RECORD_PORT)
+    private readonly financialRecord: IFinancialRecordPort,
   ) {}
 
   async execute(input: ProcessWebhookInput): Promise<void> {
@@ -209,6 +215,15 @@ export class ProcessPaymentWebhookUseCase {
           `;
         }
       }
+
+      // Record pricing snapshot for financial audit
+      await this.financialRecord.recordSale({
+        orderId: attempt.order_id,
+        organizationId: attempt.organization_id,
+        grossAmount: BigInt(attempt.amount),
+        currency: attempt.currency,
+        tx,
+      });
 
       // Update order to TICKETS_ISSUED
       await tx.$executeRaw`

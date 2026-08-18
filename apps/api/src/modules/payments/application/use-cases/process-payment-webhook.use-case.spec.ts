@@ -7,6 +7,7 @@ import {
   PaymentWebhookInput,
 } from '../../domain/ports/payment-gateway.port';
 import { PrismaService } from '../../../../platform/database/prisma.service';
+import { IFinancialRecordPort } from '../../../finance/domain/ports/financial-record.port';
 
 describe('ProcessPaymentWebhookUseCase', () => {
   const parsed: ParsedPaymentWebhook = {
@@ -46,6 +47,12 @@ describe('ProcessPaymentWebhookUseCase', () => {
     execute: jest.fn().mockResolvedValue(undefined),
   } as unknown as ProcessChargebackUseCase;
 
+  const mockFinancialRecord: IFinancialRecordPort = {
+    recordSale: jest.fn().mockResolvedValue(undefined),
+    recordRefund: jest.fn().mockResolvedValue(undefined),
+    recordChargeback: jest.fn().mockResolvedValue(undefined),
+  };
+
   function makePrisma(overrides: Partial<Record<string, jest.Mock>> = {}): PrismaService {
     const $executeRaw = jest.fn().mockResolvedValue(1);
     const $queryRaw = jest.fn().mockResolvedValue([makeAttemptRow()]);
@@ -64,7 +71,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('throws WebhookSignatureError when gateway rejects signature', async () => {
     (gateway.parseWebhook as jest.Mock).mockRejectedValueOnce(new WebhookSignatureError());
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
 
     await expect(
       uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'bad' }),
@@ -74,7 +81,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('does not process when webhook was already inserted (ON CONFLICT returns 0)', async () => {
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce(parsed);
     const prisma = makePrisma({ $executeRaw: jest.fn().mockResolvedValue(0) });
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -88,7 +95,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       $queryRaw: jest.fn().mockResolvedValue([]),
       $executeRaw: jest.fn().mockResolvedValue(1),
     });
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -100,7 +107,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('calls transaction for PAYMENT_APPROVED with matching amount/currency', async () => {
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce(parsed);
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -110,7 +117,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('does not call transaction when amount mismatches', async () => {
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce({ ...parsed, amount: 9999n });
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -124,7 +131,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       status: 'DECLINED',
     });
     const prisma = makePrisma();
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 
@@ -141,7 +148,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     const prisma = makePrisma({
       $queryRaw: jest.fn().mockResolvedValue([terminalAttempt]),
     });
-    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback);
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });
 

@@ -65,6 +65,12 @@ model Organization {
   ticketCredentials TicketCredential[]
   checkIns         CheckIn[]
   ticketTransfers  TicketTransfer[]
+  feePolicies       FeePolicy[]
+  ledgerAccounts    LedgerAccount[]
+  sellerBalance     SellerBalance?
+  balanceSettlements BalanceSettlement[]
+  payoutRecipient   PayoutRecipient?
+  payouts           Payout[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -307,6 +313,8 @@ model Order {
   items        OrderItem[]
   paymentAttempts PaymentAttempt[]
   tickets      Ticket[]
+  pricingSnapshot   OrderPricingSnapshot?
+  balanceSettlement BalanceSettlement?
 
   @@index([organizationId])
   @@index([status])
@@ -478,3 +486,186 @@ model TicketTransfer {
   @@index([claimTokenHash])
   @@map("ticket_transfers")
 }
+
+model FeePolicy {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String?   @map("organization_id") @db.Uuid
+  platformFeeBps      Int       @default(0) @map("platform_fee_bps")
+  processingFeeBps    Int?      @map("processing_fee_bps")
+  refundFeePolicy     String    @default("TBD") @map("refund_fee_policy")
+  settlementDelayDays Int       @default(7) @map("settlement_delay_days")
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization      Organization?         @relation(fields: [organizationId], references: [id])
+  pricingSnapshots  OrderPricingSnapshot[]
+
+  @@index([organizationId])
+  @@map("fee_policies")
+}
+
+model OrderPricingSnapshot {
+  orderId              String   @id @map("order_id") @db.Uuid
+  feePolicyId          String   @map("fee_policy_id") @db.Uuid
+  grossAmount          BigInt   @map("gross_amount")
+  currency             String
+  platformFeeBps       Int      @default(0) @map("platform_fee_bps")
+  platformFeeAmount    BigInt   @default(0) @map("platform_fee_amount")
+  processingFeeBps     Int?     @map("processing_fee_bps")
+  processingFeeAmount  BigInt   @default(0) @map("processing_fee_amount")
+  refundFeePolicy      String   @map("refund_fee_policy")
+  sellerNetAmount      BigInt   @map("seller_net_amount")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  order     Order     @relation(fields: [orderId], references: [id])
+  feePolicy FeePolicy @relation(fields: [feePolicyId], references: [id])
+
+  @@index([feePolicyId])
+  @@map("order_pricing_snapshots")
+}
+
+model LedgerAccount {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String   @unique
+  name           String
+  accountType    String   @map("account_type")
+  organizationId String?  @map("organization_id") @db.Uuid
+  currency       String   @default("BRL")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  organization  Organization?  @relation(fields: [organizationId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([organizationId])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceType  String   @map("source_type")
+  sourceId    String   @map("source_id")
+  description String?
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  entries LedgerEntry[]
+
+  @@unique([sourceType, sourceId])
+  @@index([sourceType, sourceId])
+  @@index([occurredAt(sort: Desc)])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ledgerTransactionId  String   @map("ledger_transaction_id") @db.Uuid
+  accountId            String   @map("account_id") @db.Uuid
+  entryType            String   @map("entry_type")
+  amount               BigInt
+  currency             String
+  description          String?
+  occurredAt           DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  account           LedgerAccount     @relation(fields: [accountId], references: [id])
+
+  @@index([ledgerTransactionId])
+  @@index([accountId])
+  @@index([occurredAt(sort: Desc), id(sort: Desc)])
+  @@map("ledger_entries")
+}
+
+model SellerBalance {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @unique @map("organization_id") @db.Uuid
+  pendingAmount   BigInt   @default(0) @map("pending_amount")
+  availableAmount BigInt   @default(0) @map("available_amount")
+  reservedAmount  BigInt   @default(0) @map("reserved_amount")
+  currency        String   @default("BRL")
+  version         Int      @default(0)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("seller_balances")
+}
+
+model BalanceSettlement {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String   @unique @map("order_id") @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  sellerNetAmount BigInt   @map("seller_net_amount")
+  currency        String
+  settledAt       DateTime @default(now()) @map("settled_at") @db.Timestamptz
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([settledAt(sort: Desc)])
+  @@map("balance_settlements")
+}
+
+model PayoutRecipient {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String   @unique @map("organization_id") @db.Uuid
+  provider             String
+  externalRecipientId  String?  @map("external_recipient_id")
+  status               String   @default("PENDING_VERIFICATION")
+  metadata             Json     @default("{}")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  payouts      Payout[]
+
+  @@index([organizationId])
+  @@map("payout_recipients")
+}
+
+model Payout {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  recipientId       String    @map("recipient_id") @db.Uuid
+  amount            BigInt
+  currency          String
+  status            String    @default("SCHEDULED")
+  provider          String
+  externalPayoutId  String?   @map("external_payout_id")
+  idempotencyKey    String    @unique @map("idempotency_key")
+  failureReason     String?   @map("failure_reason")
+  requestedAt       DateTime  @default(now()) @map("requested_at") @db.Timestamptz
+  succeededAt       DateTime? @map("succeeded_at") @db.Timestamptz
+  failedAt          DateTime? @map("failed_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization       Organization         @relation(fields: [organizationId], references: [id])
+  recipient          PayoutRecipient      @relation(fields: [recipientId], references: [id])
+  webhookEvents      PayoutWebhookEvent[]
+
+  @@index([organizationId], map: "payouts_org")
+  @@index([status, requestedAt(sort: Desc)], map: "payouts_status")
+  @@map("payouts")
+}
+
+model PayoutWebhookEvent {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider        String
+  providerEventId String    @map("provider_event_id")
+  payoutId        String?   @map("payout_id") @db.Uuid
+  rawPayload      Json      @map("raw_payload")
+  processedAt     DateTime  @default(now()) @map("processed_at") @db.Timestamptz
+
+  payout Payout? @relation(fields: [payoutId], references: [id])
+
+  @@unique([provider, providerEventId])
+  @@index([payoutId], map: "payout_webhook_events_payout")
+  @@map("payout_webhook_events")
+}
+
+
