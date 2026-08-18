@@ -6,7 +6,6 @@ import { FinanceModule } from '../finance/finance.module';
 import { PAYMENT_GATEWAY_PORT } from './domain/ports/payment-gateway.port';
 import { PAYMENT_ATTEMPT_REPOSITORY } from './domain/ports/payment-attempt-repository.port';
 import { ORDER_ACCESS_PORT } from './application/ports/order-access.port';
-import { FINANCIAL_RECORD_PORT } from '../finance/domain/ports/financial-record.port';
 import { CreatePaymentAttemptUseCase } from './application/use-cases/create-payment-attempt.use-case';
 import { GetPaymentAttemptUseCase } from './application/use-cases/get-payment-attempt.use-case';
 import { ProcessPaymentWebhookUseCase } from './application/use-cases/process-payment-webhook.use-case';
@@ -36,7 +35,6 @@ import { OrderAccessAdapter } from './infrastructure/adapters/order-access.adapt
     PAYMENT_GATEWAY_PORT,
     PAYMENT_ATTEMPT_REPOSITORY,
     ORDER_ACCESS_PORT,
-    FINANCIAL_RECORD_PORT,
     CreatePaymentAttemptUseCase,
     ProcessPaymentWebhookUseCase,
     ProcessRefundUseCase,
