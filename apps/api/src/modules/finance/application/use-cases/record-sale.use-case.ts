@@ -85,6 +85,7 @@ export class RecordSaleUseCase {
       grossAmount,
       sellerNetAmount: feeCalculation.sellerNetAmount,
       platformFeeAmount: feeCalculation.platformFeeAmount,
+      processingFeeAmount: feeCalculation.processingFeeAmount,
       currency,
       tx,
     });
@@ -111,6 +112,7 @@ export class RecordSaleUseCase {
     grossAmount: bigint;
     sellerNetAmount: bigint;
     platformFeeAmount: bigint;
+    processingFeeAmount: bigint;
     currency: string;
     tx?: unknown;
   }): Promise<void> {
@@ -120,6 +122,7 @@ export class RecordSaleUseCase {
       grossAmount,
       sellerNetAmount,
       platformFeeAmount,
+      processingFeeAmount,
       currency,
       tx,
     } = params;
@@ -169,8 +172,9 @@ export class RecordSaleUseCase {
       },
     ];
 
-    // Only add PLATFORM_REVENUE credit if there is a non-zero platform fee
-    if (platformFeeAmount > 0n) {
+    // Add PLATFORM_REVENUE credits for non-zero platform fee and/or processing fee
+    const totalPlatformCredit = platformFeeAmount + processingFeeAmount;
+    if (totalPlatformCredit > 0n) {
       const platformRevenue = await this.ledgerRepository.findAccountByCode(
         'PLATFORM_REVENUE',
         tx,
@@ -181,9 +185,9 @@ export class RecordSaleUseCase {
       entries.push({
         accountId: platformRevenue.id,
         entryType: 'CREDIT',
-        amount: platformFeeAmount,
+        amount: totalPlatformCredit,
         currency,
-        description: `ORDER_PAID: platform fee for order ${orderId}`,
+        description: `ORDER_PAID: platform + processing fees for order ${orderId}`,
       });
     }
 
