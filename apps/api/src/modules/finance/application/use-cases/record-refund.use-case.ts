@@ -7,6 +7,11 @@ import {
   ILedgerRepository,
   LEDGER_REPOSITORY,
 } from '../../domain/ports/ledger.repository.port';
+import {
+  SELLER_BALANCE_REPOSITORY,
+  ISellerBalanceRepository,
+} from '../../domain/ports/seller-balance.repository.port';
+import { PrismaService } from '../../../../platform/database/prisma.service';
 
 export interface RecordRefundInput {
   orderId: string;
@@ -25,6 +30,9 @@ export class RecordRefundUseCase {
     private readonly snapshotRepository: IOrderPricingSnapshotRepository,
     @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepository: ILedgerRepository,
+    @Inject(SELLER_BALANCE_REPOSITORY)
+    private readonly sellerBalanceRepo: ISellerBalanceRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(input: RecordRefundInput): Promise<void> {
@@ -190,8 +198,42 @@ export class RecordRefundUseCase {
       tx,
     );
 
+    // Update seller balance: reduce pending or available depending on settlement state
+    await this.adjustSellerBalanceForRefund(orderId, organizationId, snapshot.sellerNetAmount, tx);
+
     this.logger.log(
       `Refund ledger entries recorded for orderId=${orderId}, policy=${snapshot.refundFeePolicy}`,
     );
+  }
+
+  /**
+   * Checks if a balance_settlement exists for this order.
+   * - If settled: available -= sellerNetAmount (can go negative per D10).
+   * - If not settled: pending -= sellerNetAmount.
+   */
+  private async adjustSellerBalanceForRefund(
+    orderId: string,
+    organizationId: string,
+    sellerNetAmount: bigint,
+    tx?: unknown,
+  ): Promise<void> {
+    if (sellerNetAmount <= 0n) {
+      return;
+    }
+
+    type TxClient = { $queryRaw: PrismaService['$queryRaw'] };
+    const client: TxClient = (tx as TxClient | undefined) ?? this.prisma;
+    const rows = await client.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*)::bigint AS count
+      FROM balance_settlements
+      WHERE order_id = ${orderId}::uuid
+    `;
+    const isSettled = Number(rows[0]?.count ?? 0n) > 0;
+
+    if (isSettled) {
+      await this.sellerBalanceRepo.decrementAvailable(organizationId, sellerNetAmount, tx);
+    } else {
+      await this.sellerBalanceRepo.decrementPending(organizationId, sellerNetAmount, tx);
+    }
   }
 }

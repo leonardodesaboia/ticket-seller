@@ -65,8 +65,10 @@ model Organization {
   ticketCredentials TicketCredential[]
   checkIns         CheckIn[]
   ticketTransfers  TicketTransfer[]
-  feePolicies      FeePolicy[]
-  ledgerAccounts   LedgerAccount[]
+  feePolicies       FeePolicy[]
+  ledgerAccounts    LedgerAccount[]
+  sellerBalance     SellerBalance?
+  balanceSettlements BalanceSettlement[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -309,7 +311,8 @@ model Order {
   items        OrderItem[]
   paymentAttempts PaymentAttempt[]
   tickets      Ticket[]
-  pricingSnapshot OrderPricingSnapshot?
+  pricingSnapshot   OrderPricingSnapshot?
+  balanceSettlement BalanceSettlement?
 
   @@index([organizationId])
   @@index([status])
@@ -570,4 +573,37 @@ model LedgerEntry {
   @@index([accountId])
   @@index([occurredAt(sort: Desc), id(sort: Desc)])
   @@map("ledger_entries")
+}
+
+model SellerBalance {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @unique @map("organization_id") @db.Uuid
+  pendingAmount   BigInt   @default(0) @map("pending_amount")
+  availableAmount BigInt   @default(0) @map("available_amount")
+  reservedAmount  BigInt   @default(0) @map("reserved_amount")
+  currency        String   @default("BRL")
+  version         Int      @default(0)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("seller_balances")
+}
+
+model BalanceSettlement {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String   @unique @map("order_id") @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  sellerNetAmount BigInt   @map("seller_net_amount")
+  currency        String
+  settledAt       DateTime @default(now()) @map("settled_at") @db.Timestamptz
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([settledAt(sort: Desc)])
+  @@map("balance_settlements")
 }

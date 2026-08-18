@@ -11,6 +11,10 @@ import {
   ILedgerRepository,
   LEDGER_REPOSITORY,
 } from '../../domain/ports/ledger.repository.port';
+import {
+  SELLER_BALANCE_REPOSITORY,
+  ISellerBalanceRepository,
+} from '../../domain/ports/seller-balance.repository.port';
 import { OrderPricingSnapshot } from '../../domain/entities/order-pricing-snapshot.entity';
 import { CalculateOrderPricingUseCase } from './calculate-order-pricing.use-case';
 
@@ -33,6 +37,8 @@ export class RecordSaleUseCase {
     private readonly snapshotRepository: IOrderPricingSnapshotRepository,
     @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepository: ILedgerRepository,
+    @Inject(SELLER_BALANCE_REPOSITORY)
+    private readonly sellerBalanceRepo: ISellerBalanceRepository,
     private readonly calculateOrderPricing: CalculateOrderPricingUseCase,
   ) {}
 
@@ -82,6 +88,14 @@ export class RecordSaleUseCase {
       currency,
       tx,
     });
+
+    // Update seller balance: pending += sellerNetAmount (same transaction)
+    await this.sellerBalanceRepo.upsertIncrementPending(
+      organizationId,
+      currency,
+      feeCalculation.sellerNetAmount,
+      tx,
+    );
 
     this.logger.log(
       `Pricing snapshot created for orderId=${orderId}: ` +

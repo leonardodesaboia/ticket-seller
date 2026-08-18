@@ -3,6 +3,10 @@ import {
   ILedgerRepository,
   LEDGER_REPOSITORY,
 } from '../../domain/ports/ledger.repository.port';
+import {
+  SELLER_BALANCE_REPOSITORY,
+  ISellerBalanceRepository,
+} from '../../domain/ports/seller-balance.repository.port';
 
 export interface RecordChargebackInput {
   orderId: string;
@@ -19,6 +23,8 @@ export class RecordChargebackUseCase {
   constructor(
     @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepository: ILedgerRepository,
+    @Inject(SELLER_BALANCE_REPOSITORY)
+    private readonly sellerBalanceRepo: ISellerBalanceRepository,
   ) {}
 
   async execute(input: RecordChargebackInput): Promise<void> {
@@ -77,6 +83,9 @@ export class RecordChargebackUseCase {
       },
       tx,
     );
+
+    // Update seller balance: available -= chargebackAmount (can go negative per D10)
+    await this.sellerBalanceRepo.decrementAvailable(organizationId, chargebackAmount, tx);
 
     this.logger.log(
       `Chargeback ledger entries recorded for orderId=${orderId}, amount=${chargebackAmount} ${currency}`,
