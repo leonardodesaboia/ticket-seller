@@ -70,6 +70,7 @@ model Organization {
   sellerBalance     SellerBalance?
   balanceSettlements BalanceSettlement[]
   payoutRecipient   PayoutRecipient?
+  payouts           Payout[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -620,7 +621,51 @@ model PayoutRecipient {
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   organization Organization @relation(fields: [organizationId], references: [id])
+  payouts      Payout[]
 
   @@index([organizationId])
   @@map("payout_recipients")
 }
+
+model Payout {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  recipientId       String    @map("recipient_id") @db.Uuid
+  amount            BigInt
+  currency          String
+  status            String    @default("SCHEDULED")
+  provider          String
+  externalPayoutId  String?   @map("external_payout_id")
+  idempotencyKey    String    @unique @map("idempotency_key")
+  failureReason     String?   @map("failure_reason")
+  requestedAt       DateTime  @default(now()) @map("requested_at") @db.Timestamptz
+  succeededAt       DateTime? @map("succeeded_at") @db.Timestamptz
+  failedAt          DateTime? @map("failed_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization       Organization         @relation(fields: [organizationId], references: [id])
+  recipient          PayoutRecipient      @relation(fields: [recipientId], references: [id])
+  webhookEvents      PayoutWebhookEvent[]
+
+  @@index([organizationId], map: "payouts_org")
+  @@index([status, requestedAt(sort: Desc)], map: "payouts_status")
+  @@map("payouts")
+}
+
+model PayoutWebhookEvent {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider        String
+  providerEventId String    @map("provider_event_id")
+  payoutId        String?   @map("payout_id") @db.Uuid
+  rawPayload      Json      @map("raw_payload")
+  processedAt     DateTime  @default(now()) @map("processed_at") @db.Timestamptz
+
+  payout Payout? @relation(fields: [payoutId], references: [id])
+
+  @@unique([provider, providerEventId])
+  @@index([payoutId], map: "payout_webhook_events_payout")
+  @@map("payout_webhook_events")
+}
+
+
