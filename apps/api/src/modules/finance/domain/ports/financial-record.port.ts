@@ -8,6 +8,24 @@ export interface RecordSaleInput {
   tx?: unknown; // Prisma transaction client
 }
 
+export interface RecordRefundInput {
+  orderId: string;
+  organizationId: string;
+  refundAmount: bigint;
+  currency: string;
+  tx?: unknown;
+}
+
+export interface RecordChargebackInput {
+  orderId: string;
+  organizationId: string;
+  chargebackAmount: bigint;
+  currency: string;
+  tx?: unknown;
+}
+
 export interface IFinancialRecordPort {
   recordSale(input: RecordSaleInput): Promise<void>;
+  recordRefund(input: RecordRefundInput): Promise<void>;
+  recordChargeback(input: RecordChargebackInput): Promise<void>;
 }

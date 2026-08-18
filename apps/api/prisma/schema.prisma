@@ -66,6 +66,7 @@ model Organization {
   checkIns         CheckIn[]
   ticketTransfers  TicketTransfer[]
   feePolicies      FeePolicy[]
+  ledgerAccounts   LedgerAccount[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -517,4 +518,56 @@ model OrderPricingSnapshot {
 
   @@index([feePolicyId])
   @@map("order_pricing_snapshots")
+}
+
+model LedgerAccount {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String   @unique
+  name           String
+  accountType    String   @map("account_type")
+  organizationId String?  @map("organization_id") @db.Uuid
+  currency       String   @default("BRL")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  organization  Organization?  @relation(fields: [organizationId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([organizationId])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceType  String   @map("source_type")
+  sourceId    String   @map("source_id")
+  description String?
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  entries LedgerEntry[]
+
+  @@unique([sourceType, sourceId])
+  @@index([sourceType, sourceId])
+  @@index([occurredAt(sort: Desc)])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ledgerTransactionId  String   @map("ledger_transaction_id") @db.Uuid
+  accountId            String   @map("account_id") @db.Uuid
+  entryType            String   @map("entry_type")
+  amount               BigInt
+  currency             String
+  description          String?
+  occurredAt           DateTime @default(now()) @map("occurred_at") @db.Timestamptz
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  ledgerTransaction LedgerTransaction @relation(fields: [ledgerTransactionId], references: [id])
+  account           LedgerAccount     @relation(fields: [accountId], references: [id])
+
+  @@index([ledgerTransactionId])
+  @@index([accountId])
+  @@index([occurredAt(sort: Desc), id(sort: Desc)])
+  @@map("ledger_entries")
 }

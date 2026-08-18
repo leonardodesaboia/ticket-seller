@@ -49,6 +49,8 @@ describe('ProcessPaymentWebhookUseCase', () => {
 
   const mockFinancialRecord: IFinancialRecordPort = {
     recordSale: jest.fn().mockResolvedValue(undefined),
+    recordRefund: jest.fn().mockResolvedValue(undefined),
+    recordChargeback: jest.fn().mockResolvedValue(undefined),
   };
 
   function makePrisma(overrides: Partial<Record<string, jest.Mock>> = {}): PrismaService {
