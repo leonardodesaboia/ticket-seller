@@ -18,6 +18,9 @@ import { GetOrganizationBalanceUseCase } from './application/use-cases/get-organ
 import { RegisterPayoutRecipientUseCase } from './application/use-cases/register-payout-recipient.use-case';
 import { CreatePayoutUseCase } from './application/use-cases/create-payout.use-case';
 import { ProcessPayoutWebhookUseCase } from './application/use-cases/process-payout-webhook.use-case';
+import { GetFinancialSummaryUseCase } from './application/use-cases/get-financial-summary.use-case';
+import { ListLedgerTransactionsUseCase } from './application/use-cases/list-ledger-transactions.use-case';
+import { ListPayoutsUseCase } from './application/use-cases/list-payouts.use-case';
 import { PrismaFeePolicyRepository } from './infrastructure/repositories/prisma-fee-policy.repository';
 import { PrismaOrderPricingSnapshotRepository } from './infrastructure/repositories/prisma-order-pricing-snapshot.repository';
 import { PrismaLedgerRepository } from './infrastructure/repositories/prisma-ledger.repository';
@@ -28,6 +31,7 @@ import { FinancialRecordAdapter } from './infrastructure/adapters/financial-reco
 import { FeePolicySettlementAdapter } from './infrastructure/adapters/fee-policy-settlement.adapter';
 import { FakePayoutGateway } from './infrastructure/adapters/fake/fake-payout.gateway';
 import { SettlementWorker } from './infrastructure/workers/settlement.worker';
+import { ReconciliationWorker } from './infrastructure/workers/reconciliation.worker';
 import { FinanceController } from './presentation/controllers/finance.controller';
 import { PayoutWebhookController } from './presentation/controllers/payout-webhook.controller';
 
@@ -45,6 +49,9 @@ import { PayoutWebhookController } from './presentation/controllers/payout-webho
     RegisterPayoutRecipientUseCase,
     CreatePayoutUseCase,
     ProcessPayoutWebhookUseCase,
+    GetFinancialSummaryUseCase,
+    ListLedgerTransactionsUseCase,
+    ListPayoutsUseCase,
 
     // Infrastructure: repositories
     PrismaFeePolicyRepository,
@@ -61,6 +68,7 @@ import { PayoutWebhookController } from './presentation/controllers/payout-webho
 
     // Infrastructure: workers
     SettlementWorker,
+    ReconciliationWorker,
 
     // Port bindings
     { provide: FEE_POLICY_REPOSITORY, useExisting: PrismaFeePolicyRepository },

@@ -1,11 +1,22 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiOperation, ApiProperty, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
 import { GetOrganizationBalanceUseCase } from '../../application/use-cases/get-organization-balance.use-case';
 import { RegisterPayoutRecipientUseCase } from '../../application/use-cases/register-payout-recipient.use-case';
 import { CreatePayoutUseCase } from '../../application/use-cases/create-payout.use-case';
+import { GetFinancialSummaryUseCase } from '../../application/use-cases/get-financial-summary.use-case';
+import { ListLedgerTransactionsUseCase } from '../../application/use-cases/list-ledger-transactions.use-case';
+import { ListPayoutsUseCase } from '../../application/use-cases/list-payouts.use-case';
 import { PayoutRecipient } from '../../domain/entities/payout-recipient.entity';
 import { Payout } from '../../domain/entities/payout.entity';
 
@@ -66,6 +77,9 @@ export class FinanceController {
     private readonly getBalanceUseCase: GetOrganizationBalanceUseCase,
     private readonly registerPayoutRecipientUseCase: RegisterPayoutRecipientUseCase,
     private readonly createPayoutUseCase: CreatePayoutUseCase,
+    private readonly getFinancialSummaryUseCase: GetFinancialSummaryUseCase,
+    private readonly listLedgerTransactionsUseCase: ListLedgerTransactionsUseCase,
+    private readonly listPayoutsUseCase: ListPayoutsUseCase,
   ) {}
 
   @Get('balance')
@@ -132,5 +146,61 @@ export class FinanceController {
       createdAt: payout.createdAt.toISOString(),
       updatedAt: payout.updatedAt.toISOString(),
     };
+  }
+
+  @Get('summary')
+  @ApiOperation({ summary: 'Get financial summary for a date range' })
+  @ApiQuery({ name: 'from', required: true, description: 'ISO date start (inclusive)' })
+  @ApiQuery({ name: 'to', required: true, description: 'ISO date end (inclusive)' })
+  @ApiResponse({ status: 200, description: 'Financial summary retrieved' })
+  @ApiResponse({ status: 401, description: 'Authentication required' })
+  async getSummary(
+    @Param('orgId') orgId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    return this.getFinancialSummaryUseCase.execute({
+      organizationId: orgId,
+      from: fromDate,
+      to: toDate,
+    });
+  }
+
+  @Get('transactions')
+  @ApiOperation({ summary: 'List ledger transactions with keyset pagination' })
+  @ApiQuery({ name: 'cursor', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiResponse({ status: 200, description: 'Ledger transactions listed' })
+  @ApiResponse({ status: 401, description: 'Authentication required' })
+  async listTransactions(
+    @Param('orgId') orgId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.listLedgerTransactionsUseCase.execute({
+      organizationId: orgId,
+      cursor,
+      limit: limit !== undefined ? Number(limit) : undefined,
+    });
+  }
+
+  @Get('payouts')
+  @ApiOperation({ summary: 'List payouts with keyset pagination' })
+  @ApiQuery({ name: 'cursor', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiResponse({ status: 200, description: 'Payouts listed' })
+  @ApiResponse({ status: 401, description: 'Authentication required' })
+  async listPayouts(
+    @Param('orgId') orgId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.listPayoutsUseCase.execute({
+      organizationId: orgId,
+      cursor,
+      limit: limit !== undefined ? Number(limit) : undefined,
+    });
   }
 }
