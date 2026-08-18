@@ -69,6 +69,7 @@ model Organization {
   ledgerAccounts    LedgerAccount[]
   sellerBalance     SellerBalance?
   balanceSettlements BalanceSettlement[]
+  payoutRecipient   PayoutRecipient?
 
   @@index([ownerId])
   @@map("organizations")
@@ -606,4 +607,20 @@ model BalanceSettlement {
   @@index([organizationId])
   @@index([settledAt(sort: Desc)])
   @@map("balance_settlements")
+}
+
+model PayoutRecipient {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String   @unique @map("organization_id") @db.Uuid
+  provider             String
+  externalRecipientId  String?  @map("external_recipient_id")
+  status               String   @default("PENDING_VERIFICATION")
+  metadata             Json     @default("{}")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@map("payout_recipients")
 }
