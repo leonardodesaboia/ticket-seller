@@ -1,16 +1,14 @@
 import { Module } from '@nestjs/common';
-import { ACTOR_ADAPTER } from './actor-adapter.port';
-import { DevelopmentActorAdapter } from './adapters/development-actor.adapter';
-import { ActorGuard } from './guards/actor.guard';
+import { IdentityModule } from '../../modules/identity/identity.module';
 
+/**
+ * HttpModule provides cross-cutting HTTP infrastructure.
+ * ACTOR_ADAPTER and ActorGuard are owned by IdentityModule and re-exported here
+ * so that the rest of the application can depend on HttpModule as before.
+ */
 @Module({
-  providers: [
-    {
-      provide: ACTOR_ADAPTER,
-      useClass: DevelopmentActorAdapter,
-    },
-    ActorGuard,
-  ],
-  exports: [ActorGuard, ACTOR_ADAPTER],
+  imports: [IdentityModule],
+  exports: [IdentityModule],
 })
 export class HttpModule {}
+

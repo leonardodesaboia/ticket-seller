@@ -5,6 +5,7 @@ allowBuilds:
   '@nestjs/core': true
   '@prisma/client': true
   '@prisma/engines': true
+  argon2: set this to true or false
   cpu-features: true
   'nestjs-pino': true
   prisma: true

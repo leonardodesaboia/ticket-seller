@@ -11,13 +11,13 @@ import { ACTOR_ADAPTER, type IActorAdapter } from '../actor-adapter.port';
 export class ActorGuard implements CanActivate {
   constructor(@Inject(ACTOR_ADAPTER) private readonly adapter: IActorAdapter) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
       .switchToHttp()
       .getRequest<
         Record<string, unknown> & { headers: Record<string, string | string[] | undefined> }
       >();
-    const actor = this.adapter.resolve(request);
+    const actor = await this.adapter.resolve(request);
     if (!actor) {
       throw new UnauthorizedException('Authentication required');
     }

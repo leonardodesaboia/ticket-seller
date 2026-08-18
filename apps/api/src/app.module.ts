@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { DatabaseModule } from './platform/database/prisma.module';
 import { HealthModule } from './platform/health/health.module';
 import { HttpModule } from './platform/http/http.module';
+import { IdentityModule } from './modules/identity/identity.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { EventsModule } from './modules/events/events.module';
 import { VenuesModule } from './modules/venues/venues.module';
@@ -29,6 +30,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     DatabaseModule,
     HealthModule,
     HttpModule,
+    IdentityModule,
     OrganizationsModule,
     EventsModule,
     VenuesModule,

@@ -15,20 +15,20 @@ function makeContext(headers: Record<string, string> = {}): ExecutionContext {
 describe('ActorGuard', () => {
   const actor: ICurrentActor = { userId: 'user-abc' };
 
-  it('allows request and attaches actor when adapter resolves', () => {
-    const adapter: IActorAdapter = { resolve: () => actor };
+  it('allows request and attaches actor when adapter resolves', async () => {
+    const adapter: IActorAdapter = { resolve: async () => actor };
     const guard = new ActorGuard(adapter);
     const ctx = makeContext({ 'x-dev-user-id': 'user-abc' });
 
-    expect(guard.canActivate(ctx)).toBe(true);
+    expect(await guard.canActivate(ctx)).toBe(true);
     expect(ctx.switchToHttp().getRequest()['actor']).toEqual(actor);
   });
 
-  it('throws UnauthorizedException when adapter returns null', () => {
-    const adapter: IActorAdapter = { resolve: () => null };
+  it('throws UnauthorizedException when adapter returns null', async () => {
+    const adapter: IActorAdapter = { resolve: async () => null };
     const guard = new ActorGuard(adapter);
     const ctx = makeContext();
 
-    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 });
