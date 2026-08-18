@@ -20,7 +20,7 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
       await acceptTransfer(claimToken, idempotencyKey);
       setState('SUCCESS');
     } catch (err) {
-      if (err instanceof PublicApiError) {
+      if (err instanceof PublicApiError) {  
         if (err.status === 400 && err.code === 'TRANSFER_EXPIRED') {
           setState('EXPIRED');
           return;

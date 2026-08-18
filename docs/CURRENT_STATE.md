@@ -103,7 +103,14 @@ partial unique index (ticket_id) WHERE status='PENDING' garante no máximo uma t
 link de aceite público sem autenticação de usuário — design deliberado para MVP;
 cancelamento pré-pagamento libera reserved; pós-pagamento libera committed e revoga credenciais;
 re-check de admitted check-ins e pending transfers dentro da transação (SELECT FOR UPDATE) — elimina TOCTOU;
-CancellationPolicy é função pura sem IO — 5 códigos estáveis de elegibilidade.
+CancellationPolicy é função pura sem IO — 5 códigos estáveis de elegibilidade;
+chave de idempotência de reembolso é SHA-256 determinístico de 'refund:' + orderId — nunca depende do estado externo;
+reembolso parcial não é suportado no MVP — amount sempre igual ao total do order;
+chargeback propaga provider via input DTO (não literal hardcoded) — application layer agnóstica de PSP;
+cancelamento em lote sem OFFSET: o loop sempre busca os primeiros N elegíveis; registros processados saem do filtro naturalmente (drain-the-queue);
+notificações transacionais via worker de polling do outbox — sem fila de mensagens externa no MVP;
+deduplicação de notificações em dois níveis: (order_id, event_type) para eventos com orderId; outbox_event_id para eventos sem orderId (ex: event.cancelled.v1);
+emails de comprador usam placeholder comprador@ticket-seller.local; alertas admin usam backoffice@ticket-seller.local — não há coluna buyer_email em orders.
 Decisões pendentes
 nome comercial;
 provedor real de pagamentos;
@@ -119,7 +126,6 @@ Nenhum problema técnico registrado.
 
 Fora do escopo atual
 QR Code visual (imagem PNG/SVG);
-workers assíncronos;
 módulo finance;
 integração real com PSP;
 aplicação nativa;
@@ -180,3 +186,8 @@ PDF de ingresso.
 - ticket transfer experience (marketplace): transfers.api.ts tipado, TicketCard com botão "Transferir", InitiateTransferModal com aviso de invalidação do QR + link de claim + CancelTransferButton, AcceptTransferPage com estados CONFIRMING/ACCEPTING/SUCCESS/EXPIRED/ALREADY_ACCEPTED/ERROR, rota /transfer/accept/[claimToken] (Server Component Next.js 15), 12 testes unitários — TASK-039.
 - event attendance dashboard: GetEventAttendanceUseCase com SQL nativo (COUNT + GROUP BY sem N+1), GET /organizations/:orgId/events/:eventId/attendance com ActorGuard e isolamento cross-tenant, performedByUserId truncado a 8 chars, attendanceRate seguro contra divisão por zero, AttendanceDashboard (backoffice) com polling 15s e pause em visibilityState=hidden, AttendanceStats + RecentCheckIns, rota /organizations/[organizationId]/events/[eventId]/dashboard, 17 testes unitários (5 use case + 6 hook + 4 stats + 3 recent + 4 dashboard) + 3 integração — TASK-040.
 - order & ticket cancellation foundation: endpoints POST /public/orders/:orderId/cancellations (comprador, token-only) e POST /organizations/:orgId/orders/:orderId/cancellations (admin), evaluateCancellationEligibility pura (5 códigos), SELECT FOR UPDATE com re-check de admitted check-ins e pending transfers dentro da transação (elimina TOCTOU), liberação atômica de reserved/committed, tickets CANCELLED + credentials REVOKED, outbox order.cancelled.v1 (requiresRefund flag) + ticket.cancelled.v1 por ticket, auditoria admin, migration cancelled_at em orders e tickets, 12 testes unitários + 10 integração (1 concorrência) — TASK-041.
+- refund processing: tabela refund_attempts com UNIQUE(order_id, idempotency_key), ProcessRefundUseCase com chave SHA-256 determinística ('refund:' + orderId), gateway.refund() via PaymentGatewayPort, SELECT FOR UPDATE na transação de commit, order → REFUNDED, outbox order.refunded.v1 com amount/currency/externalRefundId, FakePaymentGateway.refund() com externalRefundId SHA-256, endpoint POST /organizations/:orgId/orders/:orderId/refunds (admin), 8 testes unitários + 4 integração — TASK-042.
+- event cancellation & mass refunds: tabela events com cancelled_at/cancellation_reason, CancelEventUseCase com EventNotCancellableError (5 códigos), PrismaEventCancellationRepository com loop drain-the-queue (FOR UPDATE SKIP LOCKED, sem OFFSET), tratamento de PENDING_PAYMENT (libera reserved, requiresRefund=false), PAID (libera reserved com GREATEST, requiresRefund=true) e TICKETS_ISSUED (libera committed, cancela tickets, revoga credentials, requiresRefund=true), outbox order.cancelled.v1 por order + ticket.cancelled.v1 por ticket + event.cancelled.v1 com ordersCancelledCount, endpoint POST /organizations/:orgId/events/:eventId/cancellations, 6 testes unitários + 11 integração — TASK-043.
+- chargebacks & payment disputes: tabela payment_disputes com UNIQUE(provider, external_dispute_id), ProcessChargebackUseCase ativado por PAYMENT_DISPUTED via ProcessPaymentWebhookUseCase, INSERT ON CONFLICT DO NOTHING para idempotência, SELECT FOR UPDATE na transação, cancela tickets ACTIVE, libera committed com GREATEST, order → CHARGEBACK, outbox order.chargeback.v1, provider propagado via input DTO (não hardcoded), FakePaymentGateway.parseWebhook aceita PAYMENT_DISPUTED, 8 testes unitários + 7 integração — TASK-044.
+- notification foundation: tabela notification_log com UNIQUE(order_id, event_type) WHERE order_id IS NOT NULL + UNIQUE INDEX (outbox_event_id) WHERE outbox_event_id IS NOT NULL, IEmailProvider (token EMAIL_PROVIDER), INotificationLogRepository com hasBeenSent/hasBeenSentForOutboxEvent/record (token NOTIFICATION_LOG_REPOSITORY), SendEmailUseCase com deduplicação dupla, MailpitEmailAdapter via nodemailer/SMTP, OutboxNotificationWorker com polling setInterval (5s) e lifecycle NestJS (OnModuleInit/OnModuleDestroy), handler inicial order.paid.v1, SMTP_HOST/SMTP_PORT/SMTP_FROM no schema Zod, 5 testes unitários + 3 adapter — TASK-045.
+- transactional notifications: HANDLED_TYPES expandido para 5 eventos, processEvent com switch/case, handlers order.cancelled.v1 (comprador, motivo opcional), order.refunded.v1 (comprador, amount/100 BRL), event.cancelled.v1 (admin, ordersCancelledCount, dedup por outboxEventId), order.chargeback.v1 (admin, externalDisputeId), hasBeenSentForOutboxEvent adicionado ao port e implementado no repository, 7 testes de integração com Testcontainers + EMAIL_PROVIDER mockado via overrideProvider — TASK-046.
