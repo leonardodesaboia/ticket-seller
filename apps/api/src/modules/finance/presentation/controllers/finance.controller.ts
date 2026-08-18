@@ -181,8 +181,8 @@ export class FinanceController {
   ) {
     return this.listLedgerTransactionsUseCase.execute({
       organizationId: orgId,
-      cursor,
-      limit: limit !== undefined ? Number(limit) : undefined,
+      ...(cursor !== undefined && { cursor }),
+      ...(limit !== undefined && { limit: Number(limit) }),
     });
   }
 
@@ -199,8 +199,8 @@ export class FinanceController {
   ) {
     return this.listPayoutsUseCase.execute({
       organizationId: orgId,
-      cursor,
-      limit: limit !== undefined ? Number(limit) : undefined,
+      ...(cursor !== undefined && { cursor }),
+      ...(limit !== undefined && { limit: Number(limit) }),
     });
   }
 }
