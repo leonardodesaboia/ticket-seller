@@ -8,14 +8,16 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email       String    @unique
-  displayName String?   @map("display_name")
-  locale      String    @default("pt-BR")
-  timezone    String    @default("America/Sao_Paulo")
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String    @unique
+  displayName  String?   @map("display_name")
+  locale       String    @default("pt-BR")
+  timezone     String    @default("America/Sao_Paulo")
+  platformRole String?   @map("platform_role") @db.VarChar(32)
+  suspendedAt  DateTime? @map("suspended_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
 
   identities              Identity[]
   ownedOrganizations      Organization[]         @relation("OrganizationOwner")
@@ -49,14 +51,15 @@ model Identity {
 }
 
 model Organization {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug      String    @unique
-  name      String
-  status    String    @default("ACTIVE")
-  ownerId   String    @map("owner_id") @db.Uuid
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String    @unique
+  name        String
+  status      String    @default("ACTIVE")
+  ownerId     String    @map("owner_id") @db.Uuid
+  suspendedAt DateTime? @map("suspended_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
 
   owner            User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
   members          OrganizationMember[]

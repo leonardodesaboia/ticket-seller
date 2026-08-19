@@ -16,6 +16,7 @@ import {
 } from '../../../shared/kernel/organization-capability';
 import type { ICurrentActor } from '../../../shared/kernel/actor.types';
 import { REQUIRE_CAPABILITY_KEY } from '../decorators/require-capability.decorator';
+import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class OrganizationRoleGuard implements CanActivate {
@@ -23,6 +24,7 @@ export class OrganizationRoleGuard implements CanActivate {
     private readonly reflector: Reflector,
     @Inject(ORGANIZATION_INVITATION_REPOSITORY)
     private readonly invitationRepo: IOrganizationInvitationRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -51,6 +53,15 @@ export class OrganizationRoleGuard implements CanActivate {
     const caps = ROLE_CAPABILITIES[member.role] ?? [];
     if (!caps.includes(requiredCapability)) {
       throw new ForbiddenException('Insufficient permissions');
+    }
+
+    // Check organization suspension
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { suspendedAt: true },
+    });
+    if (org?.suspendedAt) {
+      throw new ForbiddenException('Organization suspended');
     }
 
     return true;
