@@ -24,6 +24,7 @@ model User {
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  sentInvitations         OrganizationInvitation[] @relation("InvitedBy")
 
   @@index([deletedAt])
   @@map("users")
@@ -59,6 +60,7 @@ model Organization {
 
   owner            User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
   members          OrganizationMember[]
+  invitations      OrganizationInvitation[]
   events           Event[]
   venues           Venue[]
   ticketTypes      TicketType[]
@@ -98,6 +100,25 @@ model OrganizationMember {
 
   @@unique([organizationId, userId])
   @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  inviterId      String    @map("inviter_id") @db.Uuid
+  email          String    @db.VarChar(320)
+  role           String    @db.VarChar(64)
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  usedAt         DateTime? @map("used_at") @db.Timestamptz
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  inviter      User         @relation("InvitedBy", fields: [inviterId], references: [id])
+
+  @@index([organizationId, usedAt, revokedAt])
+  @@map("organization_invitations")
 }
 
 model IdempotencyRecord {
