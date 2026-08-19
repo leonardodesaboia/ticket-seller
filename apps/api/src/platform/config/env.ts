@@ -38,4 +38,8 @@ if (parsed.NODE_ENV === 'production' && !parsed.JWT_SECRET) {
   throw new Error('JWT_SECRET is required in production (minimum 32 characters)');
 }
 
+if (parsed.OBJECT_STORAGE_PROVIDER === 's3' && !parsed.AWS_S3_BUCKET) {
+  throw new Error('AWS_S3_BUCKET is required when OBJECT_STORAGE_PROVIDER is s3');
+}
+
 export const env = parsed;

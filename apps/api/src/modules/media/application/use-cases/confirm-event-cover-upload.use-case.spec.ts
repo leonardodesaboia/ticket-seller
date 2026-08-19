@@ -97,6 +97,23 @@ describe('ConfirmEventCoverUploadUseCase', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('should throw BadRequestException and delete object when file exceeds max size', async () => {
+    mockRepo.findByObjectKey.mockResolvedValue(validUpload);
+    mockStorage.headObject.mockResolvedValue({
+      key: validUpload.objectKey,
+      contentType: 'image/jpeg',
+      sizeBytes: 11 * 1024 * 1024, // 11 MB — over limit
+    });
+    mockStorage.deleteObject.mockResolvedValue(undefined);
+
+    await expect(
+      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: validUpload.objectKey }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(mockStorage.deleteObject).toHaveBeenCalledWith(validUpload.objectKey);
+    expect(mockRepo.update).not.toHaveBeenCalled();
+  });
+
   it('should confirm upload and update event on success', async () => {
     mockRepo.findByObjectKey.mockResolvedValue(validUpload);
     mockStorage.headObject.mockResolvedValue({

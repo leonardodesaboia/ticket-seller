@@ -73,21 +73,21 @@ describe('AcceptOrganizationInvitationUseCase', () => {
 
   it('should throw InvitationNotFoundError for unknown token', async () => {
     repo.findInvitationByTokenHash.mockResolvedValue(null);
-    await expect(useCase.execute({ rawToken: 'bad-token' })).rejects.toBeInstanceOf(
+    await expect(useCase.execute({ rawToken: 'bad-token', userId: 'user-1' })).rejects.toBeInstanceOf(
       InvitationNotFoundError,
     );
   });
 
   it('should throw InvitationAlreadyUsedError when usedAt is set', async () => {
     repo.findInvitationByTokenHash.mockResolvedValue(makeInvitation({ usedAt: new Date() }));
-    await expect(useCase.execute({ rawToken: RAW_TOKEN })).rejects.toBeInstanceOf(
+    await expect(useCase.execute({ rawToken: RAW_TOKEN, userId: 'user-1' })).rejects.toBeInstanceOf(
       InvitationAlreadyUsedError,
     );
   });
 
   it('should throw InvitationRevokedError when revokedAt is set', async () => {
     repo.findInvitationByTokenHash.mockResolvedValue(makeInvitation({ revokedAt: new Date() }));
-    await expect(useCase.execute({ rawToken: RAW_TOKEN })).rejects.toBeInstanceOf(
+    await expect(useCase.execute({ rawToken: RAW_TOKEN, userId: 'user-1' })).rejects.toBeInstanceOf(
       InvitationRevokedError,
     );
   });
@@ -95,7 +95,7 @@ describe('AcceptOrganizationInvitationUseCase', () => {
   it('should throw InvitationExpiredError when expiresAt is in the past', async () => {
     const pastDate = new Date(Date.now() - 1000);
     repo.findInvitationByTokenHash.mockResolvedValue(makeInvitation({ expiresAt: pastDate }));
-    await expect(useCase.execute({ rawToken: RAW_TOKEN })).rejects.toBeInstanceOf(
+    await expect(useCase.execute({ rawToken: RAW_TOKEN, userId: 'user-1' })).rejects.toBeInstanceOf(
       InvitationExpiredError,
     );
   });

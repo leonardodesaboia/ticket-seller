@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   OBJECT_STORAGE_PORT,
@@ -11,7 +11,9 @@ import {
 import {
   ALLOWED_CONTENT_TYPES,
   type AllowedContentType,
+  MAX_UPLOAD_SIZE_BYTES,
 } from '../../domain/media.constants';
+import { PrismaService } from '../../../../platform/database/prisma.service';
 
 const CONTENT_TYPE_EXTENSIONS: Record<AllowedContentType, string> = {
   'image/jpeg': 'jpg',
@@ -20,7 +22,6 @@ const CONTENT_TYPE_EXTENSIONS: Record<AllowedContentType, string> = {
 };
 
 const UPLOAD_EXPIRES_IN_SECONDS = 300;
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export interface GenerateEventCoverUploadUrlCommand {
   organizationId: string;
@@ -42,6 +43,7 @@ export class GenerateEventCoverUploadUrlUseCase {
     private readonly storage: IObjectStoragePort,
     @Inject(MEDIA_UPLOAD_REPOSITORY)
     private readonly mediaUploadRepo: IMediaUploadRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -55,13 +57,22 @@ export class GenerateEventCoverUploadUrlUseCase {
       );
     }
 
+    // BUG-FIX: verify event belongs to this organization before generating URL (IDOR prevention)
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId, organizationId },
+      select: { id: true },
+    });
+    if (!event) {
+      throw new NotFoundException('Event not found in this organization');
+    }
+
     const ext = CONTENT_TYPE_EXTENSIONS[contentType as AllowedContentType];
     const key = `uploads/${organizationId}/event-cover/${eventId}/${randomUUID()}.${ext}`;
 
     const uploadUrl = await this.storage.generateUploadUrl({
       key,
       contentType,
-      maxBytes: MAX_BYTES,
+      maxBytes: MAX_UPLOAD_SIZE_BYTES,
       expiresInSeconds: UPLOAD_EXPIRES_IN_SECONDS,
     });
 

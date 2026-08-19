@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 
 export interface BlockPayoutCommand {
@@ -22,7 +22,7 @@ export class BlockPayoutUseCase {
     });
 
     if (!payout) {
-      throw new UnprocessableEntityException('Payout not found');
+      throw new NotFoundException('Payout not found');
     }
 
     if (!BLOCKABLE_STATUSES.includes(payout.status)) {

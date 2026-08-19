@@ -5,7 +5,11 @@ import {
   ORGANIZATION_INVITATION_REPOSITORY,
   type IOrganizationInvitationRepository,
 } from '../../domain/ports/organization-invitation-repository.port';
-import { VALID_ORGANIZATION_ROLES } from '../../../../shared/kernel/organization-capability';
+import {
+  VALID_ORGANIZATION_ROLES,
+  ROLE_CAPABILITIES,
+  OrganizationCapability,
+} from '../../../../shared/kernel/organization-capability';
 const INVITATION_TTL_DAYS = 7;
 
 export interface InviteOrganizationMemberCommand {
@@ -31,6 +35,13 @@ export class InvalidRoleError extends Error {
   }
 }
 
+export class InsufficientRoleToAssignError extends Error {
+  constructor() {
+    super('Only an OWNER can invite members with the OWNER role');
+    this.name = 'InsufficientRoleToAssignError';
+  }
+}
+
 @Injectable()
 export class InviteOrganizationMemberUseCase {
   private readonly logger = new Logger(InviteOrganizationMemberUseCase.name);
@@ -43,6 +54,18 @@ export class InviteOrganizationMemberUseCase {
   async execute(command: InviteOrganizationMemberCommand): Promise<InviteOrganizationMemberResult> {
     if (!VALID_ORGANIZATION_ROLES.includes(command.role)) {
       throw new InvalidRoleError(command.role);
+    }
+
+    // Only OWNER (has ROLES_ASSIGN capability) can invite as OWNER
+    if (command.role === 'OWNER') {
+      const inviterMember = await this.repo.findActiveMemberByUserId(
+        command.organizationId,
+        command.inviterId,
+      );
+      const inviterCapabilities = inviterMember ? (ROLE_CAPABILITIES[inviterMember.role] ?? []) : [];
+      if (!inviterCapabilities.includes(OrganizationCapability.ROLES_ASSIGN)) {
+        throw new InsufficientRoleToAssignError();
+      }
     }
 
     // Security: do not reveal if email is already member — always respond 201

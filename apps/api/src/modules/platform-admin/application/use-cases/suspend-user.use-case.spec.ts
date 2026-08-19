@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { UnprocessableEntityException } from '@nestjs/common';
+import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { SuspendUserUseCase } from './suspend-user.use-case';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import { PlatformRole } from '../../../../shared/kernel/platform-role';
@@ -60,7 +60,17 @@ describe('SuspendUserUseCase', () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
-  it('should throw 422 when trying to suspend another PLATFORM_ADMIN', async () => {
+  it('should throw 404 when user does not exist', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ actorId: 'admin-1', userId: 'ghost-user', reason: 'Test' }),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('should throw 422 when trying to suspend a PLATFORM_ADMIN', async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({
       id: 'admin-2',
       platformRole: PlatformRole.PLATFORM_ADMIN,
@@ -68,11 +78,21 @@ describe('SuspendUserUseCase', () => {
     });
 
     await expect(
-      useCase.execute({
-        actorId: 'admin-1',
-        userId: 'admin-2',
-        reason: 'Test',
-      }),
+      useCase.execute({ actorId: 'admin-1', userId: 'admin-2', reason: 'Test' }),
+    ).rejects.toThrow(UnprocessableEntityException);
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('should throw 422 when trying to suspend a PLATFORM_SUPPORT', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'support-1',
+      platformRole: PlatformRole.PLATFORM_SUPPORT,
+      suspendedAt: null,
+    });
+
+    await expect(
+      useCase.execute({ actorId: 'admin-1', userId: 'support-1', reason: 'Test' }),
     ).rejects.toThrow(UnprocessableEntityException);
 
     expect(prisma.user.update).not.toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import { InviteOrganizationMemberUseCase, InvalidRoleError } from './invite-organization-member.use-case';
+import { InviteOrganizationMemberUseCase, InvalidRoleError, InsufficientRoleToAssignError } from './invite-organization-member.use-case';
 import type { IOrganizationInvitationRepository } from '../../domain/ports/organization-invitation-repository.port';
 import { OrganizationInvitation } from '../../domain/entities/organization-invitation.entity';
 
@@ -85,5 +85,37 @@ describe('InviteOrganizationMemberUseCase', () => {
         role: 'SUPER_HACKER',
       }),
     ).rejects.toBeInstanceOf(InvalidRoleError);
+  });
+
+  it('should throw InsufficientRoleToAssignError when non-OWNER tries to invite as OWNER', async () => {
+    repo.findActiveMemberByUserId.mockResolvedValue({ id: 'member-1', role: 'ADMIN' });
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        inviterId: 'admin-user',
+        email: 'test@example.com',
+        role: 'OWNER',
+      }),
+    ).rejects.toBeInstanceOf(InsufficientRoleToAssignError);
+
+    expect(repo.createInvitation).not.toHaveBeenCalled();
+  });
+
+  it('should allow OWNER to invite another OWNER', async () => {
+    repo.findActiveMemberByUserId.mockResolvedValue({ id: 'member-1', role: 'OWNER' });
+    repo.isActiveMember.mockResolvedValue(false);
+    repo.createInvitation.mockResolvedValue(makeInvitation());
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        inviterId: 'owner-user',
+        email: 'new-owner@example.com',
+        role: 'OWNER',
+      }),
+    ).resolves.toBeDefined();
+
+    expect(repo.createInvitation).toHaveBeenCalledTimes(1);
   });
 });

@@ -10,8 +10,7 @@ export { InvitationAlreadyUsedError };
 
 export interface AcceptOrganizationInvitationCommand {
   rawToken: string;
-  /** Optional — if provided, the new member record will be linked to this user */
-  userId?: string | undefined;
+  userId: string;
 }
 
 export interface AcceptOrganizationInvitationResult {
@@ -67,7 +66,7 @@ export class AcceptOrganizationInvitationUseCase {
       throw new InvitationExpiredError();
     }
 
-    await this.repo.markInvitationUsed(invitation.id, command.userId ?? invitation.inviterId);
+    await this.repo.markInvitationUsed(invitation.id, command.userId);
 
     return {
       organizationId: invitation.organizationId,

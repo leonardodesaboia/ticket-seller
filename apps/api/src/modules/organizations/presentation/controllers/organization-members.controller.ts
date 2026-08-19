@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   NotFoundException,
@@ -21,6 +22,7 @@ import { OrganizationCapability } from '../../../../shared/kernel/organization-c
 import {
   InviteOrganizationMemberUseCase,
   InvalidRoleError,
+  InsufficientRoleToAssignError,
 } from '../../application/use-cases/invite-organization-member.use-case';
 import { ListOrganizationMembersUseCase } from '../../application/use-cases/list-organization-members.use-case';
 import {
@@ -79,6 +81,9 @@ export class OrganizationMembersController {
     } catch (err) {
       if (err instanceof InvalidRoleError) {
         throw new UnprocessableEntityException(err.message);
+      }
+      if (err instanceof InsufficientRoleToAssignError) {
+        throw new ForbiddenException(err.message);
       }
       throw err;
     }

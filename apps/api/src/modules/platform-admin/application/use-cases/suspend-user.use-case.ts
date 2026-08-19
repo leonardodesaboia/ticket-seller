@@ -1,6 +1,5 @@
-import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
-import { PlatformRole } from '../../../../shared/kernel/platform-role';
 
 export interface SuspendUserCommand {
   actorId: string;
@@ -24,12 +23,16 @@ export class SuspendUserUseCase {
       select: { id: true, platformRole: true, suspendedAt: true },
     });
 
-    if (target?.platformRole === PlatformRole.PLATFORM_ADMIN) {
-      throw new UnprocessableEntityException('Cannot suspend another PLATFORM_ADMIN');
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (target.platformRole !== null) {
+      throw new UnprocessableEntityException('Cannot suspend a platform admin account');
     }
 
     // Idempotent: already suspended
-    if (target?.suspendedAt) {
+    if (target.suspendedAt) {
       this.logger.log({
         msg: 'user already suspended — idempotent noop',
         actor: command.actorId,

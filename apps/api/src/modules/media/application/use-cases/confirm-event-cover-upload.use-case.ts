@@ -13,7 +13,7 @@ import {
   MEDIA_UPLOAD_REPOSITORY,
   type IMediaUploadRepository,
 } from '../../domain/ports/media-upload-repository.port';
-import { ALLOWED_CONTENT_TYPES } from '../../domain/media.constants';
+import { ALLOWED_CONTENT_TYPES, MAX_UPLOAD_SIZE_BYTES } from '../../domain/media.constants';
 
 const DOWNLOAD_URL_EXPIRES_IN = 3600;
 
@@ -62,6 +62,13 @@ export class ConfirmEventCoverUploadUseCase {
     if (!ALLOWED_CONTENT_TYPES.includes(metadata.contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
       throw new BadRequestException(
         `Uploaded file content-type must be one of: ${ALLOWED_CONTENT_TYPES.join(', ')}`,
+      );
+    }
+
+    if (metadata.sizeBytes > MAX_UPLOAD_SIZE_BYTES) {
+      await this.storage.deleteObject(key);
+      throw new BadRequestException(
+        `File size ${metadata.sizeBytes} bytes exceeds maximum of ${MAX_UPLOAD_SIZE_BYTES / 1024 / 1024} MB`,
       );
     }
 

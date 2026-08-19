@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { UnprocessableEntityException } from '@nestjs/common';
+import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { BlockPayoutUseCase } from './block-payout.use-case';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 
@@ -82,7 +82,7 @@ describe('BlockPayoutUseCase', () => {
     expect(prisma.payout.update).not.toHaveBeenCalled();
   });
 
-  it('should throw 422 when payout is not found', async () => {
+  it('should throw 404 when payout is not found', async () => {
     (prisma.payout.findUnique as jest.Mock).mockResolvedValue(null);
 
     await expect(
@@ -91,7 +91,7 @@ describe('BlockPayoutUseCase', () => {
         payoutId: 'payout-404',
         reason: 'Not found',
       }),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('should throw 422 when payout is BLOCKED already', async () => {
