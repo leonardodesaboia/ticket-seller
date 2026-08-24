@@ -29,6 +29,10 @@ const envSchema = z.object({
   AWS_S3_REGION: z.string().default('us-east-1'),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  // OpenTelemetry (opt-in)
+  OTEL_ENABLED: z.string().default('false').transform((v) => v === 'true'),
+  OTEL_SERVICE_NAME: z.string().default('ticket-seller-api'),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default('http://localhost:4318'),
 });
 
 export type Env = z.infer<typeof envSchema>;

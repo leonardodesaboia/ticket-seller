@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
@@ -5,6 +7,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from 'nestjs-throttler-storage-redis';
 import { LoggerModule } from 'nestjs-pino';
 import { SmartThrottlerGuard } from './platform/http/guards/smart-throttler.guard';
+import { ObservabilityModule } from './platform/observability/observability.module';
+import { requestContextStorage } from './platform/observability/request-context';
 import { DatabaseModule } from './platform/database/prisma.module';
 import { HealthModule } from './platform/health/health.module';
 import { HttpModule } from './platform/http/http.module';
@@ -37,11 +41,35 @@ import { MediaModule } from './modules/media/media.module';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env['NODE_ENV'] === 'test' ? 'silent' : (process.env['LOG_LEVEL'] ?? 'info'),
+        genReqId: () => requestContextStorage.getStore()?.requestId ?? randomUUID(),
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.headers["x-dev-user-id"]',
+            '*.password',
+            '*.tokenHash',
+            '*.token_hash',
+            '*.hash',
+          ],
+          censor: '[REDACTED]',
+        },
+        serializers: {
+          req: (req: IncomingMessage & { id?: string }) => ({
+            requestId: req.id,
+            method: req.method,
+            url: req.url,
+          }),
+          res: (res: ServerResponse) => ({ statusCode: res.statusCode }),
+        },
+        customSuccessMessage: (req: IncomingMessage, res: ServerResponse, elapsed: number) =>
+          `${req.method ?? 'UNKNOWN'} ${req.url ?? '/'} ${res.statusCode} ${elapsed}ms`,
         ...(process.env['NODE_ENV'] === 'development' && {
           transport: { target: 'pino-pretty', options: { singleLine: true } },
         }),
       },
     }),
+    ObservabilityModule,
     DatabaseModule,
     HealthModule,
     HttpModule,

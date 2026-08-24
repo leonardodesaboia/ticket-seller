@@ -1,6 +1,6 @@
 Tarefas ativas
 
-Última atualização: 2026-08-17
+Última atualização: 2026-08-24
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
@@ -60,6 +60,9 @@ TASK-043: Event Cancellation & Mass Refunds — MERGED em develop 2026-08-17
 TASK-044: Chargebacks & Payment Disputes — MERGED em develop 2026-08-17
 TASK-045: Notification Foundation — MERGED em develop 2026-08-17
 TASK-046: Transactional Notifications — MERGED em develop 2026-08-17
+TASK-047–056: Production Prep (auth, members, platform admin, media) — MERGED em develop 2026-08-19
+TASK-057: Rate Limiting & API Hardening — MERGED em develop 2026-08-24 (commit e9c9287)
+TASK-058: Observability & Correlation IDs — MERGED em develop 2026-08-24
 
 Regras
 uma tarefa deve aparecer uma única vez;

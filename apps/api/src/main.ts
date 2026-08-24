@@ -6,9 +6,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './platform/http/filters/http-exception.filter';
+import { setupOtel } from './platform/observability/otel.setup';
 import { env } from './platform/config/env';
 
 async function bootstrap(): Promise<void> {
+  setupOtel();
   // rawBody: true preserves the raw Buffer on req.rawBody for HMAC-SHA256 webhook verification.
   // bodyLimit: 1MB rejects payloads larger than 1 048 576 bytes before they reach handlers.
   const app = await NestFactory.create<NestFastifyApplication>(
