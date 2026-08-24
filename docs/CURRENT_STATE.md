@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-24 (TASK-061 concluída; TASK-062 planejada)
+Última atualização: 2026-08-24 (TASK-062 concluída; RC-1.0 entregue)
 
 Fase
 
@@ -26,11 +26,11 @@ monorepo inicializado com pnpm 11.17.0, Turborepo 2.10.7 e Node.js 22.18.0;
 TypeScript 5.9.3, ESLint 10.8.0 e Prettier 3.9.6 configurados no workspace.
 Em andamento
 
-TASK-062 — Release Readiness & E2E Certification (próxima a implementar)
+Nenhuma — todas as tasks do plano de produção estão concluídas. RC-1.0 entregue.
 
 Próxima fase
 
-Infraestrutura de produção, backup e release readiness (TASK-060 a TASK-062).
+RC-1.0 entregue. Próximos passos: E2E manual em staging, load test, e configuração de cloud target para deployment.
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)
@@ -94,7 +94,7 @@ TASK-058 — Observability, Reliability & Operational Alerts. (CONCLUÍDA)
 TASK-059 — Security Hardening & Data Protection. (CONCLUÍDA)
 TASK-060 — Production Infrastructure & Deployment. (CONCLUÍDA)
 TASK-061 — Backup, Disaster Recovery & Operational Runbooks. (CONCLUÍDA)
-TASK-062 — Release Readiness & E2E Certification. (PLANEJADA)
+TASK-062 — Release Readiness & E2E Certification. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;

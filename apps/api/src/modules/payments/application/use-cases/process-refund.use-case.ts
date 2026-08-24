@@ -77,8 +77,26 @@ export class ProcessRefundUseCase {
     const order = orders[0] ?? null;
     if (!order) throw new OrderNotFoundForRefundError();
 
-    // 2. Validate order is CANCELLED
+    // 2. Validate order is CANCELLED (or REFUNDED for idempotent re-calls)
     if (order.status === 'REFUNDED') {
+      // Idempotent: return the existing successful refund instead of throwing.
+      const existing = await this.prisma.$queryRaw<RawRefundRow[]>`
+        SELECT id, status, external_refund_id, amount, currency
+        FROM refund_attempts
+        WHERE order_id = ${orderId}::uuid AND status = 'SUCCESS'
+        LIMIT 1
+      `;
+      const refundRow = existing[0];
+      if (refundRow?.external_refund_id) {
+        return {
+          orderId,
+          organizationId,
+          status: 'REFUNDED',
+          refundedAmount: Number(refundRow.amount),
+          currency: refundRow.currency,
+          externalRefundId: refundRow.external_refund_id,
+        };
+      }
       throw new OrderNotRefundableError('ORDER_ALREADY_REFUNDED');
     }
     if (order.status !== 'CANCELLED') {

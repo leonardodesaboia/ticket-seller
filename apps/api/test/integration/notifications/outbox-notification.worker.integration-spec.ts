@@ -74,6 +74,7 @@ afterEach(async () => {
   await prisma.$executeRawUnsafe('DELETE FROM tickets');
   await prisma.$executeRawUnsafe('DELETE FROM payment_attempts');
   await prisma.$executeRawUnsafe('DELETE FROM order_items');
+  await prisma.$executeRawUnsafe('DELETE FROM order_pricing_snapshots');
   await prisma.$executeRawUnsafe('DELETE FROM orders');
   await prisma.$executeRawUnsafe('DELETE FROM ticket_inventory');
   await prisma.$executeRawUnsafe('DELETE FROM ticket_types');

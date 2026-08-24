@@ -14,4 +14,6 @@ CREATE TABLE "sessions" (
 );
 
 -- CreateIndex
-CREATE INDEX "sessions_user_id_active_idx" ON "sessions"("user_id") WHERE "revoked_at" IS NULL AND "expires_at" > now();
+-- Partial index for active (non-revoked) sessions. expires_at filtering happens in queries
+-- since now() is stable (not immutable) and cannot appear in PostgreSQL index conditions.
+CREATE INDEX "sessions_user_id_active_idx" ON "sessions"("user_id") WHERE "revoked_at" IS NULL;

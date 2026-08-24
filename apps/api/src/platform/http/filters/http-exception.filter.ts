@@ -44,6 +44,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let detail: string;
     let code: string | undefined;
+    let eligibilityCode: string | undefined;
     let version: number | undefined;
     let issues: SafeProblemIssue[] | undefined;
     if (typeof exceptionResponse === 'string') {
@@ -53,6 +54,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const msg = response['message'];
       detail = Array.isArray(msg) ? msg.join(', ') : String(msg ?? exception.message);
       if (typeof response['code'] === 'string') code = response['code'];
+      if (typeof response['eligibilityCode'] === 'string') eligibilityCode = response['eligibilityCode'];
       if (typeof response['version'] === 'number' && Number.isInteger(response['version'])) {
         version = response['version'];
       }
@@ -67,6 +69,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       instance: request.url,
     };
     if (code !== undefined) problem['code'] = code;
+    if (eligibilityCode !== undefined) problem['eligibilityCode'] = eligibilityCode;
     if (version !== undefined) problem['version'] = version;
     if (issues !== undefined) problem['issues'] = issues;
 

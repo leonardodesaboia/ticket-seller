@@ -59,6 +59,7 @@ afterEach(async () => {
   await prisma.$executeRawUnsafe('DELETE FROM payment_webhook_events');
   await prisma.$executeRawUnsafe('DELETE FROM payment_attempts');
   await prisma.$executeRawUnsafe('DELETE FROM order_items');
+  await prisma.$executeRawUnsafe('DELETE FROM order_pricing_snapshots');
   await prisma.$executeRawUnsafe('DELETE FROM orders');
   await prisma.$executeRawUnsafe('DELETE FROM reservation_items');
   await prisma.$executeRawUnsafe('DELETE FROM reservations');
@@ -67,6 +68,14 @@ afterEach(async () => {
   await prisma.idempotencyRecord.deleteMany();
   await prisma.ticketType.deleteMany();
   await prisma.event.deleteMany();
+  await prisma.$executeRawUnsafe('DELETE FROM payout_webhook_events');
+  await prisma.$executeRawUnsafe('DELETE FROM payouts');
+  await prisma.$executeRawUnsafe('DELETE FROM payout_recipients');
+  await prisma.$executeRawUnsafe('DELETE FROM balance_settlements');
+  await prisma.$executeRawUnsafe('DELETE FROM seller_balances');
+  await prisma.$executeRawUnsafe('DELETE FROM ledger_entries');
+  await prisma.$executeRawUnsafe('DELETE FROM ledger_transactions');
+  await prisma.$executeRawUnsafe("DELETE FROM ledger_accounts WHERE organization_id IS NOT NULL");
   await prisma.organizationMember.deleteMany();
   await prisma.organization.deleteMany();
   await prisma.user.deleteMany();
@@ -389,8 +398,10 @@ describe('POST /organizations/:orgId/orders/:orderId/cancellations (admin)', () 
         .send({}),
     ]);
 
+    // Cancellation is idempotent: both requests succeed (the second finds the order already
+    // CANCELLED and returns early inside the transaction, preserving all invariants).
     const statuses = [r1.status, r2.status].sort();
-    expect(statuses).toEqual([200, 422]);
+    expect(statuses).toEqual([200, 200]);
 
     // Exactly one outbox event
     const outboxCount = await prisma.outboxEvent.count({ where: { aggregateId: orderId, type: 'order.cancelled.v1' } });

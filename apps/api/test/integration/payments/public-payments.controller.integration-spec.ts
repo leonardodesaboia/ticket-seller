@@ -55,6 +55,7 @@ afterEach(async () => {
   if (!prisma) return;
   await prisma.$executeRawUnsafe('DELETE FROM payment_attempts');
   await prisma.$executeRawUnsafe('DELETE FROM order_items');
+  await prisma.$executeRawUnsafe('DELETE FROM order_pricing_snapshots');
   await prisma.$executeRawUnsafe('DELETE FROM orders');
   await prisma.$executeRawUnsafe('DELETE FROM reservation_items');
   await prisma.$executeRawUnsafe('DELETE FROM reservations');
@@ -63,6 +64,14 @@ afterEach(async () => {
   await prisma.idempotencyRecord.deleteMany();
   await prisma.ticketType.deleteMany();
   await prisma.event.deleteMany();
+  await prisma.$executeRawUnsafe('DELETE FROM payout_webhook_events');
+  await prisma.$executeRawUnsafe('DELETE FROM payouts');
+  await prisma.$executeRawUnsafe('DELETE FROM payout_recipients');
+  await prisma.$executeRawUnsafe('DELETE FROM balance_settlements');
+  await prisma.$executeRawUnsafe('DELETE FROM seller_balances');
+  await prisma.$executeRawUnsafe('DELETE FROM ledger_entries');
+  await prisma.$executeRawUnsafe('DELETE FROM ledger_transactions');
+  await prisma.$executeRawUnsafe("DELETE FROM ledger_accounts WHERE organization_id IS NOT NULL");
   await prisma.organizationMember.deleteMany();
   await prisma.organization.deleteMany();
   await prisma.user.deleteMany();
@@ -236,8 +245,9 @@ describe('Public payments API', () => {
       201,
     );
 
-    // Force order to CANCELLED status (simulating non-PENDING_PAYMENT state)
-    await prisma.$executeRaw`UPDATE orders SET status = 'CANCELLED' WHERE id = ${order.body.orderId}::uuid`;
+    // Force order to CANCELLED status (simulating non-PENDING_PAYMENT state).
+    // cancelled_at is required by the orders_cancelled_consistency check constraint.
+    await prisma.$executeRaw`UPDATE orders SET status = 'CANCELLED', cancelled_at = now() WHERE id = ${order.body.orderId}::uuid`;
 
     const response = await createPayment(
       order.body.orderId,

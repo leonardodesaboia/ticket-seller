@@ -86,6 +86,11 @@ afterAll(async () => {
 afterEach(async () => {
   if (!prisma) return;
   // Clean in dependency order
+  await prisma.$executeRawUnsafe('DELETE FROM payout_webhook_events');
+  await prisma.$executeRawUnsafe('DELETE FROM payouts');
+  await prisma.$executeRawUnsafe('DELETE FROM payout_recipients');
+  await prisma.$executeRawUnsafe('DELETE FROM balance_settlements');
+  await prisma.$executeRawUnsafe('DELETE FROM seller_balances');
   await prisma.$executeRawUnsafe('DELETE FROM ledger_entries');
   await prisma.$executeRawUnsafe('DELETE FROM ledger_transactions');
   // Remove org-scoped ledger accounts (keep platform accounts)
