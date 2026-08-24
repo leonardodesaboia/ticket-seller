@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.env.*
+*.log
+coverage
+.tsbuildinfo
+tsconfig.tsbuildinfo

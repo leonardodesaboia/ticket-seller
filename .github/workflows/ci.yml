@@ -133,6 +133,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # Full image build validates that Dockerfiles are correct end-to-end.
+      # --no-cache ensures dependencies are resolved fresh on each CI run.
+      - name: Validate Dockerfiles
+        run: |
+          docker build -f apps/api/Dockerfile . -t test-api --no-cache
+          docker build -f apps/marketplace-web/Dockerfile . -t test-marketplace --no-cache
+          docker build -f apps/backoffice-web/Dockerfile . -t test-backoffice --no-cache
+
   # ──────────────────────────────────────────────
   # Validate: structural and security checks
   # ──────────────────────────────────────────────
