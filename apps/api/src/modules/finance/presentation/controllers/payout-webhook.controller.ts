@@ -10,9 +10,11 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FastifyRequest } from 'fastify';
+import { SkipThrottle } from '../../../../platform/http/decorators/throttle.decorator';
 import { ProcessPayoutWebhookUseCase } from '../../application/use-cases/process-payout-webhook.use-case';
 
 @ApiTags('webhooks')
+@SkipThrottle()
 @Controller('webhooks/payouts')
 export class PayoutWebhookController {
   constructor(private readonly processWebhook: ProcessPayoutWebhookUseCase) {}

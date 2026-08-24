@@ -17,6 +17,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { ReservationThrottle } from '../../../../platform/http/decorators/throttle.decorator';
 import { CancelReservationUseCase } from '../../application/use-cases/cancel-reservation.use-case';
 import { CreateReservationUseCase } from '../../application/use-cases/create-reservation.use-case';
 import { GetReservationUseCase } from '../../application/use-cases/get-reservation.use-case';
@@ -80,6 +81,7 @@ export class PublicReservationsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ReservationThrottle()
   async create(
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Body() dto: CreateReservationDto,

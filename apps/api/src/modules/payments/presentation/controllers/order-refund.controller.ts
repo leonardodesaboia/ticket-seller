@@ -22,8 +22,6 @@ import {
 } from '../../domain/refund.errors';
 import { RefundResponse } from '../dto/refund.response';
 
-const uuidPipe = new ParseUUIDPipe({ version: '4' });
-
 @ApiTags('refunds')
 @Controller('organizations/:orgId/orders/:orderId/refunds')
 @UseGuards(ActorGuard)
@@ -33,8 +31,8 @@ export class OrderRefundController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async refund(
-    @Param('orgId', uuidPipe) orgId: string,
-    @Param('orderId', uuidPipe) orderId: string,
+    @Param('orgId', new ParseUUIDPipe({ version: '4' })) orgId: string,
+    @Param('orderId', new ParseUUIDPipe({ version: '4' })) orderId: string,
     @CurrentActor() actor: ICurrentActor,
   ): Promise<RefundResponse> {
     try {

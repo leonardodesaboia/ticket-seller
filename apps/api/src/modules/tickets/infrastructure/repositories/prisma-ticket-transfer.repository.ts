@@ -140,7 +140,7 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
         SELECT MAX(version) AS max_version FROM ticket_credentials
         WHERE ticket_id = ${params.ticketId}::uuid
       `;
-      const newVersion = ((versionRows[0]?.max_version ?? 0) ?? 0) + 1;
+      const newVersion = (versionRows[0]?.max_version ?? 0) + 1;
 
       await tx.$executeRaw`
         INSERT INTO ticket_credentials (id, ticket_id, organization_id, token_hash, version)

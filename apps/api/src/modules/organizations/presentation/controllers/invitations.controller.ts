@@ -18,6 +18,7 @@ import {
 import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
 import { CurrentActor } from '../../../../shared/kernel/current-actor.decorator';
 import type { ICurrentActor } from '../../../../shared/kernel/actor.types';
+import { InvitationThrottle } from '../../../../platform/http/decorators/throttle.decorator';
 
 @ApiTags('invitations')
 @Controller('invitations')
@@ -27,6 +28,7 @@ export class InvitationsController {
   ) {}
 
   @Post(':token/accept')
+  @InvitationThrottle()
   @UseGuards(ActorGuard)
   @HttpCode(200)
   @ApiOperation({ summary: 'Accept an organization invitation (requires authentication)' })

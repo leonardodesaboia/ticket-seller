@@ -3,6 +3,9 @@ import { TicketInvalidTokenError } from '../../domain/ticket.errors';
 import { TicketCancelledError } from '../../domain/ticket-credential.errors';
 import { Ticket } from '../../domain/ticket.entity';
 import { TicketCredential } from '../../domain/ticket-credential.entity';
+import type { ITicketOrderAccessPort } from '../ports/ticket-order-access.port';
+import type { ITicketRepository } from '../../domain/ports/ticket-repository.port';
+import type { ITicketCredentialRepository } from '../../domain/ports/ticket-credential-repository.port';
 
 function makeTicket(id = 'tkt-1', status: 'ACTIVE' | 'CANCELLED' = 'ACTIVE'): Ticket {
   return new Ticket({
@@ -34,13 +37,13 @@ function makeCredential(version = 1): TicketCredential {
 }
 
 describe('IssueTicketCredentialUseCase', () => {
-  const orderAccess: any = { findOrderWithToken: jest.fn() };
-  const ticketRepo: any = { findByOrderId: jest.fn() };
-  const credentialRepo: any = {
+  const orderAccess = { findOrderWithToken: jest.fn() } as unknown as jest.Mocked<ITicketOrderAccessPort>;
+  const ticketRepo = { findByOrderId: jest.fn() } as unknown as jest.Mocked<ITicketRepository>;
+  const credentialRepo = {
     findActiveByTicketId: jest.fn(),
     createIfNoneActive: jest.fn(),
     rotateCredential: jest.fn(),
-  };
+  } as unknown as jest.Mocked<ITicketCredentialRepository>;
 
   const useCase = new IssueTicketCredentialUseCase(credentialRepo, orderAccess, ticketRepo);
 

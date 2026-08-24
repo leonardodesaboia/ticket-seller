@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from 'nestjs-throttler-storage-redis';
 import { LoggerModule } from 'nestjs-pino';
+import { SmartThrottlerGuard } from './platform/http/guards/smart-throttler.guard';
 import { DatabaseModule } from './platform/database/prisma.module';
 import { HealthModule } from './platform/health/health.module';
 import { HttpModule } from './platform/http/http.module';
@@ -21,6 +25,15 @@ import { MediaModule } from './modules/media/media.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRootAsync({
+      useFactory: () => {
+        const redisUrl = process.env['REDIS_URL'];
+        return {
+          throttlers: [{ name: 'global', ttl: 60_000, limit: 200 }],
+          ...(redisUrl ? { storage: new ThrottlerStorageRedisService(redisUrl) } : {}),
+        };
+      },
+    }),
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env['NODE_ENV'] === 'test' ? 'silent' : (process.env['LOG_LEVEL'] ?? 'info'),
@@ -46,5 +59,6 @@ import { MediaModule } from './modules/media/media.module';
     PlatformAdminModule,
     MediaModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: SmartThrottlerGuard }],
 })
 export class AppModule {}

@@ -1,7 +1,7 @@
 import * as crypto from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { AdmissionPolicy, AdmissionCode } from '../../../tickets/domain/admission';
+import { AdmissionPolicy } from '../../../tickets/domain/admission';
 import {
   CHECK_IN_REPOSITORY,
   ICheckInRepository,

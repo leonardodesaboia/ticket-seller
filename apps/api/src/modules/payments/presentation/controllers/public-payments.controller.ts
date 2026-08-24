@@ -16,6 +16,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { PaymentThrottle } from '../../../../platform/http/decorators/throttle.decorator';
 import { CreatePaymentAttemptUseCase } from '../../application/use-cases/create-payment-attempt.use-case';
 import { GetPaymentAttemptUseCase } from '../../application/use-cases/get-payment-attempt.use-case';
 import {
@@ -56,6 +57,7 @@ export class PublicPaymentsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @PaymentThrottle()
   async create(
     @Param('orderId', uuidPipe) orderId: string,
     @Headers('x-reservation-token') token: string | undefined,

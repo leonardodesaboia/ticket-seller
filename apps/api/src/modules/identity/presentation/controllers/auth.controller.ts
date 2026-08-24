@@ -15,6 +15,12 @@ import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
 import { CurrentActor } from '../../../../shared/kernel/current-actor.decorator';
 import type { ICurrentActor } from '../../../../shared/kernel/actor.types';
 import { env } from '../../../../platform/config/env';
+import {
+  AuthForgotThrottle,
+  AuthLoginThrottle,
+  AuthRefreshThrottle,
+  AuthRegisterThrottle,
+} from '../../../../platform/http/decorators/throttle.decorator';
 import { RegisterWithPasswordUseCase } from '../../application/use-cases/register-with-password.use-case';
 import { AuthenticateWithPasswordUseCase } from '../../application/use-cases/authenticate-with-password.use-case';
 import { RefreshSessionUseCase } from '../../application/use-cases/refresh-session.use-case';
@@ -48,6 +54,7 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(201)
+  @AuthRegisterThrottle()
   @ApiOperation({ summary: 'Register with email and password' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'Email already registered' })
@@ -62,6 +69,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @AuthLoginThrottle()
   @ApiOperation({ summary: 'Authenticate with email and password' })
   @ApiResponse({ status: 200, description: 'Authenticated successfully' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -91,6 +99,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(200)
+  @AuthRefreshThrottle()
   @ApiOperation({ summary: 'Refresh access token using refresh token cookie' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
@@ -127,6 +136,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(200)
+  @AuthForgotThrottle()
   @ApiOperation({ summary: 'Request a password reset email' })
   @ApiResponse({ status: 200, description: 'If email exists, a reset link was sent' })
   async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {

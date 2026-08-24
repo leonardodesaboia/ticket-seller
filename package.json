@@ -17,7 +17,7 @@
     "format:write": "prettier --write ."
   },
   "pnpm": {
-    "approvedBuilds": [
+    "onlyBuiltDependencies": [
       "sharp",
       "argon2"
     ]

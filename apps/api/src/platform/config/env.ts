@@ -5,6 +5,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
   CORS_ORIGINS: z.string().default('*'),
+  REDIS_URL: z.string().url().optional(),
   DATABASE_URL: z.string().url(),
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().default(1025),
@@ -36,6 +37,12 @@ const parsed = envSchema.parse(process.env);
 
 if (parsed.NODE_ENV === 'production' && !parsed.JWT_SECRET) {
   throw new Error('JWT_SECRET is required in production (minimum 32 characters)');
+}
+
+if (parsed.NODE_ENV === 'production' && parsed.CORS_ORIGINS.includes('*')) {
+  throw new Error(
+    'CORS_ORIGINS cannot contain wildcard (*) in production. Set explicit allowed origins.',
+  );
 }
 
 if (parsed.OBJECT_STORAGE_PROVIDER === 's3' && !parsed.AWS_S3_BUCKET) {
