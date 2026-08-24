@@ -1,6 +1,6 @@
 TASK-057 — Rate Limiting, Abuse Prevention & API Hardening
 
-Status: PLANNED
+Status: CONCLUÍDA
 
 Objetivo
 

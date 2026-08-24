@@ -63,6 +63,10 @@ TASK-046: Transactional Notifications — MERGED em develop 2026-08-17
 TASK-047–056: Production Prep (auth, members, platform admin, media) — MERGED em develop 2026-08-19
 TASK-057: Rate Limiting & API Hardening — MERGED em develop 2026-08-24 (commit e9c9287)
 TASK-058: Observability & Correlation IDs — MERGED em develop 2026-08-24
+TASK-059: Security Hardening & Data Protection — MERGED em develop 2026-08-24
+TASK-060: Production Infrastructure & Deployment — MERGED em develop 2026-08-24
+TASK-061: Backup, Disaster Recovery & Operational Runbooks — MERGED em develop 2026-08-24
+TASK-062: Release Readiness & E2E Certification — MERGED em develop 2026-08-24 (commit e9f0435) — RC-1.0 READY
 
 Regras
 uma tarefa deve aparecer uma única vez;

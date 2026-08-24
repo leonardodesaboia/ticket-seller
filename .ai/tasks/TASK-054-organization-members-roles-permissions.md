@@ -1,6 +1,6 @@
 TASK-054 — Organization Members, Roles & Permissions
 
-Status: PLANNED
+Status: CONCLUÍDA
 
 Objetivo
 

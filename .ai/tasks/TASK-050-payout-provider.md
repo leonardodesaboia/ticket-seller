@@ -1,6 +1,6 @@
 TASK-050 — Payout Provider & Split Foundation
 
-Status: PLANNED
+Status: CONCLUÍDA
 
 Objetivo
 

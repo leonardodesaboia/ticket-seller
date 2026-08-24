@@ -1,6 +1,6 @@
 TASK-056 — Media & Uploads Foundation
 
-Status: PLANNED
+Status: CONCLUÍDA
 
 Objetivo
 
