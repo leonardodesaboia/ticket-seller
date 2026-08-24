@@ -15,6 +15,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { CheckInModule } from './modules/checkin/checkin.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     TicketsModule,
     CheckInModule,
     NotificationsModule,
+    PlatformAdminModule,
+    MediaModule,
   ],
 })
 export class AppModule {}

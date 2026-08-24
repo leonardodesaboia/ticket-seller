@@ -1,10 +1,10 @@
 Estado atual
 
-Última atualização: 2026-08-18 (TASK-052 + planejamento TASK-053 a TASK-062)
+Última atualização: 2026-08-19 (TASK-056 concluída; TASK-057 a TASK-062 planejadas)
 
 Fase
 
-Produção — PLANEJADA. Módulo financeiro — CONCLUÍDA.
+Produção — EM ANDAMENTO. Módulo financeiro — CONCLUÍDA.
 
 Objetivo da fase
 
@@ -26,11 +26,11 @@ monorepo inicializado com pnpm 11.17.0, Turborepo 2.10.7 e Node.js 22.18.0;
 TypeScript 5.9.3, ESLint 10.8.0 e Prettier 3.9.6 configurados no workspace.
 Em andamento
 
-Nenhuma tarefa em andamento. Implementação de TASK-053 a TASK-062 aguarda autorização.
+TASK-057 — Rate Limiting, Abuse Prevention & API Hardening (próxima a implementar; branch task/054-062-production-phase)
 
 Próxima fase
 
-Autenticação real (maior gap do MVP — TASK-053 é o primeiro desbloqueador). Após: membros, uploads, rate limiting, observabilidade, hardening, infra, backup e release readiness.
+Rate limiting, observabilidade, hardening de segurança, infraestrutura de produção, backup e release readiness (TASK-057 a TASK-062).
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)
@@ -86,9 +86,9 @@ TASK-050 — Payout Provider & Split Foundation. (CONCLUÍDA)
 TASK-051 — Payout Processing. (CONCLUÍDA)
 TASK-052 — Financial Dashboard & Reconciliation. (CONCLUÍDA)
 TASK-053 — Production Authentication & Sessions. (CONCLUÍDA)
-TASK-054 — Organization Members, Roles & Permissions. (PLANEJADA)
-TASK-055 — Platform Administration. (PLANEJADA)
-TASK-056 — Media & Uploads Foundation. (PLANEJADA)
+TASK-054 — Organization Members, Roles & Permissions. (CONCLUÍDA)
+TASK-055 — Platform Administration. (CONCLUÍDA)
+TASK-056 — Media & Uploads Foundation. (CONCLUÍDA)
 TASK-057 — Rate Limiting, Abuse Prevention & API Hardening. (PLANEJADA)
 TASK-058 — Observability, Reliability & Operational Alerts. (PLANEJADA)
 TASK-059 — Security Hardening & Data Protection. (PLANEJADA)

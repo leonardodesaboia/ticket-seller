@@ -18,6 +18,16 @@ const envSchema = z.object({
   // Email provider
   RESEND_API_KEY: z.string().optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:3001'),
+  // Object storage
+  OBJECT_STORAGE_PROVIDER: z.enum(['minio', 's3']).default('minio'),
+  MINIO_ENDPOINT: z.string().default('http://localhost:9000'),
+  MINIO_ACCESS_KEY: z.string().default('minioadmin'),
+  MINIO_SECRET_KEY: z.string().default('minioadmin'),
+  MINIO_BUCKET: z.string().default('ticket-seller'),
+  AWS_S3_BUCKET: z.string().optional(),
+  AWS_S3_REGION: z.string().default('us-east-1'),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -26,6 +36,10 @@ const parsed = envSchema.parse(process.env);
 
 if (parsed.NODE_ENV === 'production' && !parsed.JWT_SECRET) {
   throw new Error('JWT_SECRET is required in production (minimum 32 characters)');
+}
+
+if (parsed.OBJECT_STORAGE_PROVIDER === 's3' && !parsed.AWS_S3_BUCKET) {
+  throw new Error('AWS_S3_BUCKET is required when OBJECT_STORAGE_PROVIDER is s3');
 }
 
 export const env = parsed;

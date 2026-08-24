@@ -8,14 +8,16 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email       String    @unique
-  displayName String?   @map("display_name")
-  locale      String    @default("pt-BR")
-  timezone    String    @default("America/Sao_Paulo")
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String    @unique
+  displayName  String?   @map("display_name")
+  locale       String    @default("pt-BR")
+  timezone     String    @default("America/Sao_Paulo")
+  platformRole String?   @map("platform_role") @db.VarChar(32)
+  suspendedAt  DateTime? @map("suspended_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
 
   identities              Identity[]
   ownedOrganizations      Organization[]         @relation("OrganizationOwner")
@@ -24,6 +26,8 @@ model User {
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  sentInvitations         OrganizationInvitation[] @relation("InvitedBy")
+  mediaUploads            MediaUpload[]            @relation("UploadedMedia")
 
   @@index([deletedAt])
   @@map("users")
@@ -48,17 +52,19 @@ model Identity {
 }
 
 model Organization {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug      String    @unique
-  name      String
-  status    String    @default("ACTIVE")
-  ownerId   String    @map("owner_id") @db.Uuid
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String    @unique
+  name        String
+  status      String    @default("ACTIVE")
+  ownerId     String    @map("owner_id") @db.Uuid
+  suspendedAt DateTime? @map("suspended_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz
 
   owner            User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
   members          OrganizationMember[]
+  invitations      OrganizationInvitation[]
   events           Event[]
   venues           Venue[]
   ticketTypes      TicketType[]
@@ -76,6 +82,7 @@ model Organization {
   balanceSettlements BalanceSettlement[]
   payoutRecipient   PayoutRecipient?
   payouts           Payout[]
+  mediaUploads      MediaUpload[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -98,6 +105,25 @@ model OrganizationMember {
 
   @@unique([organizationId, userId])
   @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  inviterId      String    @map("inviter_id") @db.Uuid
+  email          String    @db.VarChar(320)
+  role           String    @db.VarChar(64)
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  usedAt         DateTime? @map("used_at") @db.Timestamptz
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  inviter      User         @relation("InvitedBy", fields: [inviterId], references: [id])
+
+  @@index([organizationId, usedAt, revokedAt])
+  @@map("organization_invitations")
 }
 
 model IdempotencyRecord {
@@ -170,6 +196,7 @@ model Event {
   venueId        String?      @map("venue_id") @db.Uuid
   currency       String?      @db.VarChar(3)
   publishedAt    DateTime?    @map("published_at") @db.Timestamptz
+  coverImageKey  String?      @map("cover_image_key")
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -738,5 +765,25 @@ model AuthenticationAttempt {
 
   @@index([email, ip, attemptedAt(sort: Desc)])
   @@map("authentication_attempts")
+}
+
+model MediaUpload {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  uploaderId     String    @map("uploader_id") @db.Uuid
+  objectKey      String    @unique @map("object_key")
+  contentType    String    @map("content_type") @db.VarChar(128)
+  sizeBytes      BigInt?   @map("size_bytes")
+  purpose        String    @db.VarChar(64)
+  entityId       String    @map("entity_id") @db.Uuid
+  status         String    @default("PENDING") @db.VarChar(16)
+  confirmedAt    DateTime? @map("confirmed_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  uploader     User         @relation("UploadedMedia", fields: [uploaderId], references: [id])
+
+  @@index([organizationId, entityId])
+  @@map("media_uploads")
 }
 
