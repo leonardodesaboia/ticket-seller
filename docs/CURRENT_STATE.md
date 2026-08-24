@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-24 (TASK-057 e TASK-058 concluídas; TASK-059 a TASK-062 planejadas)
+Última atualização: 2026-08-24 (TASK-057, TASK-058 e TASK-059 concluídas; TASK-060 a TASK-062 planejadas)
 
 Fase
 
@@ -26,11 +26,11 @@ monorepo inicializado com pnpm 11.17.0, Turborepo 2.10.7 e Node.js 22.18.0;
 TypeScript 5.9.3, ESLint 10.8.0 e Prettier 3.9.6 configurados no workspace.
 Em andamento
 
-TASK-059 — Security Hardening & Data Protection (próxima a implementar)
+TASK-060 — Production Infrastructure & Deployment (próxima a implementar)
 
 Próxima fase
 
-Hardening de segurança, infraestrutura de produção, backup e release readiness (TASK-059 a TASK-062).
+Infraestrutura de produção, backup e release readiness (TASK-060 a TASK-062).
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)
@@ -91,7 +91,7 @@ TASK-055 — Platform Administration. (CONCLUÍDA)
 TASK-056 — Media & Uploads Foundation. (CONCLUÍDA)
 TASK-057 — Rate Limiting, Abuse Prevention & API Hardening. (CONCLUÍDA)
 TASK-058 — Observability, Reliability & Operational Alerts. (CONCLUÍDA)
-TASK-059 — Security Hardening & Data Protection. (PLANEJADA)
+TASK-059 — Security Hardening & Data Protection. (CONCLUÍDA)
 TASK-060 — Production Infrastructure & Deployment. (PLANEJADA)
 TASK-061 — Backup, Disaster Recovery & Operational Runbooks. (PLANEJADA)
 TASK-062 — Release Readiness & E2E Certification. (PLANEJADA)

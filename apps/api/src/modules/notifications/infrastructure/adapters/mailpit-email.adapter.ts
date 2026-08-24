@@ -27,6 +27,6 @@ export class MailpitEmailAdapter implements IEmailProvider, OnModuleInit {
       text: message.text,
     });
 
-    this.logger.debug(`Email sent to ${message.to} — subject: "${message.subject}"`);
+    this.logger.debug(`Email sent — subject: "${message.subject}"`);
   }
 }

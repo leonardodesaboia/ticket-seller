@@ -188,3 +188,10 @@ jobs:
         run: pnpm --filter @ticket-seller/api exec prisma validate
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      # Dependency CVE audit — tracked in TASK-059 security report.
+      # Known HIGH/CRITICAL CVEs require NestJS v11 + Fastify v5 migration.
+      # continue-on-error keeps CI green until that migration lands.
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: true

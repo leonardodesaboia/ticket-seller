@@ -26,6 +26,6 @@ export class ResendEmailAdapter implements IEmailProvider {
       text: message.text,
     });
 
-    this.logger.debug(`Email sent via Resend to ${message.to} — subject: "${message.subject}"`);
+    this.logger.debug(`Email sent via Resend — subject: "${message.subject}"`);
   }
 }
