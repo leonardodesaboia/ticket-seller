@@ -118,5 +118,5 @@ Os módulos `tickets`, `checkin` e `inventory` gerenciam emissão de ingressos, 
 - ~~A5: `findByTokenHash` em `prisma-ticket-credential` sem `organization_id`~~ — **CORRIGIDO 2026-08-25**: port atualizado para `findByTokenHash(tokenHash, organizationId)`. Query adiciona `AND organization_id = ${organizationId}::uuid`. Corrigido antes de ter callers — porta segura para uso futuro.
 - A6: Testes ausentes em repositórios críticos
 - M1: Endpoint público de accept-transfer sem rate-limit
-- M4: `releaseHold` silencia underflow com `GREATEST`
-- M8: `stale-while-revalidate=30` muito longo em availability
+- ~~M4: `releaseHold` silencia underflow com `GREATEST`~~ — **CORRIGIDO 2026-08-25**: `releaseHold` agora tenta UPDATE com `AND reserved >= ${quantity}` primeiro. Se `exact === 0`, faz fallback para `SET reserved = 0`. Se `fallback === 0` → `InventoryNotFoundError`. Caso fallback dispare, emite `logger.warn` com ticketTypeId e quantidade tentada. Logger adicionado ao repositório.
+- ~~M8: `stale-while-revalidate=30` muito longo em availability~~ — **CORRIGIDO 2026-08-25**: `CACHE_CONTROL` alterado para `stale-while-revalidate=5` em `public-availability.controller.ts`.

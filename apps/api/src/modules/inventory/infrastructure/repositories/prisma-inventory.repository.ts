@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import { TicketInventory } from '../../domain/ticket-inventory.entity';
 import { InsufficientInventoryError, InventoryNotFoundError } from '../../domain/inventory.errors';
@@ -43,6 +43,8 @@ function toEntity(row: RawInventoryRow): TicketInventory {
 
 @Injectable()
 export class PrismaInventoryRepository implements IInventoryRepository {
+  private readonly logger = new Logger(PrismaInventoryRepository.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findByTicketTypeId(
@@ -116,17 +118,35 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     ticketTypeId: string,
     quantity: number,
   ): Promise<void> {
-    const affected = await this.prisma.$executeRaw`
+    // Attempt exact decrement first; guards against silent underflow.
+    const exact = await this.prisma.$executeRaw`
       UPDATE ticket_inventory
-      SET reserved   = GREATEST(reserved - ${quantity}, 0),
+      SET reserved   = reserved - ${quantity},
+          version    = version + 1,
+          updated_at = NOW()
+      WHERE ticket_type_id = ${ticketTypeId}::uuid
+        AND organization_id = ${organizationId}::uuid
+        AND reserved >= ${quantity}
+    `;
+    if (exact > 0) return;
+
+    // Zero rows: either not found or reserved < quantity (underflow guard).
+    const fallback = await this.prisma.$executeRaw`
+      UPDATE ticket_inventory
+      SET reserved   = 0,
           version    = version + 1,
           updated_at = NOW()
       WHERE ticket_type_id = ${ticketTypeId}::uuid
         AND organization_id = ${organizationId}::uuid
     `;
-    if (affected === 0) {
+    if (fallback === 0) {
       throw new InventoryNotFoundError(ticketTypeId);
     }
+    // Log discrepancy: reservation expired but reserved counter was less than
+    // expected — indicates an earlier inconsistency, not a new one.
+    this.logger.warn(
+      `Inventory underflow for ticketTypeId=${ticketTypeId}: tried to release ${quantity} but reserved was less; reset to 0`,
+    );
   }
 
   async getAvailability(ticketTypeIds: string[], organizationId: string): Promise<AvailabilityResult[]> {

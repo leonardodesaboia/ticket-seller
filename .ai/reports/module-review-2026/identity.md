@@ -128,4 +128,4 @@ O módulo `identity` está em bom estado geral (argon2id, token rotation atômic
 - ~~M5: `findActive*` retorna sessões inativas~~ — **CORRIGIDO 2026-08-25**: `findActiveByTokenHash` e `findActiveById` em `prisma-session.repository.ts` agora usam `findFirst` com `revokedAt: null, expiresAt: { gte: new Date() }`. Métodos agora retornam apenas sessões realmente ativas.
 - ~~M6: `markUsed` + `updateCredentialHash` sem transação~~ — **CORRIGIDO 2026-08-25**: novo método `resetPasswordAtomically` no port + repository (Prisma transaction array). `reset-password.use-case.ts` atualizado para usar método atômico.
 - ~~M7: Sessão renovada perde IP/UserAgent~~ — **CORRIGIDO 2026-08-25**: `RefreshSessionInput` agora tem `ip` e `userAgent`; controller extrai e passa; `sessionRepository.create` já aceitava os campos opcionais.
-- B2: Algoritmo HS256 não configurado explicitamente no JWT
+- ~~B2: Algoritmo HS256 não configurado explicitamente no JWT~~ — **CORRIGIDO 2026-08-25**: `algorithm: 'HS256'` adicionado a `signOptions` no `JwtModule.register` em `identity.module.ts`.

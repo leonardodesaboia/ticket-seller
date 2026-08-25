@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { GetAvailabilityUseCase } from '../../application/use-cases/get-availability.use-case';
 import { AvailabilityResponse } from '../dto/availability.response';
 
-const CACHE_CONTROL = 'public, max-age=10, stale-while-revalidate=30';
+const CACHE_CONTROL = 'public, max-age=10, stale-while-revalidate=5';
 
 @ApiTags('public-inventory')
 @Controller('public/events')

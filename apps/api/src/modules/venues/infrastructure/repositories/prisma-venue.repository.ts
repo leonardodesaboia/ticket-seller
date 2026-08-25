@@ -28,6 +28,9 @@ export class PrismaVenueRepository implements IVenueRepository {
     const venues = await this.prisma.venue.findMany({
       where: { organizationId },
       orderBy: [{ name: 'asc' }],
+      // Hard limit guards against pathological cases; proper cursor
+      // pagination should be added when orgs exceed this scale.
+      take: 200,
     });
     return venues.map((v) => this.toEntity(v));
   }

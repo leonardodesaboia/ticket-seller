@@ -46,7 +46,7 @@ const isProduction = env.NODE_ENV === 'production';
     JwtModule.register({
       secret: env.JWT_SECRET ?? 'dev-secret-not-for-production-at-all',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      signOptions: { expiresIn: env.JWT_ACCESS_EXPIRY as any },
+      signOptions: { algorithm: 'HS256', expiresIn: env.JWT_ACCESS_EXPIRY as any },
     }),
   ],
   controllers: [AuthController],
