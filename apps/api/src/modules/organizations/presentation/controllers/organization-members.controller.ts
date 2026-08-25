@@ -34,6 +34,7 @@ import {
   RemoveOrganizationMemberUseCase,
   MemberNotFoundError as RemoveMemberNotFoundError,
   LastOwnerProtectionError as RemoveLastOwnerError,
+  CannotRemoveSelfError,
 } from '../../application/use-cases/remove-organization-member.use-case';
 import {
   RevokeOrganizationInvitationUseCase,
@@ -144,11 +145,12 @@ export class OrganizationMembersController {
   @ApiResponse({ status: 404, description: 'Member not found' })
   @ApiResponse({ status: 422, description: 'Last owner protection violation' })
   async removeOrganizationMember(
+    @CurrentActor() actor: ICurrentActor,
     @Param('orgId') orgId: string,
     @Param('memberId') memberId: string,
   ) {
     try {
-      await this.removeMember.execute({ organizationId: orgId, memberId });
+      await this.removeMember.execute({ organizationId: orgId, memberId, actorUserId: actor.userId });
       return { success: true };
     } catch (err) {
       if (err instanceof RemoveMemberNotFoundError) {
@@ -156,6 +158,9 @@ export class OrganizationMembersController {
       }
       if (err instanceof RemoveLastOwnerError) {
         throw new UnprocessableEntityException(err.message);
+      }
+      if (err instanceof CannotRemoveSelfError) {
+        throw new ForbiddenException(err.message);
       }
       throw err;
     }

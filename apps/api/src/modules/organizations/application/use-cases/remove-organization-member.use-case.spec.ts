@@ -2,6 +2,7 @@ import {
   RemoveOrganizationMemberUseCase,
   MemberNotFoundError,
   LastOwnerProtectionError,
+  CannotRemoveSelfError,
 } from './remove-organization-member.use-case';
 import type {
   IOrganizationInvitationRepository,
@@ -37,16 +38,16 @@ describe('RemoveOrganizationMemberUseCase', () => {
   it('should remove a member', async () => {
     repo.removeMemberAtomically.mockResolvedValue(undefined);
 
-    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1' });
+    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', actorUserId: 'actor-user' });
 
-    expect(repo.removeMemberAtomically).toHaveBeenCalledWith('member-1', 'org-1');
+    expect(repo.removeMemberAtomically).toHaveBeenCalledWith('member-1', 'org-1', 'actor-user');
   });
 
   it('should throw MemberNotFoundError when atomic method raises it', async () => {
     repo.removeMemberAtomically.mockRejectedValue(new MemberNotFoundError());
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', memberId: 'unknown' }),
+      useCase.execute({ organizationId: 'org-1', memberId: 'unknown', actorUserId: 'actor-user' }),
     ).rejects.toBeInstanceOf(MemberNotFoundError);
   });
 
@@ -54,22 +55,22 @@ describe('RemoveOrganizationMemberUseCase', () => {
     repo.removeMemberAtomically.mockRejectedValue(new LastOwnerProtectionError());
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', memberId: 'member-1' }),
+      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', actorUserId: 'actor-user' }),
     ).rejects.toBeInstanceOf(LastOwnerProtectionError);
   });
 
-  it('should allow removing an OWNER when multiple owners exist', async () => {
-    repo.removeMemberAtomically.mockResolvedValue(undefined);
+  it('should throw CannotRemoveSelfError when actor tries to remove themselves', async () => {
+    repo.removeMemberAtomically.mockRejectedValue(new CannotRemoveSelfError());
 
-    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1' });
-
-    expect(repo.removeMemberAtomically).toHaveBeenCalledWith('member-1', 'org-1');
+    await expect(
+      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', actorUserId: 'actor-user' }),
+    ).rejects.toBeInstanceOf(CannotRemoveSelfError);
   });
 
   it('should not call legacy non-atomic methods', async () => {
     repo.removeMemberAtomically.mockResolvedValue(undefined);
 
-    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1' });
+    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', actorUserId: 'actor-user' });
 
     expect(repo.findMemberById).not.toHaveBeenCalled();
     expect(repo.countActiveOwners).not.toHaveBeenCalled();

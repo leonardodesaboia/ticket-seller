@@ -10,6 +10,7 @@ import {
   MemberNotFoundError,
   LastOwnerProtectionError,
   InvitationAlreadyUsedError,
+  CannotRemoveSelfError,
 } from '../../domain/organization.errors';
 
 @Injectable()
@@ -209,15 +210,19 @@ export class PrismaOrganizationInvitationRepository implements IOrganizationInvi
     });
   }
 
-  async removeMemberAtomically(memberId: string, organizationId: string): Promise<void> {
+  async removeMemberAtomically(memberId: string, organizationId: string, actorUserId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const member = await tx.organizationMember.findFirst({
         where: { id: memberId, organizationId, status: 'ACTIVE' },
-        select: { role: true },
+        select: { role: true, userId: true },
       });
 
       if (!member) {
         throw new MemberNotFoundError();
+      }
+
+      if (member.userId === actorUserId) {
+        throw new CannotRemoveSelfError();
       }
 
       if (member.role === 'OWNER') {

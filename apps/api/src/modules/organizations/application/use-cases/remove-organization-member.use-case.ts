@@ -6,13 +6,15 @@ import {
 import {
   MemberNotFoundError,
   LastOwnerProtectionError,
+  CannotRemoveSelfError,
 } from '../../domain/organization.errors';
 
-export { MemberNotFoundError, LastOwnerProtectionError };
+export { MemberNotFoundError, LastOwnerProtectionError, CannotRemoveSelfError };
 
 export interface RemoveOrganizationMemberCommand {
   organizationId: string;
   memberId: string;
+  actorUserId: string;
 }
 
 @Injectable()
@@ -23,8 +25,8 @@ export class RemoveOrganizationMemberUseCase {
   ) {}
 
   async execute(command: RemoveOrganizationMemberCommand): Promise<void> {
-    // Atomically validates OWNER protection and soft-deletes member inside a DB transaction.
-    // Throws MemberNotFoundError or LastOwnerProtectionError on violation.
-    await this.repo.removeMemberAtomically(command.memberId, command.organizationId);
+    // Atomically validates: OWNER protection, self-removal guard, and soft-deletes.
+    // Throws MemberNotFoundError, LastOwnerProtectionError, or CannotRemoveSelfError.
+    await this.repo.removeMemberAtomically(command.memberId, command.organizationId, command.actorUserId);
   }
 }

@@ -52,6 +52,8 @@ export class InviteOrganizationMemberUseCase {
   ) {}
 
   async execute(command: InviteOrganizationMemberCommand): Promise<InviteOrganizationMemberResult> {
+    const normalizedEmail = command.email.toLowerCase().trim();
+
     if (!VALID_ORGANIZATION_ROLES.includes(command.role)) {
       throw new InvalidRoleError(command.role);
     }
@@ -70,7 +72,7 @@ export class InviteOrganizationMemberUseCase {
 
     // Security: do not reveal if email is already member — always respond 201
     // But we still skip insertion to avoid duplicates (idempotent invitation flow)
-    const alreadyMember = await this.repo.isActiveMember(command.organizationId, command.email);
+    const alreadyMember = await this.repo.isActiveMember(command.organizationId, normalizedEmail);
 
     const rawToken = randomUUID();
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
@@ -84,7 +86,7 @@ export class InviteOrganizationMemberUseCase {
         id,
         organizationId: command.organizationId,
         inviterId: command.inviterId,
-        email: command.email,
+        email: normalizedEmail,
         role: command.role,
         tokenHash,
         expiresAt,
@@ -96,7 +98,7 @@ export class InviteOrganizationMemberUseCase {
       );
       return {
         id,
-        email: command.email,
+        email: normalizedEmail,
         role: command.role,
         expiresAt,
         rawToken,

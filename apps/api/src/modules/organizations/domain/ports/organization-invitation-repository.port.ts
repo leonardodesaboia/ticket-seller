@@ -48,13 +48,14 @@ export interface IOrganizationInvitationRepository {
   updateMemberRoleAtomically(memberId: string, organizationId: string, newRole: string): Promise<void>;
 
   /**
-   * Atomically checks OWNER protection and soft-deletes the member within a single DB
+   * Atomically checks OWNER protection, self-removal guard, and soft-deletes within a single DB
    * transaction, preventing TOCTOU races where two OWNERs could be removed concurrently.
    *
-   * Throws MemberNotFoundError  – member does not exist or is not ACTIVE.
+   * Throws MemberNotFoundError      – member does not exist or is not ACTIVE.
    * Throws LastOwnerProtectionError – removing the last active OWNER.
+   * Throws CannotRemoveSelfError    – actor is trying to remove their own membership.
    */
-  removeMemberAtomically(memberId: string, organizationId: string): Promise<void>;
+  removeMemberAtomically(memberId: string, organizationId: string, actorUserId: string): Promise<void>;
 
   findUserEmailById(userId: string): Promise<string | null>;
 }

@@ -25,3 +25,10 @@ export class InvitationAlreadyUsedError extends Error {
     this.name = 'InvitationAlreadyUsedError';
   }
 }
+
+export class CannotRemoveSelfError extends Error {
+  constructor() {
+    super('A member cannot remove their own membership');
+    this.name = 'CannotRemoveSelfError';
+  }
+}

@@ -33,8 +33,8 @@ export class RevokeOrganizationInvitationUseCase {
       throw new InvitationNotFoundError();
     }
 
-    // Idempotent: already revoked → skip
-    if (invitation.isRevoked) {
+    // Idempotent: already revoked or already used → skip
+    if (invitation.isRevoked || invitation.isUsed) {
       return;
     }
 
