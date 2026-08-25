@@ -19,4 +19,6 @@ export interface IPasswordResetRepository {
   findByTokenHash(tokenHash: string): Promise<PasswordResetTokenRecord | null>;
   markUsed(id: string): Promise<void>;
   updateCredentialHash(userId: string, hash: string): Promise<void>;
+  /** Atomically mark token used AND update credential hash in one transaction. */
+  resetPasswordAtomically(id: string, userId: string, newHash: string): Promise<void>;
 }

@@ -51,19 +51,28 @@ export class SettleOrderUseCase {
         return false;
       }
 
-      // 3. Atomically move pending → available (no version check — lock above ensures serialization)
-      await tx.$executeRaw`
+      // 3. Atomically move pending → available.
+      // Guard pending_amount >= sellerNetAmount: if a refund already decremented pending before
+      // settlement ran, the balance is already correct and we should not over-decrement.
+      const balanceRows = await tx.$executeRaw`
         UPDATE seller_balances
         SET pending_amount   = pending_amount   - ${sellerNetAmount},
             available_amount = available_amount + ${sellerNetAmount},
             version          = version + 1,
             updated_at       = NOW()
         WHERE organization_id = ${organizationId}::uuid
+          AND pending_amount >= ${sellerNetAmount}
       `;
 
-      this.logger.log(
-        `Settled orderId=${orderId}: sellerNet=${sellerNetAmount} ${currency} moved pending→available for org=${organizationId}`,
-      );
+      if (balanceRows === 0) {
+        this.logger.warn(
+          `Settled orderId=${orderId}: pending_amount < sellerNet=${sellerNetAmount} — refund may have already adjusted balance for org=${organizationId}`,
+        );
+      } else {
+        this.logger.log(
+          `Settled orderId=${orderId}: sellerNet=${sellerNetAmount} ${currency} moved pending→available for org=${organizationId}`,
+        );
+      }
       return true;
     });
   }

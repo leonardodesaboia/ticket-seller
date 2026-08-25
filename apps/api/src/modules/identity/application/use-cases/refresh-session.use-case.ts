@@ -5,6 +5,8 @@ import { TOKEN_ISSUER, type ITokenIssuer } from '../../domain/ports/token-issuer
 
 export interface RefreshSessionInput {
   refreshToken: string;
+  ip?: string | undefined;
+  userAgent?: string | undefined;
 }
 
 export interface RefreshSessionOutput {
@@ -39,6 +41,8 @@ export class RefreshSessionUseCase {
       userId: rotated.userId,
       tokenHash: newTokenHash,
       expiresAt,
+      ip: input.ip,
+      userAgent: input.userAgent,
     });
 
     const accessToken = this.tokenIssuer.issueAccessToken({

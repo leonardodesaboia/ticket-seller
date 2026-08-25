@@ -13,6 +13,7 @@ interface EligibleOrderRow {
 export class SettlementWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SettlementWorker.name);
   private intervalHandle: NodeJS.Timeout | null = null;
+  private isRunning = false;
   private readonly pollIntervalMs = 3_600_000; // 1 hour
   private readonly chunkSize = 50;
 
@@ -37,6 +38,11 @@ export class SettlementWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async poll(): Promise<void> {
+    if (this.isRunning) {
+      this.logger.warn('SettlementWorker poll already in progress — skipping overlap');
+      return;
+    }
+    this.isRunning = true;
     this.logger.log('SettlementWorker poll started');
     try {
       let processed = 0;
@@ -65,6 +71,8 @@ export class SettlementWorker implements OnModuleInit, OnModuleDestroy {
       }
     } catch (err) {
       this.logger.error('SettlementWorker poll error', err);
+    } finally {
+      this.isRunning = false;
     }
   }
 

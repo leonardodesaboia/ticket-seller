@@ -22,6 +22,7 @@ const mockPasswordResetRepository: IPasswordResetRepository = {
   findByTokenHash: jest.fn().mockResolvedValue(VALID_TOKEN_RECORD),
   markUsed: jest.fn().mockResolvedValue(undefined),
   updateCredentialHash: jest.fn().mockResolvedValue(undefined),
+  resetPasswordAtomically: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockSessionRepository: ISessionRepository = {
@@ -42,21 +43,20 @@ describe('ResetPasswordUseCase', () => {
     jest.clearAllMocks();
     (mockPasswordResetRepository.findByTokenHash as jest.Mock).mockResolvedValue(VALID_TOKEN_RECORD);
     (mockHasher.hash as jest.Mock).mockResolvedValue('$argon2id$new-hash');
-    (mockPasswordResetRepository.markUsed as jest.Mock).mockResolvedValue(undefined);
-    (mockPasswordResetRepository.updateCredentialHash as jest.Mock).mockResolvedValue(undefined);
+    (mockPasswordResetRepository.resetPasswordAtomically as jest.Mock).mockResolvedValue(undefined);
     (mockSessionRepository.revokeAllByUserId as jest.Mock).mockResolvedValue(undefined);
   });
 
-  it('updates password hash, marks token used, revokes all sessions', async () => {
+  it('atomically resets password hash and marks token used, then revokes all sessions', async () => {
     const useCase = makeUseCase();
     await useCase.execute({ token: 'raw-token', newPassword: 'new-secure-password' });
 
     expect(mockHasher.hash).toHaveBeenCalledWith('new-secure-password');
-    expect(mockPasswordResetRepository.updateCredentialHash).toHaveBeenCalledWith(
+    expect(mockPasswordResetRepository.resetPasswordAtomically).toHaveBeenCalledWith(
+      'token-id',
       'user-123',
       '$argon2id$new-hash',
     );
-    expect(mockPasswordResetRepository.markUsed).toHaveBeenCalledWith('token-id');
     expect(mockSessionRepository.revokeAllByUserId).toHaveBeenCalledWith('user-123');
   });
 

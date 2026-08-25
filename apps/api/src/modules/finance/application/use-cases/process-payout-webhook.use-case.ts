@@ -118,6 +118,16 @@ export class ProcessPayoutWebhookUseCase {
         return;
       }
 
+      // Re-check status under lock: concurrent FAILED webhook may have already terminated this payout.
+      const payoutRows = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status FROM payouts WHERE id = ${payoutId}::uuid FOR UPDATE
+      `;
+      const currentStatus = payoutRows[0]?.status;
+      if (currentStatus === 'PAID' || currentStatus === 'FAILED') {
+        this.logger.warn(`Payout ${payoutId} already terminal (${currentStatus}) — skipping SUCCEEDED handler`);
+        return;
+      }
+
       // Update payout → PAID
       await this.payoutRepo.updateStatus(
         payoutId,
@@ -196,6 +206,16 @@ export class ProcessPayoutWebhookUseCase {
       `;
       if (rowsAffected === 0) {
         this.logger.log(`Payout webhook ${webhookEvent.providerEventId} already processed — skipping`);
+        return;
+      }
+
+      // Re-check status under lock: concurrent SUCCEEDED webhook may have already terminated this payout.
+      const payoutRows = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status FROM payouts WHERE id = ${payoutId}::uuid FOR UPDATE
+      `;
+      const currentStatus = payoutRows[0]?.status;
+      if (currentStatus === 'PAID' || currentStatus === 'FAILED') {
+        this.logger.warn(`Payout ${payoutId} already terminal (${currentStatus}) — skipping FAILED handler`);
         return;
       }
 

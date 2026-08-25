@@ -112,8 +112,8 @@ Os módulos `tickets`, `checkin` e `inventory` gerenciam emissão de ingressos, 
 | A4 | `prisma-inventory.repository.ts`: `initializeForEvent` envolto em `this.prisma.$transaction()`. | `prisma-inventory.repository.ts` |
 
 **Pendente:**
-- C1: `findByClaimTokenHash` sem `organization_id` — IDOR cross-tenant em transferências
-- A1: `cancel-transfer` UPDATE sem `AND status='PENDING'`
+- ~~C1: `findByClaimTokenHash` sem `organization_id`~~ — **FALSO POSITIVO**: o endpoint `POST /public/transfers/:claimToken/accept` é intencionalmente público (sem auth/tenant context). O claim token é 256-bit aleatório (segurança por obscuridade suficiente). `acceptAtomically` usa `transfer.organizationId` do registro do banco — correto. Sem `orgId` disponível no request para filtrar.
+- ~~A1: `cancel-transfer` UPDATE sem `AND status='PENDING'`~~ — **JÁ CORRIGIDO**: `prisma-ticket-transfer.repository.ts:86` já tem `AND status = 'PENDING'` e verifica `affected === 0`.
 - A3: `getAvailability` vs `tryReserve` — fontes de verdade diferentes
 - A5: `findByTokenHash` em `prisma-ticket-credential` sem `organization_id`
 - A6: Testes ausentes em repositórios críticos

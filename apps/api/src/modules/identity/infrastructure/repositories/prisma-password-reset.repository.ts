@@ -47,4 +47,17 @@ export class PrismaPasswordResetRepository implements IPasswordResetRepository {
       },
     });
   }
+
+  async resetPasswordAtomically(id: string, userId: string, newHash: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.update({
+        where: { id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.passwordCredential.update({
+        where: { userId },
+        data: { hash: newHash, lastChangedAt: new Date() },
+      }),
+    ]);
+  }
 }

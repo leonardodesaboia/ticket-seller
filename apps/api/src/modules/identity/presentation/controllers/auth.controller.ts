@@ -114,7 +114,9 @@ export class AuthController {
       throw new UnauthorizedException('Refresh token missing');
     }
 
-    const result = await this.refreshSessionUseCase.execute({ refreshToken });
+    const ip = (req.ip as string | undefined) ?? '0.0.0.0';
+    const userAgent = req.headers['user-agent'];
+    const result = await this.refreshSessionUseCase.execute({ refreshToken, ip, userAgent });
 
     this.setRefreshTokenCookie(reply, result.refreshToken);
 

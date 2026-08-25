@@ -117,15 +117,15 @@ O módulo `identity` está em bom estado geral (argon2id, token rotation atômic
 | M3 | `authenticate-with-password`: query filtrada por `deletedAt: null` e `suspendedAt: null`. | `authenticate-with-password.use-case.ts` |
 | A5 | Layer violation corrigida: criado `IUserRepository` port + `PrismaUserRepository` adapter. Quatro use cases (`authenticate-with-password`, `register-with-password`, `request-password-reset`, `get-current-identity`) agora injetam o port. Specs atualizadas. | `user.repository.port.ts`, `prisma-user.repository.ts`, 4 use-cases, 2 specs |
 
-**Pendente:**
-- A1: TOCTOU em P2002 na criação de usuário (race condition de email duplicado vira 500)
-- A2: Timing side-channel para enumeração de emails
+**Pendente e corrigido:**
+- ~~A1: TOCTOU em P2002~~ — **FALSO POSITIVO**: `prisma-user.repository.ts:110` já captura `P2002` e relança `ConflictException` → HTTP 409
+- ~~A2: Timing side-channel para enumeração de emails~~ — **FALSO POSITIVO**: `authenticate-with-password.use-case.ts:63` já faz `hasher.verify(dummy, ...)` quando identity não encontrado
 - A3: Sem fallback se `sessionRepository.create` falhar após `rotateByTokenHash`
 - A4: Index `[ip, attemptedAt]` faltando em `auth_attempts`
-- M1: `clearRefreshTokenCookie` sem flag `Secure` em produção
+- ~~M1: `clearRefreshTokenCookie` sem flag `Secure` em produção~~ — **FALSO POSITIVO**: `auth.controller.ts:220` já adiciona `Secure` no clear cookie
 - M2: `emailVerificationRepository.create` fora da transação de registro
 - M4: `forceReset` flag nunca verificado durante login
 - M5: `findActive*` retorna sessões inativas
-- M6: `markUsed` + `updateCredentialHash` sem transação
-- M7: Sessão renovada perde IP/UserAgent
+- ~~M6: `markUsed` + `updateCredentialHash` sem transação~~ — **CORRIGIDO 2026-08-25**: novo método `resetPasswordAtomically` no port + repository (Prisma transaction array). `reset-password.use-case.ts` atualizado para usar método atômico.
+- ~~M7: Sessão renovada perde IP/UserAgent~~ — **CORRIGIDO 2026-08-25**: `RefreshSessionInput` agora tem `ip` e `userAgent`; controller extrai e passa; `sessionRepository.create` já aceitava os campos opcionais.
 - B2: Algoritmo HS256 não configurado explicitamente no JWT
