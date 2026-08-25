@@ -1,5 +1,6 @@
 import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import {
   CancelPostPaymentOrderParams,
@@ -251,17 +252,15 @@ export class PrismaOrderCancellationRepository implements IOrderCancellationRepo
       `;
       cancelledTicketIds = ticketRows.map((r) => r.id);
 
-      // 5. Revoke active credentials for cancelled tickets
+      // 5. Revoke active credentials for cancelled tickets (bulk UPDATE)
       if (cancelledTicketIds.length > 0) {
-        for (const ticketId of cancelledTicketIds) {
-          await tx.$executeRaw`
-            UPDATE ticket_credentials
-            SET status = 'REVOKED',
-                revoked_at = NOW()
-            WHERE ticket_id = ${ticketId}::uuid
-              AND status = 'ACTIVE'
-          `;
-        }
+        await tx.$executeRaw`
+          UPDATE ticket_credentials
+          SET status = 'REVOKED',
+              revoked_at = NOW()
+          WHERE ticket_id = ANY(${cancelledTicketIds}::uuid[])
+            AND status = 'ACTIVE'
+        `;
       }
 
       // 6. Release committed inventory
@@ -320,21 +319,14 @@ export class PrismaOrderCancellationRepository implements IOrderCancellationRepo
         )
       `;
 
-      // 10. Outbox: ticket.cancelled.v1 for each ticket
-      for (const ticketId of cancelledTicketIds) {
-        await tx.$executeRaw`
-          INSERT INTO outbox_events (id, aggregate_type, aggregate_id, type, version, payload, organization_id, occurred_at)
-          VALUES (
-            gen_random_uuid(),
-            'ticket',
-            ${ticketId},
-            'ticket.cancelled.v1',
-            '1',
-            ${JSON.stringify({ ticketId, orderId, organizationId })}::jsonb,
-            ${organizationId}::uuid,
-            NOW()
-          )
-        `;
+      // 10. Outbox: ticket.cancelled.v1 — bulk INSERT for all cancelled tickets
+      if (cancelledTicketIds.length > 0) {
+        const rows = cancelledTicketIds.map((ticketId) =>
+          Prisma.sql`(gen_random_uuid(), 'ticket', ${ticketId}::uuid, 'ticket.cancelled.v1', '1', ${JSON.stringify({ ticketId, orderId, organizationId })}::jsonb, ${organizationId}::uuid, NOW())`,
+        );
+        await tx.$executeRaw(
+          Prisma.sql`INSERT INTO outbox_events (id, aggregate_type, aggregate_id, type, version, payload, organization_id, occurred_at) VALUES ${Prisma.join(rows)}`,
+        );
       }
     });
 
