@@ -71,10 +71,10 @@ function isIdempotencyUniqueViolation(error: unknown): boolean {
 }
 
 function isSerializationFailure(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    (error.code === 'P2034' || String(error.message).includes('40001'))
-  );
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const msg = String(error.message);
+  // P2034: Prisma serialization failure; 40001: serialization_failure; 40P01: deadlock_detected
+  return error.code === 'P2034' || msg.includes('40001') || msg.includes('40P01');
 }
 
 @Injectable()
