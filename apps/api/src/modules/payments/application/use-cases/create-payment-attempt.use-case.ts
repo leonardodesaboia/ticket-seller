@@ -97,22 +97,32 @@ export class CreatePaymentAttemptUseCase {
       description: `Order ${input.orderId}`,
     });
 
-    // Persist attempt
+    // Persist attempt. The DB enforces UNIQUE PARTIAL INDEX on (order_id)
+    // WHERE status IN ('PENDING', 'PROCESSING') so a concurrent second
+    // insert will throw P2002 — surface as PaymentAlreadyActiveError.
     const id = crypto.randomUUID();
-    const attempt = await this.attemptRepo.save({
-      id,
-      organizationId: order.organizationId,
-      orderId: input.orderId,
-      provider: this.gateway.provider,
-      externalPaymentId: gatewayResult.externalPaymentId,
-      status: gatewayResult.status,
-      paymentMethod: input.paymentMethod,
-      amount: order.totalAmount,
-      currency: order.currency,
-      idempotencyKey: input.idempotencyKey,
-      checkoutData: gatewayResult.checkoutData as Record<string, unknown> | null,
-      expiresAt: gatewayResult.expiresAt,
-    });
+    let attempt: PaymentAttempt;
+    try {
+      attempt = await this.attemptRepo.save({
+        id,
+        organizationId: order.organizationId,
+        orderId: input.orderId,
+        provider: this.gateway.provider,
+        externalPaymentId: gatewayResult.externalPaymentId,
+        status: gatewayResult.status,
+        paymentMethod: input.paymentMethod,
+        amount: order.totalAmount,
+        currency: order.currency,
+        idempotencyKey: input.idempotencyKey,
+        checkoutData: gatewayResult.checkoutData as Record<string, unknown> | null,
+        expiresAt: gatewayResult.expiresAt,
+      });
+    } catch (err) {
+      if (isUniqueActiveAttemptConflict(err)) {
+        throw new PaymentAlreadyActiveError(input.orderId);
+      }
+      throw err;
+    }
 
     // Outbox: payment.created.v1
     await this.prisma.$executeRaw`
@@ -124,4 +134,12 @@ export class CreatePaymentAttemptUseCase {
 
     return attempt;
   }
+}
+
+function isUniqueActiveAttemptConflict(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('code' in err)) return false;
+  if ((err as { code: unknown }).code !== 'P2002') return false;
+  const target = (err as { meta?: { target?: unknown } }).meta?.target;
+  const serialized = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  return serialized.toLowerCase().includes('unique_active_payment_attempt');
 }

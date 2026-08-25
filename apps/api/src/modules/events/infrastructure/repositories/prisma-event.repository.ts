@@ -129,6 +129,13 @@ export class PrismaEventRepository implements IEventRepository {
       });
 
       if (result.count === 0) {
+        // Distinguish version conflict from status change
+        const current = await tx.event.findFirst({
+          where: { id: input.eventId, organizationId: input.organizationId },
+          select: { status: true, version: true },
+        });
+        if (!current) throw new EventNotFoundError();
+        if (current.status !== 'DRAFT') throw new EventNotInDraftError();
         throw new EventVersionConflictError();
       }
 
@@ -211,6 +218,12 @@ export class PrismaEventRepository implements IEventRepository {
       });
 
       if (result.count === 0) {
+        const current = await tx.event.findFirst({
+          where: { id: input.eventId, organizationId: input.organizationId },
+          select: { status: true, version: true },
+        });
+        if (!current) throw new EventNotFoundError();
+        if (current.status !== 'DRAFT') throw new EventNotInDraftError();
         throw new EventVersionConflictError();
       }
 

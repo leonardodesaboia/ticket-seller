@@ -19,6 +19,7 @@ export const PUBLICATION_ISSUE_CODES = [
   'TICKET_TYPE_NAME_INVALID',
   'TICKET_TYPE_PRICE_INVALID',
   'TICKET_TYPE_CAPACITY_INVALID',
+  'EVENT_STARTS_AT_IN_PAST',
 ] as const;
 
 export type PublicationIssueCode = (typeof PUBLICATION_ISSUE_CODES)[number];
@@ -125,6 +126,20 @@ export class PublicationReadinessPolicy {
           'Defina a data e o horário de início.',
         ),
       );
+    } else if (event.startsAt.getTime() <= now.getTime()) {
+      // Only flag when endsAt is still in the future — if the event has
+      // already ended, EVENT_ALREADY_ENDED is the dominant signal.
+      const endsAtInFuture = event.endsAt === null || event.endsAt.getTime() > now.getTime();
+      if (endsAtInFuture) {
+        issues.push(
+          issue(
+            'EVENT_STARTS_AT_IN_PAST',
+            'startsAt',
+            'schedule',
+            'O início do evento deve ser no futuro.',
+          ),
+        );
+      }
     }
     if (event.endsAt === null) {
       issues.push(

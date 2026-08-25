@@ -1,4 +1,4 @@
-export type OrderStatus = 'PENDING_PAYMENT' | 'PAID' | 'TICKETS_ISSUED' | 'CANCELLED' | 'EXPIRED';
+export type OrderStatus = 'PENDING_PAYMENT' | 'PAID' | 'TICKETS_ISSUED' | 'CANCELLED' | 'EXPIRED' | 'REFUNDED';
 
 export interface Order {
   id: string;
