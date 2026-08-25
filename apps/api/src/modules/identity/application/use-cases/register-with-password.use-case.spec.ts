@@ -83,4 +83,13 @@ describe('RegisterWithPasswordUseCase', () => {
     expect(resultStr).not.toContain('hash');
     expect(resultStr).not.toContain('argon2');
   });
+
+  it('succeeds even if emailVerification.create fails — user already created', async () => {
+    (mockEmailVerificationRepository.create as jest.Mock).mockRejectedValue(new Error('DB error'));
+    const useCase = makeUseCase();
+
+    const result = await useCase.execute({ email: 'new@example.com', password: 'password123' });
+
+    expect(result).toHaveProperty('userId', 'user-new-id');
+  });
 });

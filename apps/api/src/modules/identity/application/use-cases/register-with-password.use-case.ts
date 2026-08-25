@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { createHash } from 'crypto';
 import { PASSWORD_HASHER, type IPasswordHasher } from '../../domain/ports/password-hasher.port';
@@ -18,6 +18,8 @@ export interface RegisterWithPasswordOutput {
 
 @Injectable()
 export class RegisterWithPasswordUseCase {
+  private readonly logger = new Logger(RegisterWithPasswordUseCase.name);
+
   constructor(
     @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
     @Inject(PASSWORD_HASHER) private readonly hasher: IPasswordHasher,
@@ -45,13 +47,23 @@ export class RegisterWithPasswordUseCase {
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
-    await this.emailVerificationRepository.create({ userId, tokenHash, expiresAt });
+    // Email verification token creation is outside the user registration transaction.
+    // If it fails, the user is already created — log a critical warning so ops can
+    // trigger a resend. Do NOT propagate the error: the registration itself succeeded.
+    try {
+      await this.emailVerificationRepository.create({ userId, tokenHash, expiresAt });
 
-    if (env.RESEND_API_KEY) {
-      // Email sending would be handled by a notification worker via outbox
-    } else if (env.NODE_ENV !== 'production') {
-      const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${rawToken}`;
-      process.stdout.write(`[DEV] Email verification URL for ${normalizedEmail}: ${verifyUrl}\n`);
+      if (env.RESEND_API_KEY) {
+        // Email sending would be handled by a notification worker via outbox
+      } else if (env.NODE_ENV !== 'production') {
+        const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${rawToken}`;
+        process.stdout.write(`[DEV] Email verification URL for ${normalizedEmail}: ${verifyUrl}\n`);
+      }
+    } catch (err) {
+      this.logger.error(
+        `User ${userId} created but email verification token could not be persisted — requires manual resend`,
+        err,
+      );
     }
 
     return { userId };
