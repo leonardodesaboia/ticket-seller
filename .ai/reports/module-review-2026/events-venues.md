@@ -111,7 +111,7 @@ Os módulos `events` e `venues` implementam criação, publicação e cancelamen
 | A2 | `cancelledAt` agora capturado do `RETURNING cancelled_at` dentro da transação. | `prisma-event-cancellation.repository.ts` |
 
 **Pendente:**
-- A4: `FOR UPDATE SKIP LOCKED` no cancelamento de evento (orders em processamento podem ser puladas)
+- ~~A4: `FOR UPDATE SKIP LOCKED` no cancelamento de evento~~ — **FALSO POSITIVO**: `prisma-event-cancellation.repository.ts:77` já tem `FOR UPDATE SKIP LOCKED` no loop de cancelamento de orders
 - A5: Zero testes no módulo venues
 - M2: `updateMany` lança `EventVersionConflictError` incorreto quando status mudou
 - M3: `actorId` ausente do `requestHash` em `create-ticket-type`

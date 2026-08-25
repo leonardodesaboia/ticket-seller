@@ -47,14 +47,15 @@ export class PrismaOrganizationInvitationRepository implements IOrganizationInvi
   }
 
   async markInvitationUsed(id: string, userId: string): Promise<void> {
-    // Fetch invitation data outside the transaction (read-only, no race condition here).
-    const invitation = await this.prisma.organizationInvitation.findUniqueOrThrow({ where: { id } });
-
     await this.prisma.$transaction(async (tx) => {
-      // TOCTOU guard: use updateMany with usedAt: null so only the first concurrent
-      // request succeeds; a count of 0 means another request already used the token.
+      // Read invitation inside the transaction: any concurrent revocation between
+      // the external read and the UPDATE would create a member from a stale state.
+      const invitation = await tx.organizationInvitation.findUniqueOrThrow({ where: { id } });
+
+      // TOCTOU guard: updateMany with usedAt: null AND revokedAt: null ensures
+      // only the first concurrent request succeeds; revoked invitations are blocked here.
       const updated = await tx.organizationInvitation.updateMany({
-        where: { id, usedAt: null },
+        where: { id, usedAt: null, revokedAt: null },
         data: { usedAt: new Date() },
       });
 

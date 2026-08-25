@@ -103,7 +103,7 @@ O módulo `organizations` tem arquitetura limpa com testes unitários para todos
 - A1: ADMIN pode promover a OWNER sem validação adicional no use case
 - ~~A2: Auto-remoção sem proteção~~ — **CORRIGIDO 2026-08-25**: `CannotRemoveSelfError` adicionado em `organization.errors.ts`. `removeMemberAtomically` agora recebe `actorUserId` e verifica `member.userId === actorUserId` dentro da transação. Use case, port e controller atualizados. Spec adiciona caso para `CannotRemoveSelfError`.
 - A3: Índices compostos faltando em `organization_members`
-- M1: `markInvitationUsed` — leitura fora de transação
+- ~~M1: `markInvitationUsed` — leitura fora de transação~~ — **CORRIGIDO 2026-08-25**: `findUniqueOrThrow` movido para dentro da transação; `updateMany` agora inclui `revokedAt: null` além de `usedAt: null` — impede criação de membro a partir de convite concorrentemente revogado
 - M2: Convites duplicados para mesmo email
 - ~~M3: Email não normalizado (lowercase) na criação de convite~~ — **CORRIGIDO 2026-08-25**: `normalizedEmail = command.email.toLowerCase().trim()` adicionado no início de `execute`. Todos os usos de `command.email` substituídos por `normalizedEmail`.
 - ~~M4: `revogar` convite já usado não verifica `isUsed`~~ — **CORRIGIDO 2026-08-25**: `revoke-organization-invitation.use-case.ts` — guard atualizado para `if (invitation.isRevoked || invitation.isUsed) return;`
