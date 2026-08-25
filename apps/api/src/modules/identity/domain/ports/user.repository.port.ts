@@ -11,6 +11,7 @@ export interface IdentityWithCredential {
   userId: string;
   user: { id: string; email: string; displayName: string | null };
   credentialHash: string;
+  forceReset: boolean;
 }
 
 export interface RegisterUserInput {

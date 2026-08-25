@@ -3,6 +3,7 @@ import {
   MemberNotFoundError,
   LastOwnerProtectionError,
   InvalidRoleError,
+  InsufficientRoleToAssignError,
 } from './update-member-role.use-case';
 import type {
   IOrganizationInvitationRepository,
@@ -38,14 +39,14 @@ describe('UpdateMemberRoleUseCase', () => {
   it('should update member role when valid', async () => {
     repo.updateMemberRoleAtomically.mockResolvedValue(undefined);
 
-    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'FINANCE' });
+    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'FINANCE', actorUserId: 'actor-user' });
 
     expect(repo.updateMemberRoleAtomically).toHaveBeenCalledWith('member-1', 'org-1', 'FINANCE');
   });
 
   it('should throw InvalidRoleError for invalid role', async () => {
     await expect(
-      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'GOD_MODE' }),
+      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'GOD_MODE', actorUserId: 'actor-user' }),
     ).rejects.toBeInstanceOf(InvalidRoleError);
   });
 
@@ -53,7 +54,7 @@ describe('UpdateMemberRoleUseCase', () => {
     repo.updateMemberRoleAtomically.mockRejectedValue(new MemberNotFoundError());
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', memberId: 'unknown', newRole: 'ADMIN' }),
+      useCase.execute({ organizationId: 'org-1', memberId: 'unknown', newRole: 'ADMIN', actorUserId: 'actor-user' }),
     ).rejects.toBeInstanceOf(MemberNotFoundError);
   });
 
@@ -61,30 +62,49 @@ describe('UpdateMemberRoleUseCase', () => {
     repo.updateMemberRoleAtomically.mockRejectedValue(new LastOwnerProtectionError());
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'ADMIN' }),
+      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'ADMIN', actorUserId: 'actor-user' }),
     ).rejects.toBeInstanceOf(LastOwnerProtectionError);
   });
 
   it('should allow demoting OWNER when there are multiple owners', async () => {
     repo.updateMemberRoleAtomically.mockResolvedValue(undefined);
 
-    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'ADMIN' });
+    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'ADMIN', actorUserId: 'actor-user' });
 
     expect(repo.updateMemberRoleAtomically).toHaveBeenCalledWith('member-1', 'org-1', 'ADMIN');
   });
 
-  it('should allow promoting a non-OWNER to OWNER', async () => {
+  it('should allow promoting to OWNER when actor is an OWNER (has ROLES_ASSIGN)', async () => {
+    repo.findActiveMemberByUserId.mockResolvedValue({ id: 'actor-member', role: 'OWNER' });
     repo.updateMemberRoleAtomically.mockResolvedValue(undefined);
 
-    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'OWNER' });
+    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'OWNER', actorUserId: 'actor-user' });
 
     expect(repo.updateMemberRoleAtomically).toHaveBeenCalledWith('member-1', 'org-1', 'OWNER');
+  });
+
+  it('should throw InsufficientRoleToAssignError when non-OWNER actor promotes to OWNER', async () => {
+    repo.findActiveMemberByUserId.mockResolvedValue({ id: 'actor-member', role: 'ADMIN' });
+
+    await expect(
+      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'OWNER', actorUserId: 'actor-user' }),
+    ).rejects.toBeInstanceOf(InsufficientRoleToAssignError);
+
+    expect(repo.updateMemberRoleAtomically).not.toHaveBeenCalled();
+  });
+
+  it('should throw InsufficientRoleToAssignError when actor is not an org member and promotes to OWNER', async () => {
+    repo.findActiveMemberByUserId.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'OWNER', actorUserId: 'outsider' }),
+    ).rejects.toBeInstanceOf(InsufficientRoleToAssignError);
   });
 
   it('should not call legacy non-atomic methods', async () => {
     repo.updateMemberRoleAtomically.mockResolvedValue(undefined);
 
-    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'FINANCE' });
+    await useCase.execute({ organizationId: 'org-1', memberId: 'member-1', newRole: 'FINANCE', actorUserId: 'actor-user' });
 
     expect(repo.findMemberById).not.toHaveBeenCalled();
     expect(repo.countActiveOwners).not.toHaveBeenCalled();

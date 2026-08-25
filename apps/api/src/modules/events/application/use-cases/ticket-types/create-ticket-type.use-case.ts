@@ -33,6 +33,7 @@ export interface CreateTicketTypeCommand {
 
 function hashRequest(command: CreateTicketTypeCommand): string {
   const payload = JSON.stringify({
+    actorId: command.actorId,
     organizationId: command.organizationId,
     eventId: command.eventId,
     name: command.name,

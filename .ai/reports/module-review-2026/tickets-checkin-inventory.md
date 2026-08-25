@@ -115,7 +115,7 @@ Os módulos `tickets`, `checkin` e `inventory` gerenciam emissão de ingressos, 
 - ~~C1: `findByClaimTokenHash` sem `organization_id`~~ — **FALSO POSITIVO**: o endpoint `POST /public/transfers/:claimToken/accept` é intencionalmente público (sem auth/tenant context). O claim token é 256-bit aleatório (segurança por obscuridade suficiente). `acceptAtomically` usa `transfer.organizationId` do registro do banco — correto. Sem `orgId` disponível no request para filtrar.
 - ~~A1: `cancel-transfer` UPDATE sem `AND status='PENDING'`~~ — **JÁ CORRIGIDO**: `prisma-ticket-transfer.repository.ts:86` já tem `AND status = 'PENDING'` e verifica `affected === 0`.
 - A3: `getAvailability` vs `tryReserve` — fontes de verdade diferentes
-- A5: `findByTokenHash` em `prisma-ticket-credential` sem `organization_id`
+- ~~A5: `findByTokenHash` em `prisma-ticket-credential` sem `organization_id`~~ — **CORRIGIDO 2026-08-25**: port atualizado para `findByTokenHash(tokenHash, organizationId)`. Query adiciona `AND organization_id = ${organizationId}::uuid`. Corrigido antes de ter callers — porta segura para uso futuro.
 - A6: Testes ausentes em repositórios críticos
 - M1: Endpoint público de accept-transfer sem rate-limit
 - M4: `releaseHold` silencia underflow com `GREATEST`

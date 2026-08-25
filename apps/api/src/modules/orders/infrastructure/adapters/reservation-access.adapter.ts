@@ -85,17 +85,19 @@ export class PrismaReservationAccessAdapter implements IReservationAccess {
   }
 
   private async resolveUniqueConflict(input: CreateOrderFromReservationInput): Promise<OrderView> {
-    const reservation = await this.findReservation(this.prisma, input.reservationId);
-    if (!reservation) throw new ReservationNotFoundForOrderError();
-    if (reservation.continuation_token_hash !== input.tokenHash) throw new InvalidReservationTokenForOrderError();
-    const record = await this.prisma.idempotencyRecord.findUnique({ where: { idempotencyKey: `order-create:${input.idempotencyKey}` } });
-    if (record) {
-      if (record.requestHash !== input.requestHash || !record.completedAt) throw new OrderIdempotencyConflictError();
-      const replay = await this.findOrderByIdempotencyKey(this.prisma, input.idempotencyKey);
-      if (replay) return toView(replay, await this.findOrderItems(this.prisma, replay.id));
-    }
-    if (await this.findOrderByReservation(this.prisma, input.reservationId)) throw new OrderAlreadyExistsError();
-    throw new OrderIdempotencyConflictError();
+    return this.prisma.$transaction(async (tx) => {
+      const reservation = await this.findReservation(tx, input.reservationId);
+      if (!reservation) throw new ReservationNotFoundForOrderError();
+      if (reservation.continuation_token_hash !== input.tokenHash) throw new InvalidReservationTokenForOrderError();
+      const record = await tx.idempotencyRecord.findUnique({ where: { idempotencyKey: `order-create:${input.idempotencyKey}` } });
+      if (record) {
+        if (record.requestHash !== input.requestHash || !record.completedAt) throw new OrderIdempotencyConflictError();
+        const replay = await this.findOrderByIdempotencyKey(tx, input.idempotencyKey);
+        if (replay) return toView(replay, await this.findOrderItems(tx, replay.id));
+      }
+      if (await this.findOrderByReservation(tx, input.reservationId)) throw new OrderAlreadyExistsError();
+      throw new OrderIdempotencyConflictError();
+    });
   }
 
   private async findReservation(client: Pick<PrismaService, '$queryRaw'> | TransactionClient, id: string): Promise<ReservationRow | null> {

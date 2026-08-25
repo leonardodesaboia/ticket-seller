@@ -48,10 +48,11 @@ export class PrismaTicketCredentialRepository implements ITicketCredentialReposi
     return rows[0] ? toEntity(rows[0]) : null;
   }
 
-  async findByTokenHash(tokenHash: string): Promise<TicketCredential | null> {
+  async findByTokenHash(tokenHash: string, organizationId: string): Promise<TicketCredential | null> {
     const rows = await this.prisma.$queryRaw<RawCredentialRow[]>`
       SELECT * FROM ticket_credentials
       WHERE token_hash = ${tokenHash}
+        AND organization_id = ${organizationId}::uuid
       LIMIT 1
     `;
     return rows[0] ? toEntity(rows[0]) : null;

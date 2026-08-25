@@ -6,15 +6,21 @@ import {
 import {
   MemberNotFoundError,
   LastOwnerProtectionError,
+  InsufficientRoleToAssignError,
 } from '../../domain/organization.errors';
-import { VALID_ORGANIZATION_ROLES } from '../../../../shared/kernel/organization-capability';
+import {
+  VALID_ORGANIZATION_ROLES,
+  ROLE_CAPABILITIES,
+  OrganizationCapability,
+} from '../../../../shared/kernel/organization-capability';
 
-export { MemberNotFoundError, LastOwnerProtectionError };
+export { MemberNotFoundError, LastOwnerProtectionError, InsufficientRoleToAssignError };
 
 export interface UpdateMemberRoleCommand {
   organizationId: string;
   memberId: string;
   newRole: string;
+  actorUserId: string;
 }
 
 export class InvalidRoleError extends Error {
@@ -34,6 +40,16 @@ export class UpdateMemberRoleUseCase {
   async execute(command: UpdateMemberRoleCommand): Promise<void> {
     if (!VALID_ORGANIZATION_ROLES.includes(command.newRole)) {
       throw new InvalidRoleError(command.newRole);
+    }
+
+    // Defense-in-depth: only an actor with ROLES_ASSIGN capability can promote to OWNER,
+    // regardless of whatever the route guard currently permits.
+    if (command.newRole === 'OWNER') {
+      const actorMember = await this.repo.findActiveMemberByUserId(command.organizationId, command.actorUserId);
+      const actorCapabilities = actorMember ? (ROLE_CAPABILITIES[actorMember.role] ?? []) : [];
+      if (!actorCapabilities.includes(OrganizationCapability.ROLES_ASSIGN)) {
+        throw new InsufficientRoleToAssignError();
+      }
     }
 
     // Atomically validates OWNER protection and updates role inside a DB transaction.

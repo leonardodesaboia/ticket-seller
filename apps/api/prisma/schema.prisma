@@ -104,6 +104,8 @@ model OrganizationMember {
   user         User         @relation(fields: [userId], references: [id])
 
   @@unique([organizationId, userId])
+  @@index([organizationId, status])
+  @@index([organizationId, role, status])
   @@map("organization_members")
 }
 

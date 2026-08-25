@@ -32,3 +32,10 @@ export class CannotRemoveSelfError extends Error {
     this.name = 'CannotRemoveSelfError';
   }
 }
+
+export class InsufficientRoleToAssignError extends Error {
+  constructor() {
+    super('Only an OWNER can assign the OWNER role');
+    this.name = 'InsufficientRoleToAssignError';
+  }
+}

@@ -11,6 +11,7 @@ const TEST_IDENTITY_WITH_CREDENTIAL = {
   userId: TEST_USER.id,
   user: TEST_USER,
   credentialHash: '$argon2id$hashed',
+  forceReset: false,
 };
 
 const mockHasher: IPasswordHasher = {
@@ -79,6 +80,21 @@ describe('AuthenticateWithPasswordUseCase', () => {
     expect(result.user.email).toBe(TEST_USER.email);
     expect(result.refreshToken).toBeDefined();
     expect(typeof result.refreshToken).toBe('string');
+    expect(result.mustResetPassword).toBe(false);
+  });
+
+  it('returns mustResetPassword=true when credential has forceReset flag', async () => {
+    (mockUserRepository.findIdentityWithCredential as jest.Mock).mockResolvedValue({
+      ...TEST_IDENTITY_WITH_CREDENTIAL,
+      forceReset: true,
+    });
+    const useCase = makeUseCase();
+
+    const result = await useCase.execute({ email: 'user@example.com', password: 'correct', ip: '127.0.0.1' });
+
+    expect(result.mustResetPassword).toBe(true);
+    // Session is still created — user needs the token to call the reset endpoint
+    expect(result.accessToken).toBe('access-token-jwt');
   });
 
   it('records SUCCESS attempt on valid credentials', async () => {

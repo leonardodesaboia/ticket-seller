@@ -44,7 +44,7 @@ export class PrismaUserRepository implements IUserRepository {
 
     const credential = await this.prisma.passwordCredential.findUnique({
       where: { userId: identity.userId },
-      select: { hash: true },
+      select: { hash: true, forceReset: true },
     });
     if (!credential) return null;
 
@@ -52,6 +52,7 @@ export class PrismaUserRepository implements IUserRepository {
       userId: identity.userId,
       user: identity.user,
       credentialHash: credential.hash,
+      forceReset: credential.forceReset,
     };
   }
 

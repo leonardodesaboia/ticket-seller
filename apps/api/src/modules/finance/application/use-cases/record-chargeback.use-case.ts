@@ -7,6 +7,7 @@ import {
   SELLER_BALANCE_REPOSITORY,
   ISellerBalanceRepository,
 } from '../../domain/ports/seller-balance.repository.port';
+import { PrismaService } from '../../../../platform/database/prisma.service';
 
 export interface RecordChargebackInput {
   orderId: string;
@@ -25,6 +26,7 @@ export class RecordChargebackUseCase {
     private readonly ledgerRepository: ILedgerRepository,
     @Inject(SELLER_BALANCE_REPOSITORY)
     private readonly sellerBalanceRepo: ISellerBalanceRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(input: RecordChargebackInput): Promise<void> {
@@ -84,11 +86,38 @@ export class RecordChargebackUseCase {
       tx,
     );
 
-    // Update seller balance: available -= chargebackAmount (can go negative per D10)
-    await this.sellerBalanceRepo.decrementAvailable(organizationId, chargebackAmount, tx);
+    // Decrement pending or available depending on whether the order has been settled.
+    // Chargeback can drive the balance negative per D10.
+    await this.adjustSellerBalanceForChargeback(orderId, organizationId, chargebackAmount, tx);
 
     this.logger.log(
       `Chargeback ledger entries recorded for orderId=${orderId}, amount=${chargebackAmount} ${currency}`,
     );
+  }
+
+  /**
+   * If the order has been settled (balance_settlements row exists), decrement available.
+   * Otherwise decrement pending — the funds never left the holding bucket.
+   */
+  private async adjustSellerBalanceForChargeback(
+    orderId: string,
+    organizationId: string,
+    chargebackAmount: bigint,
+    tx?: unknown,
+  ): Promise<void> {
+    type TxClient = { $queryRaw: PrismaService['$queryRaw'] };
+    const client: TxClient = (tx as TxClient | undefined) ?? this.prisma;
+    const rows = await client.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*)::bigint AS count
+      FROM balance_settlements
+      WHERE order_id = ${orderId}::uuid
+    `;
+    const isSettled = Number(rows[0]?.count ?? 0n) > 0;
+
+    if (isSettled) {
+      await this.sellerBalanceRepo.decrementAvailable(organizationId, chargebackAmount, tx);
+    } else {
+      await this.sellerBalanceRepo.decrementPending(organizationId, chargebackAmount, tx);
+    }
   }
 }

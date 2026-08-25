@@ -26,13 +26,18 @@ interface CachedTicketType {
   updatedAt: string;
 }
 
+/**
+ * True only for a unique-constraint violation on the idempotency key. Other
+ * P2002 violations (e.g. ticket_type name uniqueness) must propagate instead of
+ * being misread as an idempotency replay.
+ */
 function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === 'P2002'
-  );
+  if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2002') {
+    return false;
+  }
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  const serialized = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  return serialized.toLowerCase().includes('idempotency');
 }
 
 function parseCachedTicketType(value: unknown): CachedTicketType | null {

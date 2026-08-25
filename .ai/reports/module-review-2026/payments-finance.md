@@ -118,7 +118,7 @@ Os módulos `payments` e `finance` são o núcleo financeiro do sistema. A anál
 **Pendente:**
 - ~~C1: `payout-webhook.controller.ts` sem try/catch~~ — **JÁ CORRIGIDO**
 - ~~A1: `record-refund.use-case.ts` — ledger desbalanceado~~ — **JÁ CORRIGIDO**: `totalPlatformFee = platformFeeAmount + processingFeeAmount` em todas as 3 políticas (RETAIN, REFUND, PROPORTIONAL)
-- A2: `record-chargeback.use-case.ts` — decrementa `available` sem verificar se settled
+- ~~A2: `record-chargeback.use-case.ts` — decrementa `available` sem verificar se settled~~ — **CORRIGIDO 2026-08-25**: método `adjustSellerBalanceForChargeback` adicionado — consulta `balance_settlements` para o `orderId`; se settled: `decrementAvailable`; se não: `decrementPending`. Segue o mesmo padrão de `record-refund.use-case.ts`.
 - ~~A5: Race condition no `process-payout-webhook.use-case.ts`~~ — **CORRIGIDO 2026-08-25**: `SELECT ... FOR UPDATE` após dedup INSERT nos handlers `handleSucceeded` e `handleFailed`, revalida status antes de mutar
 - A6: Sem testes para `record-sale` e `record-refund`
 - A7: Race condition em `create-payment-attempt` (constraint `UNIQUE PARTIAL` faltando)

@@ -124,7 +124,7 @@ O módulo `identity` está em bom estado geral (argon2id, token rotation atômic
 - A4: Index `[ip, attemptedAt]` faltando em `auth_attempts`
 - ~~M1: `clearRefreshTokenCookie` sem flag `Secure` em produção~~ — **FALSO POSITIVO**: `auth.controller.ts:220` já adiciona `Secure` no clear cookie
 - M2: `emailVerificationRepository.create` fora da transação de registro
-- M4: `forceReset` flag nunca verificado durante login
+- ~~M4: `forceReset` flag nunca verificado durante login~~ — **CORRIGIDO 2026-08-25**: `IdentityWithCredential` agora inclui `forceReset: boolean`. `findIdentityWithCredential` seleciona `forceReset` do `PasswordCredential`. `AuthenticateWithPasswordOutput` inclui `mustResetPassword: boolean`. Sessão ainda é criada — o cliente redireciona para reset. Spec atualizado com 1 novo teste.
 - M5: `findActive*` retorna sessões inativas
 - ~~M6: `markUsed` + `updateCredentialHash` sem transação~~ — **CORRIGIDO 2026-08-25**: novo método `resetPasswordAtomically` no port + repository (Prisma transaction array). `reset-password.use-case.ts` atualizado para usar método atômico.
 - ~~M7: Sessão renovada perde IP/UserAgent~~ — **CORRIGIDO 2026-08-25**: `RefreshSessionInput` agora tem `ip` e `userAgent`; controller extrai e passa; `sessionRepository.create` já aceitava os campos opcionais.

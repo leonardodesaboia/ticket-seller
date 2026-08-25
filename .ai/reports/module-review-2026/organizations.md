@@ -100,9 +100,9 @@ O módulo `organizations` tem arquitetura limpa com testes unitários para todos
 | M8 | `rawToken` movido de `logger.log` para `logger.debug`. | `invite-organization-member.use-case.ts` |
 
 **Pendente:**
-- A1: ADMIN pode promover a OWNER sem validação adicional no use case
+- ~~A1: ADMIN pode promover a OWNER sem validação adicional no use case~~ — **CORRIGIDO 2026-08-25**: `InsufficientRoleToAssignError` movida para `organization.errors.ts`. `update-member-role.use-case.ts` agora recebe `actorUserId` no command; se `newRole === 'OWNER'`, verifica `ROLES_ASSIGN` capability do ator via `findActiveMemberByUserId`. Spec atualizado com 2 novos testes. Controller passa `actor.userId` e mapeia `InsufficientRoleToAssignError` → 403.
 - ~~A2: Auto-remoção sem proteção~~ — **CORRIGIDO 2026-08-25**: `CannotRemoveSelfError` adicionado em `organization.errors.ts`. `removeMemberAtomically` agora recebe `actorUserId` e verifica `member.userId === actorUserId` dentro da transação. Use case, port e controller atualizados. Spec adiciona caso para `CannotRemoveSelfError`.
-- A3: Índices compostos faltando em `organization_members`
+- ~~A3: Índices compostos faltando em `organization_members`~~ — **CORRIGIDO 2026-08-25**: `@@index([organizationId, status])` e `@@index([organizationId, role, status])` adicionados ao model `OrganizationMember` em `schema.prisma`.
 - ~~M1: `markInvitationUsed` — leitura fora de transação~~ — **CORRIGIDO 2026-08-25**: `findUniqueOrThrow` movido para dentro da transação; `updateMany` agora inclui `revokedAt: null` além de `usedAt: null` — impede criação de membro a partir de convite concorrentemente revogado
 - M2: Convites duplicados para mesmo email
 - ~~M3: Email não normalizado (lowercase) na criação de convite~~ — **CORRIGIDO 2026-08-25**: `normalizedEmail = command.email.toLowerCase().trim()` adicionado no início de `execute`. Todos os usos de `command.email` substituídos por `normalizedEmail`.

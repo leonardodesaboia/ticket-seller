@@ -115,6 +115,7 @@ export class OrganizationMembersController {
   @ApiResponse({ status: 404, description: 'Member not found' })
   @ApiResponse({ status: 422, description: 'Last owner protection violation' })
   async updateMemberRole(
+    @CurrentActor() actor: ICurrentActor,
     @Param('orgId') orgId: string,
     @Param('memberId') memberId: string,
     @Body() dto: UpdateMemberRoleDto,
@@ -124,6 +125,7 @@ export class OrganizationMembersController {
         organizationId: orgId,
         memberId,
         newRole: dto.role,
+        actorUserId: actor.userId,
       });
       return { success: true };
     } catch (err) {
@@ -132,6 +134,9 @@ export class OrganizationMembersController {
       }
       if (err instanceof UpdateLastOwnerError) {
         throw new UnprocessableEntityException(err.message);
+      }
+      if (err instanceof InsufficientRoleToAssignError) {
+        throw new ForbiddenException(err.message);
       }
       throw err;
     }

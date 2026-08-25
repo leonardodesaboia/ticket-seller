@@ -10,7 +10,10 @@ import {
   ROLE_CAPABILITIES,
   OrganizationCapability,
 } from '../../../../shared/kernel/organization-capability';
+import { InsufficientRoleToAssignError } from '../../domain/organization.errors';
 const INVITATION_TTL_DAYS = 7;
+
+export { InsufficientRoleToAssignError };
 
 export interface InviteOrganizationMemberCommand {
   organizationId: string;
@@ -32,13 +35,6 @@ export class InvalidRoleError extends Error {
   constructor(role: string) {
     super(`Invalid role: ${role}`);
     this.name = 'InvalidRoleError';
-  }
-}
-
-export class InsufficientRoleToAssignError extends Error {
-  constructor() {
-    super('Only an OWNER can invite members with the OWNER role');
-    this.name = 'InsufficientRoleToAssignError';
   }
 }
 

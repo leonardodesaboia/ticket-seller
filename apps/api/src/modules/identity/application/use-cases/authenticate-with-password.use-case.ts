@@ -16,6 +16,7 @@ export interface AuthenticateWithPasswordInput {
 export interface AuthenticateWithPasswordOutput {
   accessToken: string;
   refreshToken: string;
+  mustResetPassword: boolean;
   user: {
     id: string;
     email: string;
@@ -94,6 +95,7 @@ export class AuthenticateWithPasswordUseCase {
     return {
       accessToken,
       refreshToken: rawToken,
+      mustResetPassword: identityWithCredential.forceReset,
       user: identityWithCredential.user,
     };
   }

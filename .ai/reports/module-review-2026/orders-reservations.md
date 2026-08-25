@@ -120,10 +120,10 @@ Os módulos `orders` e `reservations` implementam o fluxo de compra desde a rese
 | A5 | IDOR: `order-cancellation.controller.ts` agora tem `@UseGuards(ActorGuard, OrganizationRoleGuard)` e `@RequireCapability(OrganizationCapability.EVENTS_MANAGE)`. `orders.module.ts` atualizado com providers do guard. | `order-cancellation.controller.ts`, `orders.module.ts` |
 
 **Pendente:**
-- C1: `cancel()` de reserva ainda pode ter janela de TOCTOU se `findReservation` for feito antes do lock
+- ~~C1: `cancel()` de reserva TOCTOU~~ — **FALSO POSITIVO verificado 2026-08-25**: `prisma-reservation.repository.ts:188-192` já usa `SELECT ... FOR UPDATE` dentro de `cancelWithRetries` — o lock acontece dentro da transação. A1 cobriu isso.
 - ~~A2: `isSerializationFailure` não captura `40P01`~~ — **CORRIGIDO 2026-08-25**: `msg.includes('40P01')` adicionado à função `isSerializationFailure`
 - A3: `total_amount` sempre igual a `subtotal_amount` — taxas nunca aplicadas
-- A4: `resolveUniqueConflict` — 3 queries fora de transação
+- ~~A4: `resolveUniqueConflict` — 3 queries fora de transação~~ — **CORRIGIDO 2026-08-25**: `resolveUniqueConflict` agora envolve todas as 3 leituras em `this.prisma.$transaction()`, passando o cliente `tx` para todos os helpers internos. Snapshot consistente garante que os dados lidos reflitam o mesmo estado transacional.
 - M2: N+1 em `expireActiveReservations`
 - M5–M6: N+1 em revogação de credenciais e outbox por ticket
 - M9: `REFUNDED` ausente do tipo `OrderStatus`
