@@ -767,6 +767,7 @@ model AuthenticationAttempt {
   attemptedAt DateTime @default(now()) @map("attempted_at") @db.Timestamptz
 
   @@index([email, ip, attemptedAt(sort: Desc)])
+  @@index([ip, attemptedAt(sort: Desc)])
   @@map("authentication_attempts")
 }
 

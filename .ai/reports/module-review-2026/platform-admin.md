@@ -205,7 +205,7 @@ Foram identificados **2 bloqueantes**, **4 altos**, **5 médios** e **3 baixos**
 **Pendente:**
 - A1: Layer violation — todos os use cases injetam `PrismaService` diretamente (criar `IAdminUserRepository`, `IAdminOrganizationRepository`, `IAdminPayoutRepository`)
 - ~~A2: `list-admin-users` expõe `email` e `platformRole` para `PLATFORM_SUPPORT`~~ — **FALSO POSITIVO verificado 2026-08-25**: `list-admin-users.use-case.ts` seleciona apenas `id`, `displayName`, `suspendedAt`, `createdAt`. Idem para `list-admin-organizations`. Sem exposição de PII ou mapa de privilégios na implementação atual.
-- A3: Cursor de paginação baseado em `createdAt` — colisão silenciosa
+- ~~A3: Cursor de paginação baseado em `createdAt` — colisão silenciosa~~ — **FALSO POSITIVO verificado 2026-08-25**: `decodeCursor` retorna `null` em cursor inválido (`isNaN` check na linha 28). Ambos os use cases usam `OR [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }]` — padrão keyset correto que trata ties. Cursor é opaco (base64 de `{ id, createdAt }`).
 - ~~A4: Guard silencioso quando `@RequirePlatformRole` ausente~~ — **FALSO POSITIVO**: `AdminController` já tem `@RequirePlatformRole(PlatformRole.PLATFORM_SUPPORT)` ao nível da classe (linha 31) — novas rotas herdam a proteção mínima automaticamente
 - ~~M2: `unsuspend-*` não são idempotentes~~ — **FALSO POSITIVO**: `unsuspend-organization.use-case.ts:23-33` e `unsuspend-user.use-case.ts:23-33` já têm early-return com log de noop quando `suspendedAt === null`
 - ~~M3: `event.count()` sem filtro de status~~ — **FALSO POSITIVO**: `get-platform-dashboard.use-case.ts:30` já usa `where: { status: { not: 'CANCELLED' } }`

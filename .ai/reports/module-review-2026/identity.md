@@ -120,12 +120,12 @@ O módulo `identity` está em bom estado geral (argon2id, token rotation atômic
 **Pendente e corrigido:**
 - ~~A1: TOCTOU em P2002~~ — **FALSO POSITIVO**: `prisma-user.repository.ts:110` já captura `P2002` e relança `ConflictException` → HTTP 409
 - ~~A2: Timing side-channel para enumeração de emails~~ — **FALSO POSITIVO**: `authenticate-with-password.use-case.ts:63` já faz `hasher.verify(dummy, ...)` quando identity não encontrado
-- A3: Sem fallback se `sessionRepository.create` falhar após `rotateByTokenHash`
-- A4: Index `[ip, attemptedAt]` faltando em `auth_attempts`
+- ~~A3: Sem fallback se `sessionRepository.create` falhar após `rotateByTokenHash`~~ — **CORRIGIDO 2026-08-25**: `refresh-session.use-case.ts` envolve `sessionRepository.create` em try/catch; falha lança `ServiceUnavailableException` com log CRITICAL do `userId` afetado. Spec atualizado com teste do cenário de falha.
+- ~~A4: Index `[ip, attemptedAt]` faltando em `auth_attempts`~~ — **CORRIGIDO 2026-08-25**: `@@index([ip, attemptedAt(sort: Desc)])` adicionado ao model `AuthenticationAttempt` em `schema.prisma`. Garante que a query por `ip` em `countRecentFailures` use index scan.
 - ~~M1: `clearRefreshTokenCookie` sem flag `Secure` em produção~~ — **FALSO POSITIVO**: `auth.controller.ts:220` já adiciona `Secure` no clear cookie
 - M2: `emailVerificationRepository.create` fora da transação de registro
 - ~~M4: `forceReset` flag nunca verificado durante login~~ — **CORRIGIDO 2026-08-25**: `IdentityWithCredential` agora inclui `forceReset: boolean`. `findIdentityWithCredential` seleciona `forceReset` do `PasswordCredential`. `AuthenticateWithPasswordOutput` inclui `mustResetPassword: boolean`. Sessão ainda é criada — o cliente redireciona para reset. Spec atualizado com 1 novo teste.
-- M5: `findActive*` retorna sessões inativas
+- ~~M5: `findActive*` retorna sessões inativas~~ — **CORRIGIDO 2026-08-25**: `findActiveByTokenHash` e `findActiveById` em `prisma-session.repository.ts` agora usam `findFirst` com `revokedAt: null, expiresAt: { gte: new Date() }`. Métodos agora retornam apenas sessões realmente ativas.
 - ~~M6: `markUsed` + `updateCredentialHash` sem transação~~ — **CORRIGIDO 2026-08-25**: novo método `resetPasswordAtomically` no port + repository (Prisma transaction array). `reset-password.use-case.ts` atualizado para usar método atômico.
 - ~~M7: Sessão renovada perde IP/UserAgent~~ — **CORRIGIDO 2026-08-25**: `RefreshSessionInput` agora tem `ip` e `userAgent`; controller extrai e passa; `sessionRepository.create` já aceitava os campos opcionais.
 - B2: Algoritmo HS256 não configurado explicitamente no JWT

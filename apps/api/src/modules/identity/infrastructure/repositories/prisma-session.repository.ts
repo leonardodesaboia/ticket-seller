@@ -25,8 +25,8 @@ export class PrismaSessionRepository implements ISessionRepository {
   }
 
   async findActiveByTokenHash(tokenHash: string): Promise<ActiveSession | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { tokenHash },
+    const session = await this.prisma.session.findFirst({
+      where: { tokenHash, revokedAt: null, expiresAt: { gte: new Date() } },
       select: { id: true, userId: true, tokenHash: true, expiresAt: true, revokedAt: true },
     });
     if (!session) return null;
@@ -34,8 +34,8 @@ export class PrismaSessionRepository implements ISessionRepository {
   }
 
   async findActiveById(id: string): Promise<ActiveSession | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { id },
+    const session = await this.prisma.session.findFirst({
+      where: { id, revokedAt: null, expiresAt: { gte: new Date() } },
       select: { id: true, userId: true, tokenHash: true, expiresAt: true, revokedAt: true },
     });
     if (!session) return null;

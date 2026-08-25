@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { RefreshSessionUseCase } from './refresh-session.use-case';
 import type { ISessionRepository } from '../../domain/ports/session.repository.port';
 import type { ITokenIssuer } from '../../domain/ports/token-issuer.port';
@@ -58,6 +58,15 @@ describe('RefreshSessionUseCase', () => {
 
     expect(mockTokenIssuer.issueAccessToken).toHaveBeenCalledWith(
       expect.objectContaining({ sub: 'user-123', jti: 'session-new' }),
+    );
+  });
+
+  it('throws ServiceUnavailableException when session creation fails after rotation', async () => {
+    (mockSessionRepository.create as jest.Mock).mockRejectedValue(new Error('DB error'));
+    const useCase = makeUseCase();
+
+    await expect(useCase.execute({ refreshToken: 'valid-token' })).rejects.toThrow(
+      ServiceUnavailableException,
     );
   });
 });
