@@ -691,6 +691,7 @@ const resetAttempt = useCallback(() => setError(null), []);
 1. **BO-01** — Autenticação via `NEXT_PUBLIC_DEV_USER_ID` no polling de presença: substituir por mecanismo de sessão real antes do deploy.
 2. **MK-02** — Botão "Copiar código PIX" ausente: bloqueia o fluxo de pagamento PIX em mobile.
 3. **BO-03/BO-04/MK-01** — Hydration mismatch em `toLocaleString`/`toLocaleTimeString` sem `timeZone`: padrão recorrente que deve ser resolvido via helper centralizado.
-4. **BO-05** — `setState` dentro de `queryFn`: anti-padrão TanStack Query que causa duplicação de itens em background refetch.
-5. **MK-04** — Sem retry na ConfirmationView: experiência crítica pós-pagamento sem caminho de recuperação.
+4. ~~**BO-05** — `setState` dentro de `queryFn`~~ — **CORRIGIDO 2026-08-25**: `usePayouts.ts` e `useTransactions.ts` migrados para `queryFn` puro (retorna dados) + `useEffect([query.data])` para acumular itens. Elimina side-effect durante renderização e duplicação em background refetch.
+5. ~~**MK-04** — Sem retry na ConfirmationView~~ — **CORRIGIDO 2026-08-25**: `ConfirmationView.tsx` agora usa `retryCount` state; `useEffect` inclui `retryCount` na dependency array; botão "Tentar novamente" visível no estado de erro.
+6. ~~**MK-05** — Payment polling swallows all errors~~ — **CORRIGIDO 2026-08-25**: `usePaymentPolling.ts` distingue erros permanentes (`PublicApiError` com status 401/403/404/410) — para polling e chama `onTimeout` imediatamente. Erros transientes continuam retry normal.
 6. **Testes** — Criar testes para `finance/` e `platform-admin/` antes de habilitar operações financeiras e administrativas em produção.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listTransactions } from '../api/finance.api';
 import type { LedgerTransactionItem } from '../types';
 
@@ -13,21 +13,23 @@ export function useTransactions(organizationId: string, devUserId: string) {
 
   const query = useQuery({
     queryKey: ['finance', 'transactions', organizationId, cursor],
-    queryFn: async () => {
-      const result = await listTransactions(
+    queryFn: () =>
+      listTransactions(
         organizationId,
         { ...(cursor !== undefined && { cursor }), limit: PAGE_SIZE },
         devUserId,
-      );
-      if (cursor === undefined) {
-        setAllItems(result.data);
-      } else {
-        setAllItems((prev) => [...prev, ...result.data]);
-      }
-      return result;
-    },
+      ),
     enabled: Boolean(organizationId && devUserId),
   });
+
+  useEffect(() => {
+    if (!query.data) return;
+    if (cursor === undefined) {
+      setAllItems(query.data.data);
+    } else {
+      setAllItems((prev) => [...prev, ...query.data!.data]);
+    }
+  }, [query.data]);
 
   function loadMore() {
     if (query.data?.nextCursor) {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { getLatestPaymentAttempt, type AttemptStatus, type PaymentAttemptResponse } from '@/shared/api/public-payments.api';
+import { PublicApiError } from '@/shared/api/public-reservations.api';
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_TIMEOUT_MS = 300_000; // 5 minutes
@@ -41,8 +42,15 @@ export function usePaymentPolling({ orderId, token, onUpdate, onTimeout }: UsePa
           return;
         }
       }
-    } catch {
-      // swallow network errors — next tick will retry
+    } catch (err) {
+      // Permanent errors (auth, not found, gone): stop polling immediately
+      if (err instanceof PublicApiError && [401, 403, 404, 410].includes(err.status)) {
+        clearTimers();
+        activeRef.current = false;
+        onTimeout();
+        return;
+      }
+      // Transient network errors: continue retrying on next tick
     }
     if (activeRef.current) {
       timerRef.current = setTimeout(() => { void poll(); }, POLL_INTERVAL_MS);

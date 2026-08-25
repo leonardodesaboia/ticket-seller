@@ -12,18 +12,21 @@ export interface ConfirmationViewProps {
 export function ConfirmationView({ orderId, token }: ConfirmationViewProps) {
   const [tickets, setTickets] = useState<TicketItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setError(null);
+    setTickets(null);
     getOrderTickets(orderId, token)
       .then((data) => {
         if (!cancelled) setTickets(data.tickets);
       })
       .catch(() => {
-        if (!cancelled) setError('Não foi possível carregar seus ingressos. Recarregue a página.');
+        if (!cancelled) setError('Não foi possível carregar seus ingressos.');
       });
     return () => { cancelled = true; };
-  }, [orderId, token]);
+  }, [orderId, token, retryCount]);
 
   return (
     <section aria-labelledby="confirmation-heading" className="flex flex-col gap-6">
@@ -37,9 +40,18 @@ export function ConfirmationView({ orderId, token }: ConfirmationViewProps) {
       </header>
 
       {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+        <div className="flex flex-col gap-2">
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryCount((n) => n + 1)}
+            className="self-start text-sm underline text-primary hover:opacity-80"
+          >
+            Tentar novamente
+          </button>
+        </div>
       )}
 
       {tickets === null && !error && (
