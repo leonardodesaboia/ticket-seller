@@ -215,9 +215,41 @@ export class PrismaReservationRepository implements IReservationRepository {
 
   async expireActiveReservations(): Promise<number> {
     return this.prisma.$transaction(async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM reservations WHERE status = 'ACTIVE' AND expires_at <= NOW()`;
-      for (const row of rows) await this.expireReservation(tx, row.id);
-      return rows.length;
+      // Bulk expire all active past-due reservations in a single UPDATE RETURNING.
+      const expired = await tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE reservations
+        SET status = 'EXPIRED', updated_at = NOW()
+        WHERE status = 'ACTIVE' AND expires_at <= NOW()
+        RETURNING id
+      `;
+
+      if (expired.length === 0) return 0;
+
+      const ids = expired.map((r) => r.id);
+
+      // Bulk update inventory: aggregate quantities across all expired reservations
+      // grouped by ticket_type_id + organization_id, then decrement in one pass.
+      await tx.$executeRaw`
+        UPDATE ticket_inventory ti
+        SET
+          reserved = GREATEST(ti.reserved - agg.total_quantity, 0),
+          version   = ti.version + 1,
+          updated_at = NOW()
+        FROM (
+          SELECT
+            ri.ticket_type_id,
+            r.organization_id,
+            SUM(ri.quantity)::int AS total_quantity
+          FROM reservation_items ri
+          JOIN reservations r ON r.id = ri.reservation_id
+          WHERE r.id = ANY(${ids}::uuid[])
+          GROUP BY ri.ticket_type_id, r.organization_id
+        ) AS agg
+        WHERE ti.ticket_type_id = agg.ticket_type_id
+          AND ti.organization_id = agg.organization_id
+      `;
+
+      return expired.length;
     });
   }
 

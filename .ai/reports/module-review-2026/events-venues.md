@@ -112,7 +112,7 @@ Os módulos `events` e `venues` implementam criação, publicação e cancelamen
 
 **Pendente:**
 - ~~A4: `FOR UPDATE SKIP LOCKED` no cancelamento de evento~~ — **FALSO POSITIVO**: `prisma-event-cancellation.repository.ts:77` já tem `FOR UPDATE SKIP LOCKED` no loop de cancelamento de orders
-- A5: Zero testes no módulo venues
+- ~~A5: Zero testes no módulo venues~~ — **CORRIGIDO 2026-08-25**: `create-venue.use-case.spec.ts` (9 testes: OWNER/EVENT_MANAGER permissões, roles insuficientes, postalCode opcional, IDs únicos) e `list-organization-venues.use-case.spec.ts` (5 testes: membro ativo, lista vazia, não-membro, membro suspenso, qualquer role ativa).
 - ~~M2: `updateMany` lança `EventVersionConflictError` incorreto quando status mudou~~ — **CORRIGIDO 2026-08-25**: ambos os métodos `update` e `updateConfiguration` em `prisma-event.repository.ts` agora distinguem: se `count === 0`, relê o evento; se `status !== 'DRAFT'` → `EventNotInDraftError`; se `!current` → `EventNotFoundError`; caso contrário → `EventVersionConflictError`.
 - ~~M3: `actorId` ausente do `requestHash` em `create-ticket-type`~~ — **CORRIGIDO 2026-08-25**: `actorId` adicionado ao objeto serializado em `hashRequest()`. Dois atores com a mesma `idempotencyKey` e mesmo payload agora geram hashes distintos.
 - ~~M4: `isUniqueConstraintError` permissivo demais no adapter~~ — **CORRIGIDO 2026-08-25**: `isUniqueConstraintError` em `prisma-create-ticket-type-operation.adapter.ts` agora verifica `meta.target` e filtra apenas violações com `idempotency` no nome da constraint. Segue o mesmo padrão do publish adapter.

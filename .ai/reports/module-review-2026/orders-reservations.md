@@ -124,6 +124,6 @@ Os módulos `orders` e `reservations` implementam o fluxo de compra desde a rese
 - ~~A2: `isSerializationFailure` não captura `40P01`~~ — **CORRIGIDO 2026-08-25**: `msg.includes('40P01')` adicionado à função `isSerializationFailure`
 - A3: `total_amount = subtotal_amount` — **DECISÃO DE PRODUTO PENDENTE**: design atual aplica taxas ao vendedor (processadas em `record-sale.use-case.ts` via `FEE_POLICY_REPOSITORY`), não ao comprador. Se a intenção for repassar taxas ao comprador (buyer-facing fee), requer decisão explícita de produto antes de alterar o cálculo.
 - ~~A4: `resolveUniqueConflict` — 3 queries fora de transação~~ — **CORRIGIDO 2026-08-25**: `resolveUniqueConflict` agora envolve todas as 3 leituras em `this.prisma.$transaction()`, passando o cliente `tx` para todos os helpers internos. Snapshot consistente garante que os dados lidos reflitam o mesmo estado transacional.
-- M2: N+1 em `expireActiveReservations`
+- ~~M2: N+1 em `expireActiveReservations`~~ — **CORRIGIDO 2026-08-25**: reescrito com dois SQL em vez de loop: (1) `UPDATE reservations ... RETURNING id` para expirar em bulk; (2) `UPDATE ticket_inventory ... FROM (SELECT SUM(quantity) GROUP BY ticket_type_id, organization_id)` para decrementar reserved em uma passagem. De O(R × (3 + T)) queries para O(2) queries.
 - M5–M6: N+1 em revogação de credenciais e outbox por ticket
 - M9: `REFUNDED` ausente do tipo `OrderStatus`
