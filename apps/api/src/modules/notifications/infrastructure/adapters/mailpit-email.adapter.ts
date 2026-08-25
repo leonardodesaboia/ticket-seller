@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
 import { Transporter } from "nodemailer";
 import type { IEmailProvider, EmailMessage } from "../../domain/ports/email-provider.port";
+import { EmailSendError } from "../../domain/notification.errors";
 import { env } from "../../../../platform/config/env";
 
 @Injectable()
@@ -20,12 +21,16 @@ export class MailpitEmailAdapter implements IEmailProvider, OnModuleInit {
   }
 
   async send(message: EmailMessage): Promise<void> {
-    await this.transporter.sendMail({
-      from: env.SMTP_FROM,
-      to: message.to,
-      subject: message.subject,
-      text: message.text,
-    });
+    try {
+      await this.transporter.sendMail({
+        from: env.SMTP_FROM,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+      });
+    } catch (err) {
+      throw new EmailSendError(`SMTP delivery failed: ${String(err)}`, err instanceof Error ? err : undefined);
+    }
 
     this.logger.debug(`Email sent — subject: "${message.subject}"`);
   }

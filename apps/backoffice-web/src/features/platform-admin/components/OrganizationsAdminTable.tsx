@@ -9,36 +9,50 @@ interface OrganizationsAdminTableProps {
   devUserId?: string | undefined;
 }
 
+interface ReasonDialog {
+  type: 'suspend' | 'unsuspend';
+  orgId: string;
+  orgName: string;
+}
+
 export function OrganizationsAdminTable({ devUserId }: OrganizationsAdminTableProps) {
   const queryClient = useQueryClient();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<ReasonDialog | null>(null);
+  const [reasonInput, setReasonInput] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const orgQuery: { cursor?: string; limit?: number } = { limit: 50 };
   if (cursor !== undefined) orgQuery.cursor = cursor;
   const { data, isLoading, error } = useAdminOrganizations(orgQuery, devUserId);
 
-  async function handleSuspend(orgId: string) {
-    const reason = window.prompt('Motivo da suspensão:');
-    if (!reason) return;
-    try {
-      await suspendOrganization(orgId, reason, devUserId);
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
-      setActionError(null);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao suspender');
-    }
+  function openSuspend(orgId: string, orgName: string) {
+    setReasonInput('');
+    setDialog({ type: 'suspend', orgId, orgName });
   }
 
-  async function handleUnsuspend(orgId: string) {
-    const reason = window.prompt('Motivo da reativação:');
-    if (!reason) return;
+  function openUnsuspend(orgId: string, orgName: string) {
+    setReasonInput('');
+    setDialog({ type: 'unsuspend', orgId, orgName });
+  }
+
+  async function handleConfirm() {
+    if (!dialog || !reasonInput.trim()) return;
+    setSubmitting(true);
     try {
-      await unsuspendOrganization(orgId, reason, devUserId);
+      if (dialog.type === 'suspend') {
+        await suspendOrganization(dialog.orgId, reasonInput.trim(), devUserId);
+      } else {
+        await unsuspendOrganization(dialog.orgId, reasonInput.trim(), devUserId);
+      }
       await queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       setActionError(null);
+      setDialog(null);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao reativar');
+      setActionError(err instanceof Error ? err.message : 'Erro ao executar ação');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -55,6 +69,53 @@ export function OrganizationsAdminTable({ devUserId }: OrganizationsAdminTablePr
       {actionError && (
         <p className="text-sm text-destructive">{actionError}</p>
       )}
+
+      {dialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={dialog.type === 'suspend' ? 'Suspender organização' : 'Reativar organização'}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div className="w-full max-w-sm rounded-lg border border-input bg-background p-6 shadow-lg">
+            <h2 className="mb-1 text-base font-semibold text-foreground">
+              {dialog.type === 'suspend' ? 'Suspender organização' : 'Reativar organização'}
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">{dialog.orgName}</p>
+            <label htmlFor="org-reason" className="mb-1 block text-sm font-medium text-foreground">
+              Motivo *
+            </label>
+            <input
+              id="org-reason"
+              type="text"
+              value={reasonInput}
+              onChange={(e) => setReasonInput(e.target.value)}
+              className="mb-4 w-full rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Informe o motivo..."
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDialog(null)}
+                className="rounded border border-input px-4 py-1.5 text-sm hover:bg-muted"
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirm()}
+                disabled={submitting || !reasonInput.trim()}
+                className="rounded bg-destructive px-4 py-1.5 text-sm text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {submitting ? 'Aguarde...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-md border border-input">
         <table className="w-full text-sm">
           <thead>
@@ -90,14 +151,14 @@ export function OrganizationsAdminTable({ devUserId }: OrganizationsAdminTablePr
                 <td className="px-4 py-2">
                   {org.suspendedAt ? (
                     <button
-                      onClick={() => void handleUnsuspend(org.id)}
+                      onClick={() => openUnsuspend(org.id, org.name)}
                       className="rounded bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90"
                     >
                       Reativar
                     </button>
                   ) : (
                     <button
-                      onClick={() => void handleSuspend(org.id)}
+                      onClick={() => openSuspend(org.id, org.name)}
                       className="rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground hover:bg-destructive/90"
                     >
                       Suspender

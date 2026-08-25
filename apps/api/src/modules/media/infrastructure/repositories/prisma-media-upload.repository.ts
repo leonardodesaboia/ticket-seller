@@ -7,6 +7,9 @@ import type {
   UpdateMediaUploadParams,
 } from '../../domain/ports/media-upload-repository.port';
 
+const VALID_PURPOSES = ['EVENT_COVER', 'ORG_LOGO'] as const;
+const VALID_STATUSES = ['PENDING', 'CONFIRMED', 'ORPHANED'] as const;
+
 function toDomain(record: {
   id: string;
   organizationId: string;
@@ -20,6 +23,12 @@ function toDomain(record: {
   confirmedAt: Date | null;
   createdAt: Date;
 }): MediaUpload {
+  if (!VALID_PURPOSES.includes(record.purpose as (typeof VALID_PURPOSES)[number])) {
+    throw new Error(`Unknown media upload purpose: ${record.purpose}`);
+  }
+  if (!VALID_STATUSES.includes(record.status as (typeof VALID_STATUSES)[number])) {
+    throw new Error(`Unknown media upload status: ${record.status}`);
+  }
   return new MediaUpload({
     id: record.id,
     organizationId: record.organizationId,

@@ -64,6 +64,7 @@ export class PublicOrdersController {
         reservationId: dto.reservationId,
         reservationToken: requiredToken(token),
         idempotencyKey,
+        buyerEmail: dto.buyerEmail,
       }));
     } catch (error) {
       this.throwAccessError(error);

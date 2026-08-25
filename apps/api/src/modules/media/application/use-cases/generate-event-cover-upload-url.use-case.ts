@@ -9,11 +9,14 @@ import {
   type IMediaUploadRepository,
 } from '../../domain/ports/media-upload-repository.port';
 import {
+  EVENT_COVER_REPOSITORY,
+  type IEventCoverRepository,
+} from '../../domain/ports/event-cover-repository.port';
+import {
   ALLOWED_CONTENT_TYPES,
   type AllowedContentType,
   MAX_UPLOAD_SIZE_BYTES,
 } from '../../domain/media.constants';
-import { PrismaService } from '../../../../platform/database/prisma.service';
 
 const CONTENT_TYPE_EXTENSIONS: Record<AllowedContentType, string> = {
   'image/jpeg': 'jpg',
@@ -43,7 +46,8 @@ export class GenerateEventCoverUploadUrlUseCase {
     private readonly storage: IObjectStoragePort,
     @Inject(MEDIA_UPLOAD_REPOSITORY)
     private readonly mediaUploadRepo: IMediaUploadRepository,
-    private readonly prisma: PrismaService,
+    @Inject(EVENT_COVER_REPOSITORY)
+    private readonly eventCoverRepo: IEventCoverRepository,
   ) {}
 
   async execute(
@@ -57,12 +61,8 @@ export class GenerateEventCoverUploadUrlUseCase {
       );
     }
 
-    // BUG-FIX: verify event belongs to this organization before generating URL (IDOR prevention)
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId, organizationId },
-      select: { id: true },
-    });
-    if (!event) {
+    const exists = await this.eventCoverRepo.existsInOrganization(eventId, organizationId);
+    if (!exists) {
       throw new NotFoundException('Event not found in this organization');
     }
 

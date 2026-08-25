@@ -4,9 +4,11 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   RawBodyRequest,
   Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FastifyRequest } from 'fastify';
@@ -17,6 +19,8 @@ import { ProcessPayoutWebhookUseCase } from '../../application/use-cases/process
 @SkipThrottle()
 @Controller('webhooks/payouts')
 export class PayoutWebhookController {
+  private readonly logger = new Logger(PayoutWebhookController.name);
+
   constructor(private readonly processWebhook: ProcessPayoutWebhookUseCase) {}
 
   @Post('fake')
@@ -34,7 +38,15 @@ export class PayoutWebhookController {
       });
     }
 
-    await this.processWebhook.execute({ rawBody, signature });
+    try {
+      await this.processWebhook.execute({ rawBody, signature });
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        throw new BadRequestException({ message: 'Invalid webhook signature', code: 'INVALID_SIGNATURE' });
+      }
+      this.logger.error('Unexpected error processing payout webhook', err instanceof Error ? err.stack : String(err));
+      throw new BadRequestException({ message: 'Webhook processing failed', code: 'WEBHOOK_ERROR' });
+    }
 
     return {};
   }

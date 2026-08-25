@@ -28,8 +28,9 @@ export class ResetPasswordUseCase {
 
     const newHash = await this.hasher.hash(input.newPassword);
 
-    await this.passwordResetRepository.updateCredentialHash(record.userId, newHash);
+    // Mark token used first — prevents replay even if subsequent steps fail
     await this.passwordResetRepository.markUsed(record.id);
+    await this.passwordResetRepository.updateCredentialHash(record.userId, newHash);
     await this.sessionRepository.revokeAllByUserId(record.userId);
   }
 }

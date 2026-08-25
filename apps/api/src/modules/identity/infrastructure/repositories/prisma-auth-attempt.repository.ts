@@ -18,14 +18,17 @@ export class PrismaAuthAttemptRepository implements IAuthAttemptRepository {
 
   async countRecentFailures(email: string, ip: string, sinceMinutes: number): Promise<number> {
     const since = new Date(Date.now() - sinceMinutes * 60 * 1000);
-    const count = await this.prisma.authenticationAttempt.count({
-      where: {
-        email,
-        ip,
-        outcome: 'FAILURE',
-        attemptedAt: { gte: since },
-      },
-    });
-    return count;
+    // Count by email AND by ip independently, then take the max.
+    // Counting both together (email AND ip) would allow an attacker to bypass
+    // per-email limits by rotating IPs, or bypass per-IP limits by rotating emails.
+    const [byEmail, byIp] = await Promise.all([
+      this.prisma.authenticationAttempt.count({
+        where: { email, outcome: 'FAILURE', attemptedAt: { gte: since } },
+      }),
+      this.prisma.authenticationAttempt.count({
+        where: { ip, outcome: 'FAILURE', attemptedAt: { gte: since } },
+      }),
+    ]);
+    return Math.max(byEmail, byIp);
   }
 }

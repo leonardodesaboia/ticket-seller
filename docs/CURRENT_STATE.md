@@ -1,36 +1,46 @@
 Estado atual
 
-Última atualização: 2026-08-24 (TASK-062 concluída; RC-1.0 entregue)
+Última atualização: 2026-08-25 (revisão completa de módulos concluída; TASK-063 planejada)
 
 Fase
 
-Produção — EM ANDAMENTO. Módulo financeiro — CONCLUÍDA.
+Pós-RC-1.0 — Correções de segurança e qualidade em andamento.
 
 Objetivo da fase
 
-Implementar autenticação real, membros e roles, administração de plataforma, uploads de mídia, rate limiting, observabilidade, hardening de segurança, infraestrutura de produção, backup e release readiness.
+Corrigir vulnerabilidades e bugs identificados na revisão de módulos pós-RC-1.0 (sessões 1–3 + revisão frontend). Integrar autenticação real no backoffice (TASK-063).
 
 Decisões arquiteturais desta fase (ver ADRs)
 - ADR-007: Auth próprio com email + senha, argon2id, JWT (access 15min + refresh 30d em cookie HttpOnly), refresh token rotation, JwtActorAdapter.
 - ADR-008: IObjectStoragePort com MinioObjectStorageAdapter (dev) e S3ObjectStorageAdapter (prod); ResendEmailAdapter para email transacional em production.
 - ADR-009: Dockerfiles multi-stage portáveis, sem acoplamento a cloud provider específica.
 
-Implementado
-diretórios iniciais;
-documentação básica;
-regras globais para agentes;
-estrutura de tarefas;
-definição inicial do produto;
-definição arquitetural inicial;
-monorepo inicializado com pnpm 11.17.0, Turborepo 2.10.7 e Node.js 22.18.0;
-TypeScript 5.9.3, ESLint 10.8.0 e Prettier 3.9.6 configurados no workspace.
+Implementado (pós-RC-1.0, em commit único 2026-08-25)
+- Revisão de todos os módulos da API: identity, organizations, events/venues, orders/reservations, payments/finance, tickets/checkin/inventory, notifications, media, platform-admin.
+- Revisão de frontend: backoffice-web e marketplace-web (UI/UX + features).
+- Correções de segurança: IDOR em refund, cancelamento de pedido, aceitação de convite, cancelamento de evento.
+- Correções de concorrência: `cancel()` com FOR UPDATE e retry, inventory sem transação, requestHash sem idempotencyKey.
+- Correções de arquitetura: IUserRepository (identity), IEventCoverRepository (media) — PrismaService removido da camada de aplicação.
+- Correções de UI/UX: botão copiar PIX, hydration mismatch, labels de desenvolvimento expostos, ARIA.
+- Correções de notificações: emails de alerta admin configuráveis via `ADMIN_NOTIFICATION_EMAIL`.
+- Nova migration: `orders.buyer_email`.
+- 440/440 testes passando.
+
 Em andamento
 
-Nenhuma — todas as tasks do plano de produção estão concluídas. RC-1.0 entregue.
+TASK-063 — Backoffice Auth Integration (READY)
 
 Próxima fase
 
-RC-1.0 entregue. Próximos passos: E2E manual em staging, load test, e configuração de cloud target para deployment.
+Implementar TASK-063, em seguida: E2E manual em staging com auth real, load test, e configuração de cloud target para deployment.
+
+Pendências documentadas (não bloqueantes para commit)
+Ver relatórios individuais em `.ai/reports/module-review-2026/` para lista completa por módulo.
+Prioridades de médio prazo:
+- Finance: ledger desbalanceado em record-refund (A1), race condition payout webhook, settle-order negative
+- Tickets: IDOR em findByClaimTokenHash (C1 crítico — próxima tarefa após TASK-063)
+- Identity: TOCTOU em P2002, timing side-channel, emailVerification fora de transação
+- Platform-admin: layer violation (todos os use cases), PII em list-admin-users
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)
@@ -95,6 +105,7 @@ TASK-059 — Security Hardening & Data Protection. (CONCLUÍDA)
 TASK-060 — Production Infrastructure & Deployment. (CONCLUÍDA)
 TASK-061 — Backup, Disaster Recovery & Operational Runbooks. (CONCLUÍDA)
 TASK-062 — Release Readiness & E2E Certification. (CONCLUÍDA)
+TASK-063 — Backoffice Auth Integration. (READY)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;

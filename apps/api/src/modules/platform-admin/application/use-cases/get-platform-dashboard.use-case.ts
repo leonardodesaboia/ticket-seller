@@ -27,7 +27,7 @@ export class GetPlatformDashboardUseCase {
     ] = await Promise.all([
       this.prisma.organization.count({ where: { deletedAt: null } }),
       this.prisma.user.count({ where: { deletedAt: null } }),
-      this.prisma.event.count(),
+      this.prisma.event.count({ where: { status: { not: 'CANCELLED' } } }),
       this.prisma.order.count({
         where: { status: { in: ['CONFIRMED', 'PROCESSING'] } },
       }),

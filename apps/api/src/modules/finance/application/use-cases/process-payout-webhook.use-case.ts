@@ -22,6 +22,13 @@ export interface ProcessPayoutWebhookInput {
   signature: string;
 }
 
+interface PayoutWebhookEventData {
+  provider: string;
+  providerEventId: string;
+  payoutId: string;
+  rawPayload: unknown;
+}
+
 @Injectable()
 export class ProcessPayoutWebhookUseCase {
   private readonly logger = new Logger(ProcessPayoutWebhookUseCase.name);
@@ -45,28 +52,9 @@ export class ProcessPayoutWebhookUseCase {
     const { provider, providerEventId, externalPayoutId, eventType, amount, currency, rawPayload } =
       event;
 
-    // Step 2: Deduplicate via INSERT ON CONFLICT DO NOTHING
-    // First we need to find the payout to get its ID for the FK
+    // Step 2: Locate payout by external_payout_id
     const payout = await this.payoutRepo.findByExternalId(externalPayoutId);
 
-    const rowsAffected = await this.prisma.$executeRaw`
-      INSERT INTO payout_webhook_events (provider, provider_event_id, payout_id, raw_payload)
-      VALUES (
-        ${provider},
-        ${providerEventId},
-        ${payout?.id ?? null}::uuid,
-        ${JSON.stringify(rawPayload)}::jsonb
-      )
-      ON CONFLICT (provider, provider_event_id) DO NOTHING
-    `;
-
-    // Step 3: If 0 rows inserted → duplicate event, idempotent return
-    if (rowsAffected === 0) {
-      this.logger.log(`Payout webhook ${providerEventId} already processed — skipping`);
-      return;
-    }
-
-    // Step 4: Locate payout by external_payout_id
     if (!payout) {
       this.logger.warn(
         `Payout webhook received for unknown externalPayoutId (redacted) — event ${providerEventId}`,
@@ -77,7 +65,7 @@ export class ProcessPayoutWebhookUseCase {
       });
     }
 
-    // Step 5: Guard — if already terminal, idempotent return
+    // Step 3: Guard — if already terminal, idempotent return
     if (payout.status === 'PAID' || payout.status === 'FAILED') {
       this.logger.log(
         `Payout ${payout.id} already in terminal status=${payout.status} — skipping`,
@@ -85,13 +73,23 @@ export class ProcessPayoutWebhookUseCase {
       return;
     }
 
+    // Dedup INSERT is performed inside each handler's transaction so that a
+    // failed transaction rolls it back — preventing an unprocessed event from
+    // being permanently blocked by a committed dedup row.
+    const webhookEventData: PayoutWebhookEventData = {
+      provider,
+      providerEventId,
+      payoutId: payout.id,
+      rawPayload,
+    };
+
     const { organizationId } = payout;
 
     if (eventType === 'SUCCEEDED') {
-      await this.handleSucceeded(payout.id, organizationId, amount, currency);
+      await this.handleSucceeded(payout.id, organizationId, amount, currency, webhookEventData);
     } else {
       const failureReason = `Provider reported FAILED for event ${providerEventId}`;
-      await this.handleFailed(payout.id, organizationId, amount, currency, failureReason);
+      await this.handleFailed(payout.id, organizationId, amount, currency, failureReason, webhookEventData);
     }
   }
 
@@ -100,8 +98,26 @@ export class ProcessPayoutWebhookUseCase {
     organizationId: string,
     amount: bigint,
     currency: string,
+    webhookEvent: PayoutWebhookEventData,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      // Dedup inside transaction: if another concurrent request already processed this event,
+      // the INSERT returns 0 rows and we exit, rolling back the transaction cleanly.
+      const rowsAffected = await tx.$executeRaw`
+        INSERT INTO payout_webhook_events (provider, provider_event_id, payout_id, raw_payload)
+        VALUES (
+          ${webhookEvent.provider},
+          ${webhookEvent.providerEventId},
+          ${webhookEvent.payoutId}::uuid,
+          ${JSON.stringify(webhookEvent.rawPayload)}::jsonb
+        )
+        ON CONFLICT (provider, provider_event_id) DO NOTHING
+      `;
+      if (rowsAffected === 0) {
+        this.logger.log(`Payout webhook ${webhookEvent.providerEventId} already processed — skipping`);
+        return;
+      }
+
       // Update payout → PAID
       await this.payoutRepo.updateStatus(
         payoutId,
@@ -165,8 +181,24 @@ export class ProcessPayoutWebhookUseCase {
     amount: bigint,
     currency: string,
     failureReason: string,
+    webhookEvent: PayoutWebhookEventData,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      const rowsAffected = await tx.$executeRaw`
+        INSERT INTO payout_webhook_events (provider, provider_event_id, payout_id, raw_payload)
+        VALUES (
+          ${webhookEvent.provider},
+          ${webhookEvent.providerEventId},
+          ${webhookEvent.payoutId}::uuid,
+          ${JSON.stringify(webhookEvent.rawPayload)}::jsonb
+        )
+        ON CONFLICT (provider, provider_event_id) DO NOTHING
+      `;
+      if (rowsAffected === 0) {
+        this.logger.log(`Payout webhook ${webhookEvent.providerEventId} already processed — skipping`);
+        return;
+      }
+
       // Update payout → FAILED
       await this.payoutRepo.updateStatus(
         payoutId,

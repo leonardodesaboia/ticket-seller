@@ -39,6 +39,13 @@ export class InvitationExpiredError extends Error {
   }
 }
 
+export class InvitationEmailMismatchError extends Error {
+  constructor() {
+    super('Invitation was not issued for this account');
+    this.name = 'InvitationEmailMismatchError';
+  }
+}
+
 @Injectable()
 export class AcceptOrganizationInvitationUseCase {
   constructor(
@@ -64,6 +71,11 @@ export class AcceptOrganizationInvitationUseCase {
 
     if (invitation.isExpired) {
       throw new InvitationExpiredError();
+    }
+
+    const actorEmail = await this.repo.findUserEmailById(command.userId);
+    if (!actorEmail || actorEmail.toLowerCase() !== invitation.email.toLowerCase()) {
+      throw new InvitationEmailMismatchError();
     }
 
     await this.repo.markInvitationUsed(invitation.id, command.userId);

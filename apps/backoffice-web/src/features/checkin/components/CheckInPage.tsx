@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { performCheckIn, type AdmissionDecision } from '@/shared/api/check-in.api';
 import { CameraScanner } from './CameraScanner';
 import { ManualEntryForm } from './ManualEntryForm';
@@ -23,6 +23,15 @@ interface CheckInPageProps {
 export function CheckInPage({ orgId, eventId }: CheckInPageProps) {
   const [state, setState] = useState<PageState>('SCANNING');
   const [feedback, setFeedback] = useState<FeedbackResult | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current !== null) {
+        clearTimeout(feedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleToken = useCallback(
     async (token: string) => {
@@ -44,7 +53,7 @@ export function CheckInPage({ orgId, eventId }: CheckInPageProps) {
         setFeedback({ decision: result.decision, allowed: result.allowed });
         setState('FEEDBACK');
 
-        setTimeout(() => {
+        feedbackTimerRef.current = setTimeout(() => {
           setFeedback(null);
           setState('SCANNING');
         }, 2000);

@@ -23,6 +23,7 @@ export class IssueTicketsUseCase {
   async executeForOrder(orderId: string): Promise<Ticket[]> {
     const order = await this.orderItemsAccess.findOrderWithItems(orderId);
     if (!order) return [];
+    if (order.status !== 'PAID' && order.status !== 'TICKETS_ISSUED') return [];
 
     return this.executeWithItems({
       orderId: order.id,

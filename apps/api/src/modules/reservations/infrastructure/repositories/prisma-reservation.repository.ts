@@ -177,21 +177,40 @@ export class PrismaReservationRepository implements IReservationRepository {
   }
 
   async cancel(reservationId: string, tokenHash: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      await this.expireReservation(tx, reservationId);
-      const reservation = await this.findReservation(tx, 'id', reservationId);
-      if (!reservation) throw new ReservationNotFoundError();
-      if (reservation.continuation_token_hash !== tokenHash) throw new InvalidReservationTokenError();
-      if (reservation.status === 'EXPIRED') return;
-      if (reservation.status === 'CONSUMED') throw new ReservationAlreadyConsumedError();
-      if (reservation.status === 'CANCELLED') return;
-      const items = await this.findItems(tx, reservation.id);
-      for (const item of items) {
-        await tx.$executeRaw`UPDATE ticket_inventory SET reserved = reserved - ${item.quantity}, version = version + 1, updated_at = NOW() WHERE ticket_type_id = ${item.ticket_type_id}::uuid AND organization_id = ${reservation.organization_id}::uuid`;
+    return this.cancelWithRetries(reservationId, tokenHash, 0);
+  }
+
+  private async cancelWithRetries(reservationId: string, tokenHash: string, attempt: number): Promise<void> {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Lock the reservation row for update to prevent concurrent cancels from
+        // double-decrementing inventory between the read and the UPDATE.
+        const locked = await tx.$queryRaw<ReservationRow[]>`
+          SELECT id, status, expires_at, currency, subtotal_amount, continuation_token_hash, organization_id, event_id
+          FROM reservations
+          WHERE id = ${reservationId}::uuid
+          FOR UPDATE
+        `;
+        const reservation = locked[0] ?? null;
+        if (!reservation) throw new ReservationNotFoundError();
+        if (reservation.continuation_token_hash !== tokenHash) throw new InvalidReservationTokenError();
+        // Treat an expired-but-still-ACTIVE reservation as expired
+        if (reservation.status === 'EXPIRED' || reservation.expires_at <= new Date()) return;
+        if (reservation.status === 'CONSUMED') throw new ReservationAlreadyConsumedError();
+        if (reservation.status === 'CANCELLED') return;
+        const items = await this.findItems(tx, reservation.id);
+        for (const item of items) {
+          await tx.$executeRaw`UPDATE ticket_inventory SET reserved = GREATEST(reserved - ${item.quantity}, 0), version = version + 1, updated_at = NOW() WHERE ticket_type_id = ${item.ticket_type_id}::uuid AND organization_id = ${reservation.organization_id}::uuid`;
+        }
+        await tx.$executeRaw`UPDATE reservations SET status = 'CANCELLED', updated_at = NOW() WHERE id = ${reservation.id}::uuid AND status = 'ACTIVE'`;
+        await tx.outboxEvent.create({ data: { aggregateType: 'reservation', aggregateId: reservation.id, type: 'reservation.cancelled.v1', version: '1', organizationId: reservation.organization_id, payload: { reservationId: reservation.id, eventId: reservation.event_id, organizationId: reservation.organization_id } } });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+    } catch (error) {
+      if (isSerializationFailure(error) && attempt < 2) {
+        return this.cancelWithRetries(reservationId, tokenHash, attempt + 1);
       }
-      await tx.$executeRaw`UPDATE reservations SET status = 'CANCELLED', updated_at = NOW() WHERE id = ${reservation.id}::uuid AND status = 'ACTIVE'`;
-      await tx.outboxEvent.create({ data: { aggregateType: 'reservation', aggregateId: reservation.id, type: 'reservation.cancelled.v1', version: '1', organizationId: reservation.organization_id, payload: { reservationId: reservation.id, eventId: reservation.event_id, organizationId: reservation.organization_id } } });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      throw error;
+    }
   }
 
   async expireActiveReservations(): Promise<number> {
@@ -218,7 +237,7 @@ export class PrismaReservationRepository implements IReservationRepository {
     const changed = await tx.$executeRaw`UPDATE reservations SET status = 'EXPIRED', updated_at = NOW() WHERE id = ${reservationId}::uuid AND status = 'ACTIVE' AND expires_at <= NOW()`;
     if (changed === 0) return;
     for (const item of await this.findItems(tx, reservationId)) {
-      await tx.$executeRaw`UPDATE ticket_inventory SET reserved = reserved - ${item.quantity}, version = version + 1, updated_at = NOW() WHERE ticket_type_id = ${item.ticket_type_id}::uuid AND organization_id = ${reservation.organization_id}::uuid`;
+      await tx.$executeRaw`UPDATE ticket_inventory SET reserved = GREATEST(reserved - ${item.quantity}, 0), version = version + 1, updated_at = NOW() WHERE ticket_type_id = ${item.ticket_type_id}::uuid AND organization_id = ${reservation.organization_id}::uuid`;
     }
   }
 

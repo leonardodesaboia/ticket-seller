@@ -26,7 +26,7 @@ export function AttendanceDashboard({ orgId, eventId }: AttendanceDashboardProps
           role="alert"
           className="mb-4 rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive"
         >
-          Erro ao carregar dados: {error.message}
+          Erro ao carregar dados de presença. Tente novamente em instantes.
         </div>
       )}
 

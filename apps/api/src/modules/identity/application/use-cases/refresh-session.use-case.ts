@@ -22,28 +22,27 @@ export class RefreshSessionUseCase {
   async execute(input: RefreshSessionInput): Promise<RefreshSessionOutput> {
     const tokenHash = createHash('sha256').update(input.refreshToken).digest('hex');
 
-    const session = await this.sessionRepository.findActiveByTokenHash(tokenHash);
+    // Atomically revoke the existing session — guards against concurrent refresh
+    // requests both succeeding on the same token (TOCTOU race).
+    const rotated = await this.sessionRepository.rotateByTokenHash(tokenHash);
 
-    if (!session || session.revokedAt !== null || session.expiresAt <= new Date()) {
+    if (!rotated) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    // Revoke current session (rotation)
-    await this.sessionRepository.revokeById(session.id);
-
-    // Create new session
+    // Create replacement session
     const newRawToken = randomUUID();
     const newTokenHash = createHash('sha256').update(newRawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30d
 
     const newSession = await this.sessionRepository.create({
-      userId: session.userId,
+      userId: rotated.userId,
       tokenHash: newTokenHash,
       expiresAt,
     });
 
     const accessToken = this.tokenIssuer.issueAccessToken({
-      sub: session.userId,
+      sub: rotated.userId,
       jti: newSession.id,
     });
 

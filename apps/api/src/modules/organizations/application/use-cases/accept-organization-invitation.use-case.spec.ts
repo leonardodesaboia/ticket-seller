@@ -4,6 +4,7 @@ import {
   InvitationAlreadyUsedError,
   InvitationRevokedError,
   InvitationExpiredError,
+  InvitationEmailMismatchError,
 } from './accept-organization-invitation.use-case';
 import type { IOrganizationInvitationRepository } from '../../domain/ports/organization-invitation-repository.port';
 import { OrganizationInvitation } from '../../domain/entities/organization-invitation.entity';
@@ -24,6 +25,7 @@ const makeRepo = (): jest.Mocked<IOrganizationInvitationRepository> => ({
   removeMember: jest.fn(),
   updateMemberRoleAtomically: jest.fn(),
   removeMemberAtomically: jest.fn(),
+  findUserEmailById: jest.fn(),
 });
 
 const RAW_TOKEN = 'test-raw-token-abc';
@@ -33,6 +35,7 @@ const makeInvitation = (overrides: {
   usedAt?: Date | null;
   revokedAt?: Date | null;
   expiresAt?: Date;
+  email?: string;
 } = {}): OrganizationInvitation => {
   const now = new Date();
   const expires = overrides.expiresAt ?? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -40,7 +43,7 @@ const makeInvitation = (overrides: {
     'inv-1',
     'org-1',
     'inviter-1',
-    'test@example.com',
+    overrides.email ?? 'test@example.com',
     'ADMIN',
     TOKEN_HASH,
     expires,
@@ -59,9 +62,10 @@ describe('AcceptOrganizationInvitationUseCase', () => {
     useCase = new AcceptOrganizationInvitationUseCase(repo);
   });
 
-  it('should accept a valid invitation', async () => {
+  it('should accept a valid invitation when emails match', async () => {
     const invitation = makeInvitation();
     repo.findInvitationByTokenHash.mockResolvedValue(invitation);
+    repo.findUserEmailById.mockResolvedValue('test@example.com');
     repo.markInvitationUsed.mockResolvedValue(undefined);
 
     const result = await useCase.execute({ rawToken: RAW_TOKEN, userId: 'user-1' });
@@ -69,6 +73,36 @@ describe('AcceptOrganizationInvitationUseCase', () => {
     expect(result.organizationId).toBe('org-1');
     expect(result.role).toBe('ADMIN');
     expect(repo.markInvitationUsed).toHaveBeenCalledWith('inv-1', 'user-1');
+  });
+
+  it('should accept invitation with case-insensitive email comparison', async () => {
+    const invitation = makeInvitation({ email: 'Test@Example.COM' });
+    repo.findInvitationByTokenHash.mockResolvedValue(invitation);
+    repo.findUserEmailById.mockResolvedValue('test@example.com');
+    repo.markInvitationUsed.mockResolvedValue(undefined);
+
+    await expect(useCase.execute({ rawToken: RAW_TOKEN, userId: 'user-1' })).resolves.toBeDefined();
+  });
+
+  it('should throw InvitationEmailMismatchError when emails do not match', async () => {
+    const invitation = makeInvitation({ email: 'alice@example.com' });
+    repo.findInvitationByTokenHash.mockResolvedValue(invitation);
+    repo.findUserEmailById.mockResolvedValue('bob@example.com');
+
+    await expect(useCase.execute({ rawToken: RAW_TOKEN, userId: 'user-bob' })).rejects.toBeInstanceOf(
+      InvitationEmailMismatchError,
+    );
+    expect(repo.markInvitationUsed).not.toHaveBeenCalled();
+  });
+
+  it('should throw InvitationEmailMismatchError when user not found', async () => {
+    const invitation = makeInvitation();
+    repo.findInvitationByTokenHash.mockResolvedValue(invitation);
+    repo.findUserEmailById.mockResolvedValue(null);
+
+    await expect(useCase.execute({ rawToken: RAW_TOKEN, userId: 'ghost-user' })).rejects.toBeInstanceOf(
+      InvitationEmailMismatchError,
+    );
   });
 
   it('should throw InvitationNotFoundError for unknown token', async () => {

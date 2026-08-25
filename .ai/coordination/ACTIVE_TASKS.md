@@ -1,9 +1,10 @@
 Tarefas ativas
 
-Última atualização: 2026-08-24
+Última atualização: 2026-08-25
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
+| TASK-063 | READY | — |
 
 Estados
 BLOCKED: dependências ainda não integradas;

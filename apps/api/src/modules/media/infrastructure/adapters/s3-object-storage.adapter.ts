@@ -16,7 +16,10 @@ export class S3ObjectStorageAdapter implements IObjectStoragePort {
   private readonly bucket: string;
 
   constructor() {
-    this.bucket = env.AWS_S3_BUCKET!; // validated at startup: required when OBJECT_STORAGE_PROVIDER=s3
+    if (!env.AWS_S3_BUCKET) {
+      throw new Error('AWS_S3_BUCKET is required when OBJECT_STORAGE_PROVIDER is s3');
+    }
+    this.bucket = env.AWS_S3_BUCKET;
     const clientConfig = env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
       ? {
           region: env.AWS_S3_REGION,

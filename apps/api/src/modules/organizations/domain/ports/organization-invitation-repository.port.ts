@@ -55,6 +55,8 @@ export interface IOrganizationInvitationRepository {
    * Throws LastOwnerProtectionError – removing the last active OWNER.
    */
   removeMemberAtomically(memberId: string, organizationId: string): Promise<void>;
+
+  findUserEmailById(userId: string): Promise<string | null>;
 }
 
 export const ORGANIZATION_INVITATION_REPOSITORY = Symbol('ORGANIZATION_INVITATION_REPOSITORY');

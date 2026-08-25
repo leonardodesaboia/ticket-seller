@@ -33,6 +33,7 @@ export class MinioObjectStorageAdapter implements IObjectStoragePort, OnModuleIn
       }
     } catch (err) {
       this.logger.error(`Failed to initialize MinIO bucket: ${String(err)}`);
+      throw err;
     }
   }
 
@@ -57,9 +58,14 @@ export class MinioObjectStorageAdapter implements IObjectStoragePort, OnModuleIn
   async headObject(key: string): Promise<ObjectMetadata | null> {
     try {
       const stat = await this.client.statObject(this.bucket, key);
+      const metaData = stat.metaData ?? {};
+      const contentType =
+        (metaData['content-type'] as string | undefined) ??
+        (metaData['Content-Type'] as string | undefined) ??
+        'application/octet-stream';
       return {
         key,
-        contentType: stat.metaData?.['content-type'] as string ?? 'application/octet-stream',
+        contentType,
         sizeBytes: stat.size,
       };
     } catch {

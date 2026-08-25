@@ -35,10 +35,10 @@ export interface EventAttendanceData {
 
 export interface ICheckInRepository {
   /**
-   * Find a check-in by idempotency key for replay.
+   * Find a check-in by idempotency key for replay, scoped to organization.
    * Returns null if not found.
    */
-  findByIdempotencyKey(key: string): Promise<CheckIn | null>;
+  findByIdempotencyKey(key: string, organizationId: string): Promise<CheckIn | null>;
 
   /**
    * Returns true if there is an ADMITTED check-in for the given ticketId.

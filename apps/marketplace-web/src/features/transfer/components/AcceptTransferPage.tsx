@@ -20,7 +20,7 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
       await acceptTransfer(claimToken, idempotencyKey);
       setState('SUCCESS');
     } catch (err) {
-      if (err instanceof PublicApiError) {  
+      if (err instanceof PublicApiError) {
         if (err.status === 400 && err.code === 'TRANSFER_EXPIRED') {
           setState('EXPIRED');
           return;
@@ -38,40 +38,23 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
     }
   }
 
-  if (state === 'CONFIRMING') {
+  if (state === 'CONFIRMING' || state === 'ACCEPTING') {
+    const isAccepting = state === 'ACCEPTING';
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6">
         <div className="w-full max-w-md rounded-lg border border-input bg-background p-8 shadow-sm">
           <h1 className="mb-2 text-xl font-bold text-foreground">Ingresso recebido</h1>
           <p className="mb-6 text-sm text-muted-foreground">
-            Você recebeu um ingresso. Deseja aceitar?
+            {isAccepting ? 'Processando a transferência…' : 'Você recebeu um ingresso. Deseja aceitar?'}
           </p>
           <button
             type="button"
             onClick={handleAccept}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            disabled={isAccepting}
+            aria-busy={isAccepting}
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
-            Aceitar
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  if (state === 'ACCEPTING') {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-lg border border-input bg-background p-8 shadow-sm">
-          <h1 className="mb-2 text-xl font-bold text-foreground">Ingresso recebido</h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            Você recebeu um ingresso. Deseja aceitar?
-          </p>
-          <button
-            type="button"
-            disabled
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground opacity-50"
-          >
-            Processando…
+            {isAccepting ? 'Processando…' : 'Aceitar'}
           </button>
         </div>
       </main>
@@ -95,7 +78,8 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6">
         <div className="w-full max-w-md rounded-lg border border-input bg-background p-8 shadow-sm">
-          <p className="text-sm text-muted-foreground">Este link expirou.</p>
+          <h1 className="mb-2 text-xl font-bold text-foreground">Link expirado</h1>
+          <p className="text-sm text-muted-foreground">Este link de transferência expirou.</p>
         </div>
       </main>
     );
@@ -105,7 +89,8 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6">
         <div className="w-full max-w-md rounded-lg border border-input bg-background p-8 shadow-sm">
-          <p className="text-sm text-muted-foreground">Este ingresso já foi transferido.</p>
+          <h1 className="mb-2 text-xl font-bold text-foreground">Ingresso já transferido</h1>
+          <p className="text-sm text-muted-foreground">Este ingresso já foi transferido para outro destinatário.</p>
         </div>
       </main>
     );
@@ -115,13 +100,14 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6">
       <div className="w-full max-w-md rounded-lg border border-input bg-background p-8 shadow-sm">
-        <p role="alert" className="text-sm text-destructive">
+        <h1 className="mb-2 text-xl font-bold text-foreground">Erro ao transferir</h1>
+        <p role="alert" className="mb-4 text-sm text-destructive">
           Ocorreu um erro. Tente novamente.
         </p>
         <button
           type="button"
           onClick={() => setState('CONFIRMING')}
-          className="mt-4 rounded-md border border-input px-4 py-2 text-sm font-medium text-foreground"
+          className="rounded-md border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
         >
           Tentar novamente
         </button>

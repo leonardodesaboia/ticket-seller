@@ -20,6 +20,8 @@ import {
   AuthLoginThrottle,
   AuthRefreshThrottle,
   AuthRegisterThrottle,
+  AuthResetPasswordThrottle,
+  AuthVerifyEmailThrottle,
 } from '../../../../platform/http/decorators/throttle.decorator';
 import { RegisterWithPasswordUseCase } from '../../application/use-cases/register-with-password.use-case';
 import { AuthenticateWithPasswordUseCase } from '../../application/use-cases/authenticate-with-password.use-case';
@@ -145,6 +147,7 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(200)
+  @AuthResetPasswordThrottle()
   @ApiOperation({ summary: 'Reset password using a reset token' })
   @ApiResponse({ status: 200, description: 'Password reset successfully' })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
@@ -157,6 +160,7 @@ export class AuthController {
 
   @Post('verify-email')
   @HttpCode(200)
+  @AuthVerifyEmailThrottle()
   @ApiOperation({ summary: 'Verify email address using a verification token' })
   @ApiResponse({ status: 200, description: 'Email verified successfully' })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
@@ -202,7 +206,7 @@ export class AuthController {
       `${REFRESH_TOKEN_COOKIE}=${token}`,
       'HttpOnly',
       `Max-Age=${REFRESH_TOKEN_MAX_AGE}`,
-      'Path=/auth/refresh',
+      'Path=/api/v1/auth',
       'SameSite=Strict',
       secure,
     ]
@@ -212,13 +216,18 @@ export class AuthController {
   }
 
   private clearRefreshTokenCookie(reply: FastifyReply): void {
+    const isProduction = env.NODE_ENV === 'production';
+    const secure = isProduction ? '; Secure' : '';
     const cookieValue = [
       `${REFRESH_TOKEN_COOKIE}=`,
       'HttpOnly',
       'Max-Age=0',
-      'Path=/auth/refresh',
+      'Path=/api/v1/auth',
       'SameSite=Strict',
-    ].join('; ');
+      secure,
+    ]
+      .filter(Boolean)
+      .join('; ');
     reply.header('Set-Cookie', cookieValue);
   }
 }

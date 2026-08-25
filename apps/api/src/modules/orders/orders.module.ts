@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '../../platform/http/http.module';
+import { OrganizationRoleGuard } from '../../platform/http/guards/organization-role.guard';
+import { ORGANIZATION_INVITATION_REPOSITORY } from '../organizations/domain/ports/organization-invitation-repository.port';
+import { PrismaOrganizationInvitationRepository } from '../organizations/infrastructure/repositories/prisma-organization-invitation.repository';
 import { RESERVATION_ACCESS } from './application/ports/reservation-access.port';
 import { ORDER_CANCELLATION_REPOSITORY } from './application/ports/order-cancellation-repository.port';
 import { CreateOrderUseCase } from './application/use-cases/create-order.use-case';
@@ -17,6 +20,8 @@ import { OrderCancellationController } from './presentation/controllers/order-ca
   imports: [HttpModule, OrdersInfrastructureModule],
   controllers: [PublicOrdersController, OrderCancellationController],
   providers: [
+    OrganizationRoleGuard,
+    { provide: ORGANIZATION_INVITATION_REPOSITORY, useClass: PrismaOrganizationInvitationRepository },
     CreateOrderUseCase,
     GetOrderUseCase,
     CancelOrderUseCase,

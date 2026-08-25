@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCreatePayout } from '../hooks/useCreatePayout';
 
 interface PayoutRequestModalProps {
@@ -14,18 +14,39 @@ export function PayoutRequestModal({ organizationId, devUserId, onClose }: Payou
   const [error, setError] = useState<string | null>(null);
   const mutation = useCreatePayout(organizationId, devUserId);
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !mutation.isPending) onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mutation.isPending, onClose]);
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
-    const parsed = parseFloat(amountInput.replace(',', '.'));
+    const normalised = amountInput.trim().replace(',', '.');
+    if (!/^\d+(\.\d{1,2})?$/.test(normalised)) {
+      setError('Informe um valor válido com no máximo 2 casas decimais (ex: 100,00).');
+      return;
+    }
+    const parsed = parseFloat(normalised);
     if (isNaN(parsed) || parsed <= 0) {
       setError('Informe um valor válido maior que zero.');
+      return;
+    }
+    if (parsed > 1_000_000) {
+      setError('Valor máximo por saque: R$ 1.000.000,00.');
       return;
     }
 
     // Convert BRL major units (R$) to minor units (centavos)
     const amountInMinorUnits = Math.round(parsed * 100);
+    if (amountInMinorUnits < 1) {
+      setError('Valor mínimo: R$ 0,01.');
+      return;
+    }
     const idempotencyKey = crypto.randomUUID();
 
     mutation.mutate(
@@ -42,10 +63,15 @@ export function PayoutRequestModal({ organizationId, devUserId, onClose }: Payou
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="payout-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    >
       <div className="w-full max-w-md rounded-lg border border-input bg-background p-6 shadow-lg">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Solicitar Saque</h2>
+          <h2 id="payout-modal-title" className="text-lg font-semibold text-foreground">Solicitar Saque</h2>
           <button
             type="button"
             onClick={onClose}
@@ -84,7 +110,7 @@ export function PayoutRequestModal({ organizationId, devUserId, onClose }: Payou
           )}
 
           {mutation.isSuccess && (
-            <p className="text-sm text-green-600">Saque solicitado com sucesso!</p>
+            <p className="text-sm text-primary">Saque solicitado com sucesso!</p>
           )}
 
           <div className="flex gap-3 justify-end">

@@ -47,7 +47,7 @@ export class PerformCheckInUseCase {
   async execute(input: PerformCheckInInput): Promise<PerformCheckInOutput> {
     // Step 1: Replay via idempotency key
     if (input.idempotencyKey) {
-      const existing = await this.checkInRepo.findByIdempotencyKey(input.idempotencyKey);
+      const existing = await this.checkInRepo.findByIdempotencyKey(input.idempotencyKey, input.organizationId);
       if (existing) {
         return {
           decision: existing.result,

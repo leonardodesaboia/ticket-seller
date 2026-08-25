@@ -22,6 +22,7 @@ describe('CreateOrderUseCase', () => {
       reservationId: 'reservation-id',
       reservationToken: 'plain-continuation-token',
       idempotencyKey: 'idempotency-key',
+      buyerEmail: 'buyer@example.com',
     });
 
     expect(reservationAccess.createOrderFromActiveReservation).toHaveBeenCalledWith({
@@ -29,8 +30,9 @@ describe('CreateOrderUseCase', () => {
       tokenHash: createHash('sha256').update('plain-continuation-token').digest('hex'),
       idempotencyKey: 'idempotency-key',
       requestHash: createHash('sha256')
-        .update(JSON.stringify({ reservationId: 'reservation-id' }))
+        .update(JSON.stringify({ reservationId: 'reservation-id', idempotencyKey: 'idempotency-key' }))
         .digest('hex'),
+      buyerEmail: 'buyer@example.com',
     });
   });
 });

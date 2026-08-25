@@ -54,6 +54,7 @@ All environment variables across the monorepo, with defaults and production requ
 | Variable | Required in Prod | Default | Description | Example |
 |----------|-----------------|---------|-------------|---------|
 | `RESEND_API_KEY` | If using Resend | — | Resend API key for transactional email | `re_xxxxxxxxxxxx` |
+| `RESEND_FROM` | No | `noreply@ticket-seller.com` | Sender address used by the Resend adapter (production) | `noreply@example.com` |
 | `SMTP_HOST` | No | `localhost` | SMTP host (used when `RESEND_API_KEY` absent) | `smtp.example.com` |
 | `SMTP_PORT` | No | `1025` | SMTP port | `587` |
 | `SMTP_FROM` | No | `noreply@ticket-seller.local` | Sender address | `noreply@example.com` |

@@ -3,9 +3,7 @@ import { PrismaService } from '../../../../platform/database/prisma.service';
 
 export interface AdminUserItem {
   id: string;
-  email: string;
   displayName: string | null;
-  platformRole: string | null;
   suspendedAt: Date | null;
   createdAt: Date;
 }
@@ -20,6 +18,24 @@ export interface ListAdminUsersQuery {
   limit?: number;
 }
 
+function decodeCursor(cursor: string): { id: string; createdAt: Date } | null {
+  try {
+    const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8')) as {
+      id: string;
+      createdAt: string;
+    };
+    const createdAt = new Date(decoded.createdAt);
+    if (isNaN(createdAt.getTime())) return null;
+    return { id: decoded.id, createdAt };
+  } catch {
+    return null;
+  }
+}
+
+function encodeCursor(id: string, createdAt: Date): string {
+  return Buffer.from(JSON.stringify({ id, createdAt: createdAt.toISOString() })).toString('base64');
+}
+
 @Injectable()
 export class ListAdminUsersUseCase {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,18 +43,23 @@ export class ListAdminUsersUseCase {
   async execute(query: ListAdminUsersQuery): Promise<ListAdminUsersResult> {
     const limit = Math.min(query.limit ?? 50, 100);
 
+    const decoded = query.cursor ? decodeCursor(query.cursor) : null;
+
     const users = await this.prisma.user.findMany({
       where: {
         deletedAt: null,
-        ...(query.cursor
-          ? { createdAt: { lt: new Date(query.cursor) } }
+        ...(decoded
+          ? {
+              OR: [
+                { createdAt: { lt: decoded.createdAt } },
+                { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+              ],
+            }
           : {}),
       },
       select: {
         id: true,
-        email: true,
         displayName: true,
-        platformRole: true,
         suspendedAt: true,
         createdAt: true,
       },
@@ -48,17 +69,16 @@ export class ListAdminUsersUseCase {
 
     const hasMore = users.length > limit;
     const items = hasMore ? users.slice(0, limit) : users;
+    const lastItem = items[items.length - 1];
 
     return {
       items: items.map((user) => ({
         id: user.id,
-        email: user.email,
         displayName: user.displayName,
-        platformRole: user.platformRole,
         suspendedAt: user.suspendedAt,
         createdAt: user.createdAt,
       })),
-      nextCursor: hasMore ? items[items.length - 1]?.createdAt.toISOString() ?? null : null,
+      nextCursor: hasMore && lastItem ? encodeCursor(lastItem.id, lastItem.createdAt) : null,
     };
   }
 }

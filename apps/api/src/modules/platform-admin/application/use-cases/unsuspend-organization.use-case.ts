@@ -16,8 +16,21 @@ export class UnsuspendOrganizationUseCase {
   async execute(command: UnsuspendOrganizationCommand): Promise<void> {
     const org = await this.prisma.organization.findUnique({
       where: { id: command.organizationId },
+      select: { id: true, suspendedAt: true },
     });
     if (!org) throw new NotFoundException('Organization not found');
+
+    if (org.suspendedAt === null) {
+      this.logger.log({
+        msg: 'platform_admin_action_noop',
+        actor: command.actorId,
+        action: 'UNSUSPEND',
+        resource: 'Organization',
+        resourceId: command.organizationId,
+        reason: command.reason,
+      });
+      return;
+    }
 
     await this.prisma.organization.update({
       where: { id: command.organizationId },

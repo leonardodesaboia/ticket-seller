@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { ThrottlerRequest } from '@nestjs/throttler/dist/throttler.guard.interface';
 import { THROTTLE_USE_EMAIL_KEY } from '../decorators/throttle.decorator';
+import { env } from '../../config/env';
 
 @Injectable()
 export class SmartThrottlerGuard extends ThrottlerGuard {
   protected override async handleRequest(requestProps: ThrottlerRequest): Promise<boolean> {
     // In test environments all requests come from the same localhost IP, which would exhaust
     // per-route limits (e.g. PaymentThrottle: 10/5min) across sequential integration tests.
-    if (process.env['NODE_ENV'] === 'test') return true;
+    if (env.NODE_ENV === 'test') return true;
 
     const useEmailKey = this.reflector.getAllAndOverride<boolean>(THROTTLE_USE_EMAIL_KEY, [
       requestProps.context.getHandler(),

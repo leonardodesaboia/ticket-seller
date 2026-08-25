@@ -55,4 +55,18 @@ export class PrismaSessionRepository implements ISessionRepository {
       data: { revokedAt: new Date() },
     });
   }
+
+  async rotateByTokenHash(tokenHash: string): Promise<{ userId: string } | null> {
+    const rows = await this.prisma.$queryRaw<Array<{ user_id: string }>>`
+      UPDATE sessions
+      SET revoked_at = NOW()
+      WHERE token_hash = ${tokenHash}
+        AND revoked_at IS NULL
+        AND expires_at > NOW()
+      RETURNING user_id
+    `;
+    const row = rows[0] ?? null;
+    if (!row) return null;
+    return { userId: row.user_id };
+  }
 }

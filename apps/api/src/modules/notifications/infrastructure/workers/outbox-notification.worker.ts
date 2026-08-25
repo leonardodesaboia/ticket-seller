@@ -1,11 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../../../platform/database/prisma.service";
 import { SendEmailUseCase, SendEmailInput } from "../../application/use-cases/send-email.use-case";
+import { env } from "../../../../platform/config/env";
 
-// NOTE (TASK-045 MVP): Orders have no buyer email or user_id FK.
-// Placeholder emails are used until buyer identity is added to the order model.
-const DEV_BUYER_EMAIL = "comprador@ticket-seller.local";
-const DEV_ADMIN_EMAIL = "backoffice@ticket-seller.local";
 
 const HANDLED_TYPES = [
   "order.paid.v1",
@@ -26,7 +23,8 @@ interface OutboxEventRow {
 export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutboxNotificationWorker.name);
   private intervalHandle: NodeJS.Timeout | null = null;
-  private readonly pollIntervalMs = 5_000;
+  private readonly pollIntervalMs = env.OUTBOX_POLL_INTERVAL_MS;
+  private isPolling = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -49,7 +47,14 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async poll(): Promise<void> {
+    if (this.isPolling) return;
+    this.isPolling = true;
     try {
+      // FOR UPDATE SKIP LOCKED cannot be used here because email I/O must happen
+      // outside a transaction — holding a row lock open during an HTTP call would
+      // exhaust the connection pool. Duplicate-send prevention is handled by
+      // notification_log in SendEmailUseCase (unique check per orderId+eventType
+      // or outboxEventId before each send).
       const rows = await this.prisma.$queryRaw<OutboxEventRow[]>`
         SELECT id, type, payload, organization_id
         FROM outbox_events
@@ -65,6 +70,8 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
       }
     } catch (err) {
       this.logger.error("Error polling outbox_events", err);
+    } finally {
+      this.isPolling = false;
     }
   }
 
@@ -121,10 +128,16 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const buyerEmail = payload["buyerEmail"] as string | undefined;
+    if (!buyerEmail) {
+      this.logger.warn(`order.paid.v1 event id=${outboxEventId} missing buyerEmail, skipping`);
+      return;
+    }
+
     const input: SendEmailInput = {
       orderId,
       eventType: "order.paid.v1",
-      recipientEmail: DEV_BUYER_EMAIL,
+      recipientEmail: buyerEmail,
       subject: "Seu pedido foi confirmado!",
       text: [
         "Olá!",
@@ -151,13 +164,19 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const buyerEmail = payload["buyerEmail"] as string | undefined;
+    if (!buyerEmail) {
+      this.logger.warn(`order.cancelled.v1 event id=${outboxEventId} missing buyerEmail, skipping`);
+      return;
+    }
+
     const reason = payload["reason"] as string | null | undefined;
     const reasonLine = reason ? `\nMotivo: ${reason}` : "";
 
     const input: SendEmailInput = {
       orderId,
       eventType: "order.cancelled.v1",
-      recipientEmail: DEV_BUYER_EMAIL,
+      recipientEmail: buyerEmail,
       subject: "Seu pedido foi cancelado",
       text: [
         "Olá!",
@@ -184,16 +203,28 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const amountRaw = payload["amount"] as number | undefined;
+    const buyerEmail = payload["buyerEmail"] as string | undefined;
+    if (!buyerEmail) {
+      this.logger.warn(`order.refunded.v1 event id=${outboxEventId} missing buyerEmail, skipping`);
+      return;
+    }
+
+    const amountRaw = payload["amount"] as string | number | undefined;
     const currency = (payload["currency"] as string | undefined) ?? "BRL";
     const amountFormatted = amountRaw !== undefined
-      ? `${(amountRaw / 100).toFixed(2)} ${currency}`
+      ? (() => {
+          const rawStr = String(amountRaw ?? '0').split('.')[0] ?? '0'; // remove decimals if any
+          const units = BigInt(rawStr);
+          const major = (units / 100n).toString();
+          const minor = String(units % 100n).padStart(2, '0');
+          return `${major}.${minor} ${currency}`;
+        })()
       : "valor integral";
 
     const input: SendEmailInput = {
       orderId,
       eventType: "order.refunded.v1",
-      recipientEmail: DEV_BUYER_EMAIL,
+      recipientEmail: buyerEmail,
       subject: "Seu reembolso foi processado",
       text: [
         "Olá!",
@@ -228,7 +259,7 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
     // No orderId for this event — idempotency is handled via outboxEventId in SendEmailUseCase
     const input: SendEmailInput = {
       eventType: "event.cancelled.v1",
-      recipientEmail: DEV_ADMIN_EMAIL,
+      recipientEmail: env.ADMIN_NOTIFICATION_EMAIL,
       subject: "Evento cancelado — alerta administrativo",
       text: [
         "Este é um alerta administrativo.",
@@ -261,7 +292,7 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
     const input: SendEmailInput = {
       orderId,
       eventType: "order.chargeback.v1",
-      recipientEmail: DEV_ADMIN_EMAIL,
+      recipientEmail: env.ADMIN_NOTIFICATION_EMAIL,
       subject: "Alerta: chargeback recebido",
       text: [
         "Alerta administrativo — chargeback recebido.",

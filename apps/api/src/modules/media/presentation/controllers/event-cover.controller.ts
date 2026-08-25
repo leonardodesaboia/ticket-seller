@@ -21,8 +21,6 @@ import { GetEventCoverUrlUseCase } from '../../application/use-cases/get-event-c
 import { GenerateUploadUrlDto } from '../dtos/generate-upload-url.dto';
 import { ConfirmUploadDto } from '../dtos/confirm-upload.dto';
 
-const uuidPipe = new ParseUUIDPipe({ version: '4' });
-
 @ApiTags('media')
 @Controller('organizations/:orgId/events/:eventId/cover')
 export class EventCoverController {
@@ -37,8 +35,8 @@ export class EventCoverController {
   @RequireCapability(OrganizationCapability.EVENTS_MANAGE)
   @HttpCode(200)
   async generateUploadUrlEndpoint(
-    @Param('orgId', uuidPipe) orgId: string,
-    @Param('eventId', uuidPipe) eventId: string,
+    @Param('orgId', new ParseUUIDPipe({ version: '4' })) orgId: string,
+    @Param('eventId', new ParseUUIDPipe({ version: '4' })) eventId: string,
     @CurrentActor() actor: ICurrentActor,
     @Body() dto: GenerateUploadUrlDto,
   ) {
@@ -55,8 +53,8 @@ export class EventCoverController {
   @RequireCapability(OrganizationCapability.EVENTS_MANAGE)
   @HttpCode(200)
   async confirmUploadEndpoint(
-    @Param('orgId', uuidPipe) orgId: string,
-    @Param('eventId', uuidPipe) eventId: string,
+    @Param('orgId', new ParseUUIDPipe({ version: '4' })) orgId: string,
+    @Param('eventId', new ParseUUIDPipe({ version: '4' })) eventId: string,
     @Body() dto: ConfirmUploadDto,
   ) {
     return this.confirmUpload.execute({
@@ -67,9 +65,11 @@ export class EventCoverController {
   }
 
   @Get()
+  @UseGuards(ActorGuard, OrganizationRoleGuard)
+  @RequireCapability(OrganizationCapability.EVENTS_MANAGE)
   async getCover(
-    @Param('orgId', uuidPipe) orgId: string,
-    @Param('eventId', uuidPipe) eventId: string,
+    @Param('orgId', new ParseUUIDPipe({ version: '4' })) orgId: string,
+    @Param('eventId', new ParseUUIDPipe({ version: '4' })) eventId: string,
   ) {
     return this.getCoverUrl.execute({ organizationId: orgId, eventId });
   }

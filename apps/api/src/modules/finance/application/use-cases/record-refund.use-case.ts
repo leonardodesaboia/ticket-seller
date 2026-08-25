@@ -117,7 +117,8 @@ export class RecordRefundUseCase {
           currency,
           description: `REFUND (REFUND): clearing reduction for order ${orderId}`,
         });
-        if (snapshot.platformFeeAmount > 0n) {
+        const totalPlatformFee = snapshot.platformFeeAmount + snapshot.processingFeeAmount;
+        if (totalPlatformFee > 0n) {
           const platformRevenue = await this.ledgerRepository.findAccountByCode(
             'PLATFORM_REVENUE',
             tx,
@@ -128,20 +129,21 @@ export class RecordRefundUseCase {
           entries.push({
             accountId: platformRevenue.id,
             entryType: 'CREDIT',
-            amount: snapshot.platformFeeAmount,
+            amount: totalPlatformFee,
             currency,
-            description: `REFUND (REFUND): platform fee reversal for order ${orderId}`,
+            description: `REFUND (REFUND): platform fee + processing fee reversal for order ${orderId}`,
           });
         }
       }
     } else if (effectivePolicy === 'PROPORTIONAL') {
-      // Proportional: scale sellerNetAmount and platformFeeAmount by refundAmount/grossAmount
-      // to avoid float, use bigint arithmetic: scaled = amount * refundAmount / grossAmount
+      // Proportional: scale sellerNetAmount and total platform fees by refundAmount/grossAmount.
+      // Use bigint arithmetic to avoid float precision loss: scaled = amount * refundAmount / grossAmount
       const gross = snapshot.grossAmount;
       if (gross > 0n && refundAmount > 0n) {
+        const totalPlatformFee = snapshot.platformFeeAmount + snapshot.processingFeeAmount;
         const scaledSellerNet = (snapshot.sellerNetAmount * refundAmount) / gross;
-        const scaledPlatformFee = (snapshot.platformFeeAmount * refundAmount) / gross;
-        // Total DEBIT = scaledSellerNet + scaledPlatformFee (may differ from refundAmount due to floor)
+        const scaledPlatformFee = (totalPlatformFee * refundAmount) / gross;
+        // Total DEBIT = scaledSellerNet + scaledPlatformFee (may differ from refundAmount due to floor division)
         const totalDebit = scaledSellerNet + scaledPlatformFee;
 
         if (totalDebit > 0n) {
@@ -174,7 +176,7 @@ export class RecordRefundUseCase {
               entryType: 'CREDIT',
               amount: scaledPlatformFee,
               currency,
-              description: `REFUND (PROPORTIONAL): platform fee reversal for order ${orderId}`,
+              description: `REFUND (PROPORTIONAL): platform fee + processing fee reversal for order ${orderId}`,
             });
           }
         }

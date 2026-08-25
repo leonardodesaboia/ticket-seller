@@ -20,6 +20,24 @@ export interface ListAdminOrganizationsQuery {
   limit?: number;
 }
 
+function decodeCursor(cursor: string): { id: string; createdAt: Date } | null {
+  try {
+    const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8')) as {
+      id: string;
+      createdAt: string;
+    };
+    const createdAt = new Date(decoded.createdAt);
+    if (isNaN(createdAt.getTime())) return null;
+    return { id: decoded.id, createdAt };
+  } catch {
+    return null;
+  }
+}
+
+function encodeCursor(id: string, createdAt: Date): string {
+  return Buffer.from(JSON.stringify({ id, createdAt: createdAt.toISOString() })).toString('base64');
+}
+
 @Injectable()
 export class ListAdminOrganizationsUseCase {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,11 +45,18 @@ export class ListAdminOrganizationsUseCase {
   async execute(query: ListAdminOrganizationsQuery): Promise<ListAdminOrganizationsResult> {
     const limit = Math.min(query.limit ?? 50, 100);
 
+    const decoded = query.cursor ? decodeCursor(query.cursor) : null;
+
     const organizations = await this.prisma.organization.findMany({
       where: {
         deletedAt: null,
-        ...(query.cursor
-          ? { createdAt: { lt: new Date(query.cursor) } }
+        ...(decoded
+          ? {
+              OR: [
+                { createdAt: { lt: decoded.createdAt } },
+                { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+              ],
+            }
           : {}),
       },
       select: {
@@ -52,6 +77,7 @@ export class ListAdminOrganizationsUseCase {
 
     const hasMore = organizations.length > limit;
     const items = hasMore ? organizations.slice(0, limit) : organizations;
+    const lastItem = items[items.length - 1];
 
     return {
       items: items.map((org) => ({
@@ -62,7 +88,7 @@ export class ListAdminOrganizationsUseCase {
         memberCount: org._count.members,
         eventCount: org._count.events,
       })),
-      nextCursor: hasMore ? items[items.length - 1]?.createdAt.toISOString() ?? null : null,
+      nextCursor: hasMore && lastItem ? encodeCursor(lastItem.id, lastItem.createdAt) : null,
     };
   }
 }

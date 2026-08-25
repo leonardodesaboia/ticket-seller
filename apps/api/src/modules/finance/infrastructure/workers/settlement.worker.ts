@@ -89,7 +89,6 @@ export class SettlementWorker implements OnModuleInit, OnModuleDestroy {
         )
       ORDER BY o.id
       LIMIT ${this.chunkSize}
-      FOR UPDATE OF o SKIP LOCKED
     `;
   }
 

@@ -4,6 +4,13 @@ import { useState } from 'react';
 import type { TicketItem } from '@/shared/api/public-payments.api';
 import { InitiateTransferModal } from '@/features/transfer/components/InitiateTransferModal';
 
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Ativo',
+  CANCELLED: 'Cancelado',
+  USED: 'Utilizado',
+  TRANSFERRED: 'Transferido',
+};
+
 export interface TicketCardProps {
   ticket: TicketItem;
   orderId: string;
@@ -24,7 +31,7 @@ export function TicketCard({ ticket, orderId, token }: TicketCardProps) {
             {ticket.publicCode}
           </span>
           <span className="text-xs text-muted-foreground">
-            Ingresso {ticket.unitIndex + 1} — {ticket.status}
+            Ingresso {ticket.unitIndex + 1} — {STATUS_LABELS[ticket.status] ?? ticket.status}
           </span>
         </div>
         <button

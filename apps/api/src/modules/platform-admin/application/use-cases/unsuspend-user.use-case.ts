@@ -16,8 +16,21 @@ export class UnsuspendUserUseCase {
   async execute(command: UnsuspendUserCommand): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: command.userId },
+      select: { id: true, suspendedAt: true },
     });
     if (!user) throw new NotFoundException('User not found');
+
+    if (user.suspendedAt === null) {
+      this.logger.log({
+        msg: 'platform_admin_action_noop',
+        actor: command.actorId,
+        action: 'UNSUSPEND',
+        resource: 'User',
+        resourceId: command.userId,
+        reason: command.reason,
+      });
+      return;
+    }
 
     await this.prisma.user.update({
       where: { id: command.userId },

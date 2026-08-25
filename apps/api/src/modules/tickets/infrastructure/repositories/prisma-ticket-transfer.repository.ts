@@ -8,7 +8,7 @@ import {
   ITicketTransferRepository,
   PrismaTransactionClient,
 } from '../../domain/ports/ticket-transfer-repository.port';
-import { TransferAlreadyAcceptedError, TicketAlreadyAdmittedError } from '../../domain/ticket-transfer.errors';
+import { TransferAlreadyAcceptedError, TicketAlreadyAdmittedError, TransferExpiredError } from '../../domain/ticket-transfer.errors';
 
 interface RawTransferRow {
   id: string;
@@ -80,11 +80,14 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
   }
 
   async cancel(id: string): Promise<void> {
-    await this.prisma.$executeRaw`
+    const affected = await this.prisma.$executeRaw`
       UPDATE ticket_transfers
       SET status = 'CANCELLED', cancelled_at = NOW(), updated_at = NOW()
-      WHERE id = ${id}::uuid
+      WHERE id = ${id}::uuid AND status = 'PENDING'
     `;
+    if (affected === 0) {
+      throw new TransferAlreadyAcceptedError();
+    }
   }
 
   async accept(id: string, tx?: PrismaTransactionClient): Promise<void> {
@@ -106,12 +109,15 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
       `;
       if (!ticketRows[0]) throw new Error('ticket not found');
 
-      // Re-verify transfer still PENDING
-      const transferRows = await tx.$queryRaw<Array<{ status: string }>>`
-        SELECT status FROM ticket_transfers WHERE id = ${params.transferId}::uuid
+      // Re-verify transfer still PENDING and not expired inside the transaction
+      const transferRows = await tx.$queryRaw<Array<{ status: string; expires_at: Date }>>`
+        SELECT status, expires_at FROM ticket_transfers WHERE id = ${params.transferId}::uuid FOR UPDATE
       `;
       if (!transferRows[0] || transferRows[0].status !== 'PENDING') {
         throw new TransferAlreadyAcceptedError();
+      }
+      if (transferRows[0].expires_at <= new Date()) {
+        throw new TransferExpiredError();
       }
 
       // Check admitted

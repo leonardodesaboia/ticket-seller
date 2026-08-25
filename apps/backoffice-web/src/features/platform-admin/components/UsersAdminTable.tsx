@@ -9,36 +9,50 @@ interface UsersAdminTableProps {
   devUserId?: string | undefined;
 }
 
+interface ReasonDialog {
+  type: 'suspend' | 'unsuspend';
+  userId: string;
+  userEmail: string;
+}
+
 export function UsersAdminTable({ devUserId }: UsersAdminTableProps) {
   const queryClient = useQueryClient();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<ReasonDialog | null>(null);
+  const [reasonInput, setReasonInput] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const usersQuery: { cursor?: string; limit?: number } = { limit: 50 };
   if (cursor !== undefined) usersQuery.cursor = cursor;
   const { data, isLoading, error } = useAdminUsers(usersQuery, devUserId);
 
-  async function handleSuspend(userId: string) {
-    const reason = window.prompt('Motivo da suspensão:');
-    if (!reason) return;
-    try {
-      await suspendUser(userId, reason, devUserId);
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      setActionError(null);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao suspender usuário');
-    }
+  function openSuspend(userId: string, userEmail: string) {
+    setReasonInput('');
+    setDialog({ type: 'suspend', userId, userEmail });
   }
 
-  async function handleUnsuspend(userId: string) {
-    const reason = window.prompt('Motivo da reativação:');
-    if (!reason) return;
+  function openUnsuspend(userId: string, userEmail: string) {
+    setReasonInput('');
+    setDialog({ type: 'unsuspend', userId, userEmail });
+  }
+
+  async function handleConfirm() {
+    if (!dialog || !reasonInput.trim()) return;
+    setSubmitting(true);
     try {
-      await unsuspendUser(userId, reason, devUserId);
+      if (dialog.type === 'suspend') {
+        await suspendUser(dialog.userId, reasonInput.trim(), devUserId);
+      } else {
+        await unsuspendUser(dialog.userId, reasonInput.trim(), devUserId);
+      }
       await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setActionError(null);
+      setDialog(null);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Erro ao reativar usuário');
+      setActionError(err instanceof Error ? err.message : 'Erro ao executar ação');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -55,6 +69,53 @@ export function UsersAdminTable({ devUserId }: UsersAdminTableProps) {
       {actionError && (
         <p className="text-sm text-destructive">{actionError}</p>
       )}
+
+      {dialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={dialog.type === 'suspend' ? 'Suspender usuário' : 'Reativar usuário'}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div className="w-full max-w-sm rounded-lg border border-input bg-background p-6 shadow-lg">
+            <h2 className="mb-1 text-base font-semibold text-foreground">
+              {dialog.type === 'suspend' ? 'Suspender usuário' : 'Reativar usuário'}
+            </h2>
+            <p className="mb-4 font-mono text-xs text-muted-foreground">{dialog.userEmail}</p>
+            <label htmlFor="user-reason" className="mb-1 block text-sm font-medium text-foreground">
+              Motivo *
+            </label>
+            <input
+              id="user-reason"
+              type="text"
+              value={reasonInput}
+              onChange={(e) => setReasonInput(e.target.value)}
+              className="mb-4 w-full rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Informe o motivo..."
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDialog(null)}
+                className="rounded border border-input px-4 py-1.5 text-sm hover:bg-muted"
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirm()}
+                disabled={submitting || !reasonInput.trim()}
+                className="rounded bg-destructive px-4 py-1.5 text-sm text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {submitting ? 'Aguarde...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-md border border-input">
         <table className="w-full text-sm">
           <thead>
@@ -98,14 +159,14 @@ export function UsersAdminTable({ devUserId }: UsersAdminTableProps) {
                 <td className="px-4 py-2">
                   {user.suspendedAt ? (
                     <button
-                      onClick={() => void handleUnsuspend(user.id)}
+                      onClick={() => openUnsuspend(user.id, user.email)}
                       className="rounded bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90"
                     >
                       Reativar
                     </button>
                   ) : (
                     <button
-                      onClick={() => void handleSuspend(user.id)}
+                      onClick={() => openSuspend(user.id, user.email)}
                       className="rounded bg-destructive px-2 py-1 text-xs text-destructive-foreground hover:bg-destructive/90"
                       disabled={user.platformRole === 'PLATFORM_ADMIN'}
                     >

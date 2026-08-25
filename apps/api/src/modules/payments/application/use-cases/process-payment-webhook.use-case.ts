@@ -32,6 +32,7 @@ interface RawOrderRow {
   id: string;
   status: string;
   organization_id: string;
+  buyer_email: string | null;
 }
 
 @Injectable()
@@ -72,7 +73,7 @@ export class ProcessPaymentWebhookUseCase {
         (provider, provider_event_id, payment_attempt_id, external_payment_id,
          event_type, raw_status, amount, currency)
       VALUES
-        (${'FAKE'}, ${providerEventId}, ${attempt?.id ?? null}::uuid,
+        (${input.provider}, ${providerEventId}, ${attempt?.id ?? null}::uuid,
          ${externalPaymentId}, ${eventType}, ${status},
          ${amount ?? null}, ${currency ?? null})
       ON CONFLICT (provider, provider_event_id) DO NOTHING
@@ -88,7 +89,7 @@ export class ProcessPaymentWebhookUseCase {
       this.logger.warn(`Webhook for unknown externalPaymentId=${externalPaymentId}`);
       await this.prisma.$executeRaw`
         UPDATE payment_webhook_events SET processed_at = NOW()
-        WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+        WHERE provider = ${input.provider} AND provider_event_id = ${providerEventId}
       `;
       return;
     }
@@ -107,16 +108,16 @@ export class ProcessPaymentWebhookUseCase {
       });
       await this.prisma.$executeRaw`
         UPDATE payment_webhook_events SET processed_at = NOW()
-        WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+        WHERE provider = ${input.provider} AND provider_event_id = ${providerEventId}
       `;
       return;
     }
 
     // Step 4: Process non-chargeback events
     if (eventType === 'PAYMENT_APPROVED') {
-      await this.processApproved(attempt, providerEventId, amount, currency);
+      await this.processApproved(attempt, providerEventId, amount, currency, input.provider);
     } else {
-      await this.processNonApproved(attempt, status, eventType, providerEventId);
+      await this.processNonApproved(attempt, status, eventType, providerEventId, input.provider);
     }
   }
 
@@ -125,6 +126,7 @@ export class ProcessPaymentWebhookUseCase {
     providerEventId: string,
     webhookAmount: bigint,
     webhookCurrency: string,
+    provider: string,
   ): Promise<void> {
     // Validate amount and currency match
     const attemptAmount = BigInt(attempt.amount);
@@ -137,7 +139,7 @@ export class ProcessPaymentWebhookUseCase {
         UPDATE payment_webhook_events
         SET failed_at = NOW(),
             error_message = ${'Amount or currency mismatch — manual reconciliation required'}
-        WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+        WHERE provider = ${provider} AND provider_event_id = ${providerEventId}
       `;
       return;
     }
@@ -145,7 +147,7 @@ export class ProcessPaymentWebhookUseCase {
     await this.prisma.$transaction(async (tx) => {
       // Lock order with FOR UPDATE
       const orders = await tx.$queryRaw<RawOrderRow[]>`
-        SELECT id, status, organization_id
+        SELECT id, status, organization_id, buyer_email
         FROM orders
         WHERE id = ${attempt.order_id}::uuid
         FOR UPDATE
@@ -157,7 +159,7 @@ export class ProcessPaymentWebhookUseCase {
       if (order.status === 'PAID' || order.status === 'TICKETS_ISSUED') {
         await tx.$executeRaw`
           UPDATE payment_webhook_events SET processed_at = NOW()
-          WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+          WHERE provider = ${provider} AND provider_event_id = ${providerEventId}
         `;
         return;
       }
@@ -240,7 +242,7 @@ export class ProcessPaymentWebhookUseCase {
           ('payment_attempt', ${attempt.id}, 'payment.approved.v1', '1',
            ${JSON.stringify({ paymentAttemptId: attempt.id, orderId })}::jsonb, ${orgId}::uuid),
           ('order', ${orderId}, 'order.paid.v1', '1',
-           ${JSON.stringify({ orderId, organizationId: orgId })}::jsonb, ${orgId}::uuid),
+           ${JSON.stringify({ orderId, organizationId: orgId, buyerEmail: order.buyer_email ?? null })}::jsonb, ${orgId}::uuid),
           ('inventory', ${orderId}, 'inventory.committed.v1', '1',
            ${JSON.stringify({ orderId, organizationId: orgId })}::jsonb, ${orgId}::uuid),
           ('order', ${orderId}, 'order.tickets-issued.v1', '1',
@@ -252,7 +254,7 @@ export class ProcessPaymentWebhookUseCase {
       // Mark webhook as processed
       await tx.$executeRaw`
         UPDATE payment_webhook_events SET processed_at = NOW()
-        WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+        WHERE provider = ${provider} AND provider_event_id = ${providerEventId}
       `;
     });
   }
@@ -262,6 +264,7 @@ export class ProcessPaymentWebhookUseCase {
     status: string,
     eventType: string,
     providerEventId: string,
+    provider: string,
   ): Promise<void> {
     const currentStatus = attempt.status;
     // Don't regress status (e.g., APPROVED → PENDING is ignored)
@@ -272,7 +275,7 @@ export class ProcessPaymentWebhookUseCase {
       );
       await this.prisma.$executeRaw`
         UPDATE payment_webhook_events SET processed_at = NOW()
-        WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+        WHERE provider = ${provider} AND provider_event_id = ${providerEventId}
       `;
       return;
     }
@@ -295,7 +298,7 @@ export class ProcessPaymentWebhookUseCase {
 
       await tx.$executeRaw`
         UPDATE payment_webhook_events SET processed_at = NOW()
-        WHERE provider = 'FAKE' AND provider_event_id = ${providerEventId}
+        WHERE provider = ${provider} AND provider_event_id = ${providerEventId}
       `;
     });
   }

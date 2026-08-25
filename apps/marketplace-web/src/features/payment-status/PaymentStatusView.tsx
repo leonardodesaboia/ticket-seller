@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { formatCurrency } from '@/shared/lib/money';
 import { Button } from '@/shared/ui/primitives/button';
 import type { AttemptStatus, PaymentAttemptResponse } from '@/shared/api/public-payments.api';
@@ -24,6 +24,16 @@ const FAILED_STATUSES: AttemptStatus[] = ['DECLINED', 'CANCELLED', 'EXPIRED'];
 
 export function PaymentStatusView({ attempt: initialAttempt, onNewAttempt, onConfirmed, onTimeout, token }: PaymentStatusViewProps) {
   const [attempt, setAttempt] = useState(initialAttempt);
+  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopyPix = useCallback((code: string) => {
+    void navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    });
+  }, []);
 
   const handleUpdate = useCallback((updated: PaymentAttemptResponse) => {
     setAttempt(updated);
@@ -71,11 +81,22 @@ export function PaymentStatusView({ attempt: initialAttempt, onNewAttempt, onCon
                   {attempt.checkoutData.qrCodeText}
                 </code>
               </div>
+              <button
+                type="button"
+                onClick={() => handleCopyPix(attempt.checkoutData!.qrCodeText!)}
+                className="w-full rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {copied ? 'Copiado!' : 'Copiar código PIX'}
+              </button>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Expira em: {new Date(attempt.expiresAt).toLocaleTimeString('pt-BR')}
-            </p>
+            <time
+              dateTime={attempt.expiresAt}
+              suppressHydrationWarning
+              className="text-xs text-muted-foreground"
+            >
+              Expira em: {new Date(attempt.expiresAt).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+            </time>
 
             <p className="text-sm text-muted-foreground">
               Aguardando confirmação do pagamento…

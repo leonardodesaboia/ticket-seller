@@ -74,15 +74,17 @@ export class PrismaInventoryRepository implements IInventoryRepository {
   async initializeForEvent(items: InitializeInventoryItem[]): Promise<void> {
     if (items.length === 0) return;
 
-    for (const item of items) {
-      await this.prisma.$executeRaw`
-        INSERT INTO ticket_inventory
-          (ticket_type_id, event_id, organization_id, capacity)
-        VALUES
-          (${item.ticketTypeId}::uuid, ${item.eventId}::uuid, ${item.organizationId}::uuid, ${item.capacity})
-        ON CONFLICT (ticket_type_id) DO NOTHING
-      `;
-    }
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        await tx.$executeRaw`
+          INSERT INTO ticket_inventory
+            (ticket_type_id, event_id, organization_id, capacity)
+          VALUES
+            (${item.ticketTypeId}::uuid, ${item.eventId}::uuid, ${item.organizationId}::uuid, ${item.capacity})
+          ON CONFLICT (ticket_type_id) DO NOTHING
+        `;
+      }
+    });
   }
 
   async tryReserve(

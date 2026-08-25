@@ -57,7 +57,7 @@ describe('AcceptTransferPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Este link expirou.')).toBeInTheDocument();
+      expect(screen.getByText('Link expirado')).toBeInTheDocument();
     });
   });
 
@@ -71,7 +71,7 @@ describe('AcceptTransferPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Este ingresso já foi transferido.')).toBeInTheDocument();
+      expect(screen.getByText('Ingresso já transferido')).toBeInTheDocument();
     });
   });
 });

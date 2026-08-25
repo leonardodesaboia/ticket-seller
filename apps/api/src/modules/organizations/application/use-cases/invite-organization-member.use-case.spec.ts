@@ -17,6 +17,7 @@ const makeRepo = (): jest.Mocked<IOrganizationInvitationRepository> => ({
   removeMember: jest.fn(),
   updateMemberRoleAtomically: jest.fn(),
   removeMemberAtomically: jest.fn(),
+  findUserEmailById: jest.fn(),
 });
 
 const makeInvitation = (): OrganizationInvitation => {

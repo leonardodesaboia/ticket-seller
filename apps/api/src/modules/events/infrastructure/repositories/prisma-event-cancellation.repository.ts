@@ -10,6 +10,7 @@ interface RawOrderRow {
   id: string;
   status: string;
   organization_id: string;
+  buyer_email: string | null;
 }
 
 interface RawTicketRow {
@@ -38,6 +39,7 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
   async cancelEvent(params: CancelEventParams): Promise<CancelEventResult> {
     const { eventId, organizationId, reason, actorId } = params;
     let ordersCancelledCount = 0;
+    let cancelledAt!: Date;
 
     await this.prisma.$transaction(async (tx) => {
       // a. UPDATE events SET status='CANCELLED', cancelled_at=NOW()
@@ -59,13 +61,16 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
         return;
       }
 
+      // Capture the DB-generated timestamp (not JS Date) to ensure consistency
+      cancelledAt = updatedEvents[0]!.cancelled_at;
+
       // b. Buscar e cancelar orders elegíveis em chunks de 100.
       //    Inclui PAID: pagamento confirmado mas ingressos ainda não emitidos — reembolso obrigatório.
       //    Sem OFFSET: após cada chunk os registros processados são excluídos pelo WHERE (status=CANCELLED),
       //    então buscar sempre os primeiros CHUNK_SIZE elegíveis é o padrão correto.
       for (;;) {
         const orders = await tx.$queryRaw<RawOrderRow[]>`
-          SELECT id, status, organization_id
+          SELECT id, status, organization_id, buyer_email
           FROM orders
           WHERE event_id = ${eventId}::uuid
             AND status IN ('PENDING_PAYMENT', 'PAID', 'TICKETS_ISSUED')
@@ -121,7 +126,7 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
                 ${orderId},
                 'order.cancelled.v1',
                 '1',
-                ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: false, reason: reason ?? null })}::jsonb,
+                ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: false, reason: reason ?? null, buyerEmail: order.buyer_email ?? null })}::jsonb,
                 ${orderOrgId}::uuid,
                 NOW()
               )
@@ -159,7 +164,7 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
                 ${orderId},
                 'order.cancelled.v1',
                 '1',
-                ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: true, reason: reason ?? null })}::jsonb,
+                ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: true, reason: reason ?? null, buyerEmail: order.buyer_email ?? null })}::jsonb,
                 ${orderOrgId}::uuid,
                 NOW()
               )
@@ -177,16 +182,15 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
               RETURNING id
             `;
 
-            // Revoke active credentials
-            for (const ticket of ticketRows) {
-              await tx.$executeRaw`
-                UPDATE ticket_credentials
-                SET status = 'REVOKED',
-                    revoked_at = NOW()
-                WHERE ticket_id = ${ticket.id}::uuid
-                  AND status = 'ACTIVE'
-              `;
-            }
+            // Batch-revoke credentials for all cancelled tickets in one query
+            await tx.$executeRaw`
+              UPDATE ticket_credentials tc
+              SET status = 'REVOKED', revoked_at = NOW()
+              FROM tickets t
+              WHERE t.id = tc.ticket_id
+                AND t.order_id = ${orderId}::uuid
+                AND tc.status = 'ACTIVE'
+            `;
 
             // Release committed inventory
             await tx.$executeRaw`
@@ -219,7 +223,7 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
                 ${orderId},
                 'order.cancelled.v1',
                 '1',
-                ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: true, reason: reason ?? null })}::jsonb,
+                ${JSON.stringify({ orderId, organizationId: orderOrgId, source: 'ADMIN', requiresRefund: true, reason: reason ?? null, buyerEmail: order.buyer_email ?? null })}::jsonb,
                 ${orderOrgId}::uuid,
                 NOW()
               )
@@ -284,12 +288,11 @@ export class PrismaEventCancellationRepository implements IEventCancellationRepo
       }
     });
 
-    const cancelledAt = new Date();
     return {
       eventId,
       organizationId,
       status: 'CANCELLED',
-      cancelledAt,
+      cancelledAt: cancelledAt ?? new Date(),
       ordersCancelledCount,
     };
   }

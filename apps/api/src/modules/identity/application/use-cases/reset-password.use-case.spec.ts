@@ -30,6 +30,7 @@ const mockSessionRepository: ISessionRepository = {
   findActiveById: jest.fn(),
   revokeById: jest.fn(),
   revokeAllByUserId: jest.fn().mockResolvedValue(undefined),
+  rotateByTokenHash: jest.fn(),
 };
 
 function makeUseCase(): ResetPasswordUseCase {

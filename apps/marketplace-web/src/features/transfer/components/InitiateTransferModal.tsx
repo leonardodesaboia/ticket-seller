@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { TicketItem } from '@/shared/api/public-payments.api';
 import { initiateTransfer } from '@/shared/api/transfers.api';
 import { CancelTransferButton } from './CancelTransferButton';
@@ -19,6 +19,14 @@ export function InitiateTransferModal({ ticket, orderId, token, onClose }: Initi
   const [claimToken, setClaimToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && state !== 'LOADING') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [state, onClose]);
 
   async function handleConfirm() {
     setState('LOADING');

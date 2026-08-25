@@ -76,14 +76,14 @@ export function TicketSelection({ eventSlug, currency, ticketTypes }: TicketSele
                     <Button type="button" variant="outline" size="icon" aria-label={`Aumentar quantidade de ${ticketType.name}`} disabled={quantity >= available || unavailable || isCreating} onClick={() => updateQuantity(ticketType.ticketTypeId, quantity + 1, available)}>+</Button>
                   </div>
                 </div>
-                {quantity > 0 && <p className="mt-3 text-sm text-muted-foreground">Subtotal: {formatCurrency(ticketType.price * quantity, ticketType.currency ?? currency)}</p>}
+                {quantity > 0 && <p className="mt-3 text-sm text-muted-foreground">Parcial: {formatCurrency(ticketType.price * quantity, ticketType.currency ?? currency)}</p>}
               </li>
             );
           })}
         </ul>
       )}
       <div className="flex items-center justify-between gap-3 border-t border-input pt-4">
-        <p className="font-semibold text-foreground">Subtotal visual: {formatCurrency(subtotal, currency)}</p>
+        <p className="font-semibold text-foreground">Subtotal: {formatCurrency(subtotal, currency)}</p>
         <Button type="button" disabled={!hasSelection || availability === null || isCreating} onClick={() => { void reserve(); }}> {isCreating ? 'Reservando…' : 'Reservar ingressos'} </Button>
       </div>
       {error && <p ref={errorRef} role="alert" tabIndex={-1} className="text-sm text-destructive">Não foi possível criar a reserva. Tente novamente.</p>}

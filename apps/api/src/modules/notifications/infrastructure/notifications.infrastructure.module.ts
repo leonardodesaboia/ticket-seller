@@ -23,9 +23,6 @@ const emailProviderFactory = {
     { provide: NOTIFICATION_LOG_REPOSITORY, useExisting: PrismaNotificationLogRepository },
   ],
   exports: [
-    MailpitEmailAdapter,
-    ResendEmailAdapter,
-    PrismaNotificationLogRepository,
     EMAIL_PROVIDER,
     NOTIFICATION_LOG_REPOSITORY,
   ],

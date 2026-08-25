@@ -3,13 +3,16 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
 import { PlatformRoleGuard } from '../../../../platform/http/guards/platform-role.guard';
+import { SmartThrottlerGuard } from '../../../../platform/http/guards/smart-throttler.guard';
 import { RequirePlatformRole } from '../../../../platform/http/decorators/require-platform-role.decorator';
+import { AdminReadThrottle, AdminActionThrottle } from '../../../../platform/http/decorators/throttle.decorator';
 import { PlatformRole } from '../../../../shared/kernel/platform-role';
 import { CurrentActor } from '../../../../shared/kernel/current-actor.decorator';
 import type { ICurrentActor } from '../../../../shared/kernel/actor.types';
@@ -24,7 +27,8 @@ import { UnsuspendUserUseCase } from '../../application/use-cases/unsuspend-user
 import { BlockPayoutUseCase } from '../../application/use-cases/block-payout.use-case';
 
 @Controller('admin')
-@UseGuards(ActorGuard, PlatformRoleGuard)
+@UseGuards(ActorGuard, PlatformRoleGuard, SmartThrottlerGuard)
+@RequirePlatformRole(PlatformRole.PLATFORM_SUPPORT)
 export class AdminController {
   constructor(
     private readonly getDashboard: GetPlatformDashboardUseCase,
@@ -38,13 +42,13 @@ export class AdminController {
   ) {}
 
   @Get('dashboard')
-  @RequirePlatformRole(PlatformRole.PLATFORM_SUPPORT)
+  @AdminReadThrottle()
   async dashboard() {
     return this.getDashboard.execute();
   }
 
   @Get('organizations')
-  @RequirePlatformRole(PlatformRole.PLATFORM_SUPPORT)
+  @AdminReadThrottle()
   async organizations(
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
@@ -61,7 +65,7 @@ export class AdminController {
   }
 
   @Get('users')
-  @RequirePlatformRole(PlatformRole.PLATFORM_SUPPORT)
+  @AdminReadThrottle()
   async users(
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
@@ -79,8 +83,9 @@ export class AdminController {
 
   @Post('organizations/:orgId/suspend')
   @RequirePlatformRole(PlatformRole.PLATFORM_ADMIN)
+  @AdminActionThrottle()
   async suspendOrganization(
-    @Param('orgId') orgId: string,
+    @Param('orgId', new ParseUUIDPipe({ version: '4' })) orgId: string,
     @Body() dto: SuspendDto,
     @CurrentActor() actor: ICurrentActor,
   ) {
@@ -94,8 +99,9 @@ export class AdminController {
 
   @Post('organizations/:orgId/unsuspend')
   @RequirePlatformRole(PlatformRole.PLATFORM_ADMIN)
+  @AdminActionThrottle()
   async unsuspendOrganization(
-    @Param('orgId') orgId: string,
+    @Param('orgId', new ParseUUIDPipe({ version: '4' })) orgId: string,
     @Body() dto: SuspendDto,
     @CurrentActor() actor: ICurrentActor,
   ) {
@@ -109,8 +115,9 @@ export class AdminController {
 
   @Post('users/:userId/suspend')
   @RequirePlatformRole(PlatformRole.PLATFORM_ADMIN)
+  @AdminActionThrottle()
   async suspendUserEndpoint(
-    @Param('userId') userId: string,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
     @Body() dto: SuspendDto,
     @CurrentActor() actor: ICurrentActor,
   ) {
@@ -124,8 +131,9 @@ export class AdminController {
 
   @Post('users/:userId/unsuspend')
   @RequirePlatformRole(PlatformRole.PLATFORM_ADMIN)
+  @AdminActionThrottle()
   async unsuspendUserEndpoint(
-    @Param('userId') userId: string,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
     @Body() dto: SuspendDto,
     @CurrentActor() actor: ICurrentActor,
   ) {
@@ -139,8 +147,9 @@ export class AdminController {
 
   @Post('payouts/:payoutId/block')
   @RequirePlatformRole(PlatformRole.PLATFORM_ADMIN)
+  @AdminActionThrottle()
   async blockPayoutEndpoint(
-    @Param('payoutId') payoutId: string,
+    @Param('payoutId', new ParseUUIDPipe({ version: '4' })) payoutId: string,
     @Body() dto: SuspendDto,
     @CurrentActor() actor: ICurrentActor,
   ) {

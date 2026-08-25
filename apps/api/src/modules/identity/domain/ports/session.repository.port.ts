@@ -22,4 +22,7 @@ export interface ISessionRepository {
   findActiveById(id: string): Promise<ActiveSession | null>;
   revokeById(id: string): Promise<void>;
   revokeAllByUserId(userId: string): Promise<void>;
+  /** Atomically revokes the session identified by tokenHash if it is active and not expired.
+   * Returns the userId on success, null if the token was not found, already revoked, or expired. */
+  rotateByTokenHash(tokenHash: string): Promise<{ userId: string } | null>;
 }

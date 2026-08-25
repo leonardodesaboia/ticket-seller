@@ -4,10 +4,14 @@ import type { IPasswordHasher } from '../../domain/ports/password-hasher.port';
 import type { ISessionRepository } from '../../domain/ports/session.repository.port';
 import type { ITokenIssuer } from '../../domain/ports/token-issuer.port';
 import type { IAuthAttemptRepository } from '../../domain/ports/auth-attempt.repository.port';
-import type { PrismaService } from '../../../../platform/database/prisma.service';
+import type { IUserRepository } from '../../domain/ports/user.repository.port';
 
 const TEST_USER = { id: 'user-123', email: 'user@example.com', displayName: 'Test User' };
-const TEST_IDENTITY = { userId: TEST_USER.id, user: TEST_USER };
+const TEST_IDENTITY_WITH_CREDENTIAL = {
+  userId: TEST_USER.id,
+  user: TEST_USER,
+  credentialHash: '$argon2id$hashed',
+};
 
 const mockHasher: IPasswordHasher = {
   hash: jest.fn(),
@@ -20,6 +24,7 @@ const mockSessionRepository: ISessionRepository = {
   findActiveById: jest.fn(),
   revokeById: jest.fn(),
   revokeAllByUserId: jest.fn(),
+  rotateByTokenHash: jest.fn(),
 };
 
 const mockTokenIssuer: ITokenIssuer = {
@@ -32,14 +37,17 @@ const mockAuthAttemptRepository: IAuthAttemptRepository = {
   countRecentFailures: jest.fn().mockResolvedValue(0),
 };
 
-const mockPrisma = {
-  identity: { findFirst: jest.fn().mockResolvedValue(TEST_IDENTITY) },
-  passwordCredential: { findUnique: jest.fn().mockResolvedValue({ hash: '$argon2id$hashed' }) },
+const mockUserRepository: IUserRepository = {
+  emailExists: jest.fn(),
+  findUserIdByEmail: jest.fn(),
+  findIdentityWithCredential: jest.fn().mockResolvedValue(TEST_IDENTITY_WITH_CREDENTIAL),
+  findProfile: jest.fn(),
+  register: jest.fn(),
 };
 
 function makeUseCase(): AuthenticateWithPasswordUseCase {
   return new AuthenticateWithPasswordUseCase(
-    mockPrisma as unknown as PrismaService,
+    mockUserRepository,
     mockHasher,
     mockSessionRepository,
     mockTokenIssuer,
@@ -50,11 +58,8 @@ function makeUseCase(): AuthenticateWithPasswordUseCase {
 describe('AuthenticateWithPasswordUseCase', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuthAttemptRepository.countRecentFailures = jest.fn().mockResolvedValue(0);
-    mockPrisma.identity.findFirst = jest.fn().mockResolvedValue(TEST_IDENTITY);
-    mockPrisma.passwordCredential.findUnique = jest
-      .fn()
-      .mockResolvedValue({ hash: '$argon2id$hashed' });
+    (mockAuthAttemptRepository.countRecentFailures as jest.Mock).mockResolvedValue(0);
+    (mockUserRepository.findIdentityWithCredential as jest.Mock).mockResolvedValue(TEST_IDENTITY_WITH_CREDENTIAL);
     (mockHasher.verify as jest.Mock).mockResolvedValue(true);
     (mockSessionRepository.create as jest.Mock).mockResolvedValue({ id: 'session-abc' });
     (mockTokenIssuer.issueAccessToken as jest.Mock).mockReturnValue('access-token-jwt');
@@ -86,7 +91,7 @@ describe('AuthenticateWithPasswordUseCase', () => {
   });
 
   it('throws UnauthorizedException and records FAILURE when identity not found', async () => {
-    mockPrisma.identity.findFirst = jest.fn().mockResolvedValue(null);
+    (mockUserRepository.findIdentityWithCredential as jest.Mock).mockResolvedValue(null);
     const useCase = makeUseCase();
 
     await expect(
@@ -123,10 +128,6 @@ describe('AuthenticateWithPasswordUseCase', () => {
     const useCase = makeUseCase();
     await useCase.execute({ email: 'User@EXAMPLE.COM', password: 'correct', ip: '1.2.3.4' });
 
-    expect(mockPrisma.identity.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ providerUserId: 'user@example.com' }),
-      }),
-    );
+    expect(mockUserRepository.findIdentityWithCredential).toHaveBeenCalledWith('user@example.com');
   });
 });

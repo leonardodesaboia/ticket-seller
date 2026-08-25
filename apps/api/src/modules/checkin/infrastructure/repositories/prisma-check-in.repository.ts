@@ -57,10 +57,11 @@ function toEntity(row: RawCheckInRow): CheckIn {
 export class PrismaCheckInRepository implements ICheckInRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByIdempotencyKey(key: string): Promise<CheckIn | null> {
+  async findByIdempotencyKey(key: string, organizationId: string): Promise<CheckIn | null> {
     const rows = await this.prisma.$queryRaw<RawCheckInRow[]>`
       SELECT * FROM check_ins
       WHERE idempotency_key = ${key}
+        AND organization_id = ${organizationId}::uuid
       LIMIT 1
     `;
     return rows[0] ? toEntity(rows[0]) : null;

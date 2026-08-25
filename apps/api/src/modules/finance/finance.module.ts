@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '../../platform/http/http.module';
+import { OrganizationRoleGuard } from '../../platform/http/guards/organization-role.guard';
+import { ORGANIZATION_INVITATION_REPOSITORY } from '../organizations/domain/ports/organization-invitation-repository.port';
+import { PrismaOrganizationInvitationRepository } from '../organizations/infrastructure/repositories/prisma-organization-invitation.repository';
 import { FEE_POLICY_REPOSITORY } from './domain/ports/fee-policy.repository.port';
 import { ORDER_PRICING_SNAPSHOT_REPOSITORY } from './domain/ports/order-pricing-snapshot.repository.port';
 import { FINANCIAL_RECORD_PORT } from './domain/ports/financial-record.port';
@@ -39,6 +42,10 @@ import { PayoutWebhookController } from './presentation/controllers/payout-webho
   imports: [HttpModule],
   controllers: [FinanceController, PayoutWebhookController],
   providers: [
+    OrganizationRoleGuard,
+    // Required by OrganizationRoleGuard which is registered in this module
+    { provide: ORGANIZATION_INVITATION_REPOSITORY, useClass: PrismaOrganizationInvitationRepository },
+
     // Domain use cases
     CalculateOrderPricingUseCase,
     RecordSaleUseCase,

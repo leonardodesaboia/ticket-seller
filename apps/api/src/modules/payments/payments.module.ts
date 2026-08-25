@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '../../platform/http/http.module';
+import { OrganizationRoleGuard } from '../../platform/http/guards/organization-role.guard';
+import { ORGANIZATION_INVITATION_REPOSITORY } from '../organizations/domain/ports/organization-invitation-repository.port';
+import { PrismaOrganizationInvitationRepository } from '../organizations/infrastructure/repositories/prisma-organization-invitation.repository';
 import { PaymentsInfrastructureModule } from './infrastructure/payments.infrastructure.module';
 import { TicketsModule } from '../tickets/tickets.module';
 import { FinanceModule } from '../finance/finance.module';
@@ -22,6 +25,8 @@ import { OrderAccessAdapter } from './infrastructure/adapters/order-access.adapt
   imports: [HttpModule, PaymentsInfrastructureModule, TicketsModule, FinanceModule],
   controllers: [PublicPaymentsController, PaymentWebhookController, OrderRefundController],
   providers: [
+    OrganizationRoleGuard,
+    { provide: ORGANIZATION_INVITATION_REPOSITORY, useClass: PrismaOrganizationInvitationRepository },
     CreatePaymentAttemptUseCase,
     GetPaymentAttemptUseCase,
     ProcessChargebackUseCase,

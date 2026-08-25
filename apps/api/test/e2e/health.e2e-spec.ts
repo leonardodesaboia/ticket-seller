@@ -5,11 +5,19 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import { HttpExceptionFilter } from '../../src/platform/http/filters/http-exception.filter';
 import { PrismaService } from '../../src/platform/database/prisma.service';
+import { OBJECT_STORAGE_PORT } from '../../src/shared/ports/object-storage.port';
 
 const mockPrismaService = {
   $connect: jest.fn().mockResolvedValue(undefined),
   $disconnect: jest.fn().mockResolvedValue(undefined),
   $queryRaw: jest.fn().mockResolvedValue([{ one: 1n }]),
+};
+
+const mockObjectStorageAdapter = {
+  generateUploadUrl: jest.fn().mockResolvedValue('https://mock-upload-url'),
+  generateDownloadUrl: jest.fn().mockResolvedValue('https://mock-download-url'),
+  headObject: jest.fn().mockResolvedValue(null),
+  deleteObject: jest.fn().mockResolvedValue(undefined),
 };
 
 describe('HealthController (e2e)', () => {
@@ -21,6 +29,8 @@ describe('HealthController (e2e)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrismaService)
+      .overrideProvider(OBJECT_STORAGE_PORT)
+      .useValue(mockObjectStorageAdapter)
       .compile();
 
     app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

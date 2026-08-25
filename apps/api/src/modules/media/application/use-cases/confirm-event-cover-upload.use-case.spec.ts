@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfirmEventCoverUploadUseCase } from './confirm-event-cover-upload.use-case';
 import { OBJECT_STORAGE_PORT } from '../../../../shared/ports/object-storage.port';
 import { MEDIA_UPLOAD_REPOSITORY } from '../../domain/ports/media-upload-repository.port';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { EVENT_COVER_REPOSITORY } from '../../domain/ports/event-cover-repository.port';
 
 describe('ConfirmEventCoverUploadUseCase', () => {
   let useCase: ConfirmEventCoverUploadUseCase;
@@ -22,10 +22,10 @@ describe('ConfirmEventCoverUploadUseCase', () => {
     update: jest.fn(),
   };
 
-  const mockPrisma = {
-    event: {
-      update: jest.fn(),
-    },
+  const mockEventCoverRepo = {
+    existsInOrganization: jest.fn(),
+    findByOrganization: jest.fn(),
+    updateCoverKey: jest.fn(),
   };
 
   const validUpload = {
@@ -43,7 +43,7 @@ describe('ConfirmEventCoverUploadUseCase', () => {
         ConfirmEventCoverUploadUseCase,
         { provide: OBJECT_STORAGE_PORT, useValue: mockStorage },
         { provide: MEDIA_UPLOAD_REPOSITORY, useValue: mockRepo },
-        { provide: PrismaService, useValue: mockPrisma },
+        { provide: EVENT_COVER_REPOSITORY, useValue: mockEventCoverRepo },
       ],
     }).compile();
 
@@ -122,7 +122,7 @@ describe('ConfirmEventCoverUploadUseCase', () => {
       sizeBytes: 102400,
     });
     mockRepo.update.mockResolvedValue({ ...validUpload, status: 'CONFIRMED' });
-    mockPrisma.event.update.mockResolvedValue({});
+    mockEventCoverRepo.updateCoverKey.mockResolvedValue(undefined);
     mockStorage.generateDownloadUrl.mockResolvedValue('https://cdn.example.com/image.jpg');
 
     const result = await useCase.execute({
@@ -134,9 +134,6 @@ describe('ConfirmEventCoverUploadUseCase', () => {
     expect(result.key).toBe(validUpload.objectKey);
     expect(result.url).toBe('https://cdn.example.com/image.jpg');
     expect(mockRepo.update).toHaveBeenCalledWith('upload-1', expect.objectContaining({ status: 'CONFIRMED' }));
-    expect(mockPrisma.event.update).toHaveBeenCalledWith({
-      where: { id: 'event-1', organizationId: 'org-1' },
-      data: { coverImageKey: validUpload.objectKey },
-    });
+    expect(mockEventCoverRepo.updateCoverKey).toHaveBeenCalledWith('event-1', 'org-1', validUpload.objectKey);
   });
 });

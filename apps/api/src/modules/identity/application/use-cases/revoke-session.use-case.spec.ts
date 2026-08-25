@@ -7,6 +7,7 @@ const mockSessionRepository: ISessionRepository = {
   findActiveById: jest.fn(),
   revokeById: jest.fn().mockResolvedValue(undefined),
   revokeAllByUserId: jest.fn(),
+  rotateByTokenHash: jest.fn(),
 };
 
 describe('RevokeSessionUseCase', () => {

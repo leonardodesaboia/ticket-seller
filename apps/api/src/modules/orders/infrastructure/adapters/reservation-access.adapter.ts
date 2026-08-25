@@ -45,15 +45,17 @@ export class PrismaReservationAccessAdapter implements IReservationAccess {
         const reservation = await this.findReservation(tx, input.reservationId);
         if (!reservation) throw new ReservationNotFoundForOrderError();
         if (reservation.continuation_token_hash !== input.tokenHash) throw new InvalidReservationTokenForOrderError();
-        await tx.idempotencyRecord.create({ data: { idempotencyKey: `order-create:${input.idempotencyKey}`, requestHash: input.requestHash, expiresAt: reservation.expires_at } });
-        if (await this.findOrderByReservation(tx, reservation.id)) throw new OrderAlreadyExistsError();
+        // Validate reservation state BEFORE writing idempotency record to avoid
+        // recording a key for a request that will always fail on retry.
         if (reservation.status === 'EXPIRED' || reservation.expires_at <= new Date()) throw new ReservationExpiredForOrderError();
         if (reservation.status === 'CANCELLED') throw new ReservationCancelledForOrderError();
         if (reservation.status === 'CONSUMED') throw new ReservationAlreadyConsumedForOrderError();
+        if (await this.findOrderByReservation(tx, reservation.id)) throw new OrderAlreadyExistsError();
+        await tx.idempotencyRecord.create({ data: { idempotencyKey: `order-create:${input.idempotencyKey}`, requestHash: input.requestHash, expiresAt: reservation.expires_at } });
 
         const rows = await tx.$queryRaw<OrderRow[]>`
-          INSERT INTO orders (organization_id, event_id, reservation_id, status, currency, subtotal_amount, total_amount, idempotency_key, expires_at)
-          VALUES (${reservation.organization_id}::uuid, ${reservation.event_id}::uuid, ${reservation.id}::uuid, 'PENDING_PAYMENT', ${reservation.currency}, ${reservation.subtotal_amount}, ${reservation.subtotal_amount}, ${input.idempotencyKey}, ${reservation.expires_at})
+          INSERT INTO orders (organization_id, event_id, reservation_id, status, currency, subtotal_amount, total_amount, idempotency_key, expires_at, buyer_email)
+          VALUES (${reservation.organization_id}::uuid, ${reservation.event_id}::uuid, ${reservation.id}::uuid, 'PENDING_PAYMENT', ${reservation.currency}, ${reservation.subtotal_amount}, ${reservation.subtotal_amount}, ${input.idempotencyKey}, ${reservation.expires_at}, ${input.buyerEmail})
           RETURNING id, reservation_id, status, currency, subtotal_amount, total_amount, expires_at
         `;
         const order = rows[0];
@@ -71,7 +73,7 @@ export class PrismaReservationAccessAdapter implements IReservationAccess {
         `;
         if (consumed !== 1) throw new ReservationAlreadyConsumedForOrderError();
         const view = toView(order, items);
-        await tx.outboxEvent.create({ data: { aggregateType: 'order', aggregateId: order.id, type: 'order.created.v1', version: '1', organizationId: reservation.organization_id, payload: { orderId: order.id, reservationId: reservation.id, eventId: reservation.event_id, organizationId: reservation.organization_id } } });
+        await tx.outboxEvent.create({ data: { aggregateType: 'order', aggregateId: order.id, type: 'order.created.v1', version: '1', organizationId: reservation.organization_id, payload: { orderId: order.id, reservationId: reservation.id, eventId: reservation.event_id, organizationId: reservation.organization_id, buyerEmail: input.buyerEmail } } });
         await tx.idempotencyRecord.update({ where: { idempotencyKey: `order-create:${input.idempotencyKey}` }, data: { responseStatus: 201, responseBody: JSON.parse(JSON.stringify(view)) as Prisma.InputJsonValue, completedAt: new Date() } });
         return view;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

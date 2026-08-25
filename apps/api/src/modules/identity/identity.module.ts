@@ -12,6 +12,7 @@ import { SESSION_REPOSITORY } from './domain/ports/session.repository.port';
 import { EMAIL_VERIFICATION_REPOSITORY } from './domain/ports/email-verification.repository.port';
 import { PASSWORD_RESET_REPOSITORY } from './domain/ports/password-reset.repository.port';
 import { AUTH_ATTEMPT_REPOSITORY } from './domain/ports/auth-attempt.repository.port';
+import { USER_REPOSITORY } from './domain/ports/user.repository.port';
 
 // Infrastructure adapters
 import { ArgonPasswordHasherAdapter } from './infrastructure/adapters/argon-password-hasher.adapter';
@@ -23,6 +24,7 @@ import { PrismaSessionRepository } from './infrastructure/repositories/prisma-se
 import { PrismaEmailVerificationRepository } from './infrastructure/repositories/prisma-email-verification.repository';
 import { PrismaPasswordResetRepository } from './infrastructure/repositories/prisma-password-reset.repository';
 import { PrismaAuthAttemptRepository } from './infrastructure/repositories/prisma-auth-attempt.repository';
+import { PrismaUserRepository } from './infrastructure/repositories/prisma-user.repository';
 
 // Application use cases
 import { RegisterWithPasswordUseCase } from './application/use-cases/register-with-password.use-case';
@@ -53,13 +55,14 @@ const isProduction = env.NODE_ENV === 'production';
     ArgonPasswordHasherAdapter,
     JwtTokenIssuerAdapter,
     JwtActorAdapter,
-    DevelopmentActorAdapter,
+    ...(isProduction ? [] : [DevelopmentActorAdapter]),
 
     // Infrastructure repositories
     PrismaSessionRepository,
     PrismaEmailVerificationRepository,
     PrismaPasswordResetRepository,
     PrismaAuthAttemptRepository,
+    PrismaUserRepository,
 
     // Port bindings
     { provide: PASSWORD_HASHER, useExisting: ArgonPasswordHasherAdapter },
@@ -68,6 +71,7 @@ const isProduction = env.NODE_ENV === 'production';
     { provide: EMAIL_VERIFICATION_REPOSITORY, useExisting: PrismaEmailVerificationRepository },
     { provide: PASSWORD_RESET_REPOSITORY, useExisting: PrismaPasswordResetRepository },
     { provide: AUTH_ATTEMPT_REPOSITORY, useExisting: PrismaAuthAttemptRepository },
+    { provide: USER_REPOSITORY, useExisting: PrismaUserRepository },
 
     // ACTOR_ADAPTER: JwtActorAdapter in production, DevelopmentActorAdapter in dev/test
     isProduction
@@ -90,7 +94,7 @@ const isProduction = env.NODE_ENV === 'production';
   exports: [
     // Export for HttpModule and other consumers
     JwtActorAdapter,
-    DevelopmentActorAdapter,
+    ...(isProduction ? [] : [DevelopmentActorAdapter]),
     ACTOR_ADAPTER,
     ActorGuard,
     TOKEN_ISSUER,

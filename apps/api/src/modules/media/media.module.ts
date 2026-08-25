@@ -5,9 +5,11 @@ import { ORGANIZATION_INVITATION_REPOSITORY } from '../organizations/domain/port
 import { PrismaOrganizationInvitationRepository } from '../organizations/infrastructure/repositories/prisma-organization-invitation.repository';
 import { OBJECT_STORAGE_PORT } from '../../shared/ports/object-storage.port';
 import { MEDIA_UPLOAD_REPOSITORY } from './domain/ports/media-upload-repository.port';
+import { EVENT_COVER_REPOSITORY } from './domain/ports/event-cover-repository.port';
 import { MinioObjectStorageAdapter } from './infrastructure/adapters/minio-object-storage.adapter';
 import { S3ObjectStorageAdapter } from './infrastructure/adapters/s3-object-storage.adapter';
 import { PrismaMediaUploadRepository } from './infrastructure/repositories/prisma-media-upload.repository';
+import { PrismaEventCoverRepository } from './infrastructure/repositories/prisma-event-cover.repository';
 import { GenerateEventCoverUploadUrlUseCase } from './application/use-cases/generate-event-cover-upload-url.use-case';
 import { ConfirmEventCoverUploadUseCase } from './application/use-cases/confirm-event-cover-upload.use-case';
 import { GetEventCoverUrlUseCase } from './application/use-cases/get-event-cover-url.use-case';
@@ -26,6 +28,8 @@ const objectStorageProvider = {
     OrganizationRoleGuard,
     objectStorageProvider,
     { provide: MEDIA_UPLOAD_REPOSITORY, useClass: PrismaMediaUploadRepository },
+    PrismaEventCoverRepository,
+    { provide: EVENT_COVER_REPOSITORY, useExisting: PrismaEventCoverRepository },
     // Required by OrganizationRoleGuard which is registered in this module
     { provide: ORGANIZATION_INVITATION_REPOSITORY, useClass: PrismaOrganizationInvitationRepository },
     GenerateEventCoverUploadUrlUseCase,

@@ -42,33 +42,33 @@ export class GetFinancialSummaryUseCase {
     const { organizationId, from, to } = input;
 
     // Aggregate ledger entries by source_type via CASE pivot
-    // gross_sales   = SUM of CREDIT entries for SALE_RECORDED transactions
-    // platform_fees = SUM of DEBIT entries on PLATFORM_FEE accounts for SALE_RECORDED
+    // gross_sales   = SUM of CREDIT entries for ORDER_PAID transactions
+    // platform_fees = SUM of DEBIT entries on PLATFORM_FEE accounts for ORDER_PAID
     // refunds       = SUM of DEBIT entries on SELLER_PAYABLE accounts for REFUND/CHARGEBACK
     // net_sales     = gross_sales - platform_fees - refunds
     const client = this.prisma as unknown as PrismaClient;
     const rows = await client.$queryRaw<RawSummaryRow[]>`
       SELECT
         COALESCE(SUM(
-          CASE WHEN lt.source_type = 'SALE_RECORDED' AND le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END
+          CASE WHEN lt.source_type = 'ORDER_PAID' AND le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END
         ), 0)::bigint AS gross_sales,
         COALESCE(SUM(
-          CASE WHEN lt.source_type = 'SALE_RECORDED' AND le.entry_type = 'DEBIT'
+          CASE WHEN lt.source_type = 'ORDER_PAID' AND le.entry_type = 'DEBIT'
                AND la.code LIKE 'PLATFORM_FEE%' THEN le.amount ELSE 0 END
         ), 0)::bigint AS platform_fees,
         COALESCE(SUM(
-          CASE WHEN lt.source_type IN ('REFUND_RECORDED','CHARGEBACK_RECORDED') AND le.entry_type = 'DEBIT'
+          CASE WHEN lt.source_type IN ('REFUND','CHARGEBACK') AND le.entry_type = 'DEBIT'
                AND la.code LIKE 'SELLER_PAYABLE%' THEN le.amount ELSE 0 END
         ), 0)::bigint AS refunds,
         COALESCE(SUM(
-          CASE WHEN lt.source_type = 'SALE_RECORDED' AND le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END
+          CASE WHEN lt.source_type = 'ORDER_PAID' AND le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END
         ) -
         SUM(
-          CASE WHEN lt.source_type = 'SALE_RECORDED' AND le.entry_type = 'DEBIT'
+          CASE WHEN lt.source_type = 'ORDER_PAID' AND le.entry_type = 'DEBIT'
                AND la.code LIKE 'PLATFORM_FEE%' THEN le.amount ELSE 0 END
         ) -
         SUM(
-          CASE WHEN lt.source_type IN ('REFUND_RECORDED','CHARGEBACK_RECORDED') AND le.entry_type = 'DEBIT'
+          CASE WHEN lt.source_type IN ('REFUND','CHARGEBACK') AND le.entry_type = 'DEBIT'
                AND la.code LIKE 'SELLER_PAYABLE%' THEN le.amount ELSE 0 END
         ), 0)::bigint AS net_sales
       FROM ledger_entries le

@@ -36,6 +36,7 @@ interface RawOrderRow {
   status: string;
   total_amount: bigint;
   currency: string;
+  buyer_email: string | null;
 }
 
 interface RawAttemptRow {
@@ -68,7 +69,7 @@ export class ProcessRefundUseCase {
 
     // 1. Find order
     const orders = await this.prisma.$queryRaw<RawOrderRow[]>`
-      SELECT id, organization_id, status, total_amount, currency
+      SELECT id, organization_id, status, total_amount, currency, buyer_email
       FROM orders
       WHERE id = ${orderId}::uuid
         AND organization_id = ${organizationId}::uuid
@@ -146,6 +147,17 @@ export class ProcessRefundUseCase {
         currency: refundRow.currency,
         externalRefundId: refundRow.external_refund_id,
       };
+    }
+
+    // 6b. Claim: atomically transition PENDING → PROCESSING to prevent concurrent gateway calls.
+    // If another request already claimed it (0 rows updated), a concurrent refund is in-flight.
+    const claimed = await this.prisma.$executeRaw`
+      UPDATE refund_attempts
+      SET status = 'PROCESSING', updated_at = NOW()
+      WHERE id = ${refundRow.id}::uuid AND status = 'PENDING'
+    `;
+    if (claimed === 0) {
+      throw new RefundGatewayError('Refund already in progress — retry after a moment');
     }
 
     // 7. Call gateway
@@ -238,6 +250,7 @@ export class ProcessRefundUseCase {
             amount: Number(order.total_amount),
             currency: order.currency,
             externalRefundId: gatewayResult.externalRefundId,
+            buyerEmail: order.buyer_email ?? null,
           })}::jsonb,
           ${organizationId}::uuid,
           NOW()

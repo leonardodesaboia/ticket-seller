@@ -16,7 +16,7 @@ describe('BlockPayoutUseCase', () => {
           useValue: {
             payout: {
               findUnique: jest.fn(),
-              update: jest.fn(),
+              updateMany: jest.fn(),
             },
           },
         },
@@ -32,7 +32,7 @@ describe('BlockPayoutUseCase', () => {
       id: 'payout-1',
       status: 'SCHEDULED',
     });
-    (prisma.payout.update as jest.Mock).mockResolvedValue({});
+    (prisma.payout.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
 
     await useCase.execute({
       actorId: 'admin-1',
@@ -40,8 +40,8 @@ describe('BlockPayoutUseCase', () => {
       reason: 'Suspicious activity',
     });
 
-    expect(prisma.payout.update).toHaveBeenCalledWith({
-      where: { id: 'payout-1' },
+    expect(prisma.payout.updateMany).toHaveBeenCalledWith({
+      where: { id: 'payout-1', status: { in: ['SCHEDULED', 'PROCESSING'] } },
       data: { status: 'BLOCKED' },
     });
   });
@@ -51,7 +51,7 @@ describe('BlockPayoutUseCase', () => {
       id: 'payout-2',
       status: 'PROCESSING',
     });
-    (prisma.payout.update as jest.Mock).mockResolvedValue({});
+    (prisma.payout.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
 
     await useCase.execute({
       actorId: 'admin-1',
@@ -59,8 +59,8 @@ describe('BlockPayoutUseCase', () => {
       reason: 'Compliance hold',
     });
 
-    expect(prisma.payout.update).toHaveBeenCalledWith({
-      where: { id: 'payout-2' },
+    expect(prisma.payout.updateMany).toHaveBeenCalledWith({
+      where: { id: 'payout-2', status: { in: ['SCHEDULED', 'PROCESSING'] } },
       data: { status: 'BLOCKED' },
     });
   });
@@ -79,7 +79,23 @@ describe('BlockPayoutUseCase', () => {
       }),
     ).rejects.toThrow(UnprocessableEntityException);
 
-    expect(prisma.payout.update).not.toHaveBeenCalled();
+    expect(prisma.payout.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('should throw 422 when status changes concurrently between findUnique and updateMany', async () => {
+    (prisma.payout.findUnique as jest.Mock).mockResolvedValue({
+      id: 'payout-6',
+      status: 'SCHEDULED',
+    });
+    (prisma.payout.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+
+    await expect(
+      useCase.execute({
+        actorId: 'admin-1',
+        payoutId: 'payout-6',
+        reason: 'Race condition',
+      }),
+    ).rejects.toThrow(UnprocessableEntityException);
   });
 
   it('should throw 404 when payout is not found', async () => {

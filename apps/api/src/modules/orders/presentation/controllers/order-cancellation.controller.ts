@@ -16,6 +16,9 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
+import { OrganizationRoleGuard } from '../../../../platform/http/guards/organization-role.guard';
+import { RequireCapability } from '../../../../platform/http/decorators/require-capability.decorator';
+import { OrganizationCapability } from '../../../../shared/kernel/organization-capability';
 import { CurrentActor } from '../../../../shared/kernel/current-actor.decorator';
 import { ICurrentActor } from '../../../../shared/kernel/actor.types';
 import { CancelOrderUseCase } from '../../application/use-cases/cancel-order.use-case';
@@ -82,7 +85,8 @@ export class OrderCancellationController {
 
   // Admin cancels any eligible order
   @Post('organizations/:orgId/orders/:orderId/cancellations')
-  @UseGuards(ActorGuard)
+  @UseGuards(ActorGuard, OrganizationRoleGuard)
+  @RequireCapability(OrganizationCapability.EVENTS_MANAGE)
   @HttpCode(HttpStatus.OK)
   async cancelAdmin(
     @Param('orgId', uuidPipe) orgId: string,

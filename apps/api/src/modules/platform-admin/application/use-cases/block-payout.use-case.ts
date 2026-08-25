@@ -31,10 +31,16 @@ export class BlockPayoutUseCase {
       );
     }
 
-    await this.prisma.payout.update({
-      where: { id: command.payoutId },
+    const result = await this.prisma.payout.updateMany({
+      where: { id: command.payoutId, status: { in: BLOCKABLE_STATUSES } },
       data: { status: 'BLOCKED' },
     });
+
+    if (result.count === 0) {
+      throw new UnprocessableEntityException(
+        'Payout status changed concurrently and can no longer be blocked.',
+      );
+    }
 
     this.logger.log({
       msg: 'platform_admin_action',

@@ -2,7 +2,7 @@ import { ConflictException } from '@nestjs/common';
 import { RegisterWithPasswordUseCase } from './register-with-password.use-case';
 import type { IPasswordHasher } from '../../domain/ports/password-hasher.port';
 import type { IEmailVerificationRepository } from '../../domain/ports/email-verification.repository.port';
-import type { PrismaService } from '../../../../platform/database/prisma.service';
+import type { IUserRepository } from '../../domain/ports/user.repository.port';
 
 const mockHasher: IPasswordHasher = {
   hash: jest.fn().mockResolvedValue('$argon2id$hashed'),
@@ -16,23 +16,17 @@ const mockEmailVerificationRepository: IEmailVerificationRepository = {
   markIdentityEmailVerified: jest.fn(),
 };
 
-const mockPrisma = {
-  user: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-  },
-  identity: {
-    create: jest.fn(),
-  },
-  passwordCredential: {
-    create: jest.fn(),
-  },
-  $transaction: jest.fn(),
+const mockUserRepository: IUserRepository = {
+  emailExists: jest.fn().mockResolvedValue(false),
+  findUserIdByEmail: jest.fn(),
+  findIdentityWithCredential: jest.fn(),
+  findProfile: jest.fn(),
+  register: jest.fn().mockResolvedValue({ userId: 'user-new-id' }),
 };
 
 function makeUseCase(): RegisterWithPasswordUseCase {
   return new RegisterWithPasswordUseCase(
-    mockPrisma as unknown as PrismaService,
+    mockUserRepository,
     mockHasher,
     mockEmailVerificationRepository,
   );
@@ -41,17 +35,9 @@ function makeUseCase(): RegisterWithPasswordUseCase {
 describe('RegisterWithPasswordUseCase', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPrisma.user.findUnique.mockResolvedValue(null);
-    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-      const tx = {
-        user: {
-          create: jest.fn().mockResolvedValue({ id: 'user-new-id' }),
-        },
-        identity: { create: jest.fn().mockResolvedValue({}) },
-        passwordCredential: { create: jest.fn().mockResolvedValue({}) },
-      };
-      return cb(tx);
-    });
+    (mockUserRepository.emailExists as jest.Mock).mockResolvedValue(false);
+    (mockUserRepository.register as jest.Mock).mockResolvedValue({ userId: 'user-new-id' });
+    (mockHasher.hash as jest.Mock).mockResolvedValue('$argon2id$hashed');
   });
 
   it('creates user, identity, and credential for a new email', async () => {
@@ -70,22 +56,23 @@ describe('RegisterWithPasswordUseCase', () => {
 
   it('normalizes email to lowercase', async () => {
     const useCase = makeUseCase();
-    mockPrisma.user.findUnique.mockResolvedValue(null);
-
     await useCase.execute({ email: 'Test@EXAMPLE.COM', password: 'password123' });
 
-    expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { email: 'test@example.com' } }),
+    expect(mockUserRepository.emailExists).toHaveBeenCalledWith('test@example.com');
+    expect(mockUserRepository.register).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'test@example.com' }),
     );
   });
 
   it('throws ConflictException when email is already registered', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+    (mockUserRepository.emailExists as jest.Mock).mockResolvedValue(true);
     const useCase = makeUseCase();
 
     await expect(
       useCase.execute({ email: 'existing@example.com', password: 'password123' }),
     ).rejects.toThrow(ConflictException);
+
+    expect(mockUserRepository.register).not.toHaveBeenCalled();
   });
 
   it('never exposes password hash in return value', async () => {

@@ -30,8 +30,8 @@ export function DecisionFeedback({ decision, allowed }: DecisionFeedbackProps) {
       role="alert"
       className={`flex items-center gap-3 rounded-lg p-4 text-lg font-semibold ${
         isAdmitted
-          ? 'bg-green-100 text-green-800'
-          : 'bg-red-100 text-red-800'
+          ? 'bg-primary/10 text-primary'
+          : 'bg-destructive/10 text-destructive'
       }`}
     >
       <span aria-hidden="true" className="text-2xl">

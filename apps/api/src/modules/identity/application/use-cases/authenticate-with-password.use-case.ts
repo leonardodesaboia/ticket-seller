@@ -1,10 +1,10 @@
 import { HttpStatus, Inject, Injectable, HttpException, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
-import { PrismaService } from '../../../../platform/database/prisma.service';
 import { PASSWORD_HASHER, type IPasswordHasher } from '../../domain/ports/password-hasher.port';
 import { SESSION_REPOSITORY, type ISessionRepository } from '../../domain/ports/session.repository.port';
 import { TOKEN_ISSUER, type ITokenIssuer } from '../../domain/ports/token-issuer.port';
 import { AUTH_ATTEMPT_REPOSITORY, type IAuthAttemptRepository } from '../../domain/ports/auth-attempt.repository.port';
+import { USER_REPOSITORY, type IUserRepository } from '../../domain/ports/user.repository.port';
 
 export interface AuthenticateWithPasswordInput {
   email: string;
@@ -30,7 +30,7 @@ const GENERIC_ERROR = 'Invalid credentials';
 @Injectable()
 export class AuthenticateWithPasswordUseCase {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
     @Inject(PASSWORD_HASHER) private readonly hasher: IPasswordHasher,
     @Inject(SESSION_REPOSITORY) private readonly sessionRepository: ISessionRepository,
     @Inject(TOKEN_ISSUER) private readonly tokenIssuer: ITokenIssuer,
@@ -56,33 +56,16 @@ export class AuthenticateWithPasswordUseCase {
       throw new HttpException('Too many failed attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
     }
 
-    // Lookup identity by email + provider=local
-    const identity = await this.prisma.identity.findFirst({
-      where: { provider: 'local', providerUserId: normalizedEmail },
-      select: {
-        userId: true,
-        user: {
-          select: { id: true, email: true, displayName: true },
-        },
-      },
-    });
+    const identityWithCredential = await this.userRepository.findIdentityWithCredential(normalizedEmail);
 
-    if (!identity) {
+    if (!identityWithCredential) {
+      // Dummy hash to equalize timing and prevent email enumeration via side-channel
+      await this.hasher.verify('$argon2id$v=19$m=65536,t=3,p=4$dummy$dummydummydummy', input.password);
       await this.authAttemptRepository.record({ email: normalizedEmail, ip: input.ip, outcome: 'FAILURE' });
       throw new UnauthorizedException(GENERIC_ERROR);
     }
 
-    const credential = await this.prisma.passwordCredential.findUnique({
-      where: { userId: identity.userId },
-      select: { hash: true },
-    });
-
-    if (!credential) {
-      await this.authAttemptRepository.record({ email: normalizedEmail, ip: input.ip, outcome: 'FAILURE' });
-      throw new UnauthorizedException(GENERIC_ERROR);
-    }
-
-    const valid = await this.hasher.verify(credential.hash, input.password);
+    const valid = await this.hasher.verify(identityWithCredential.credentialHash, input.password);
     if (!valid) {
       await this.authAttemptRepository.record({ email: normalizedEmail, ip: input.ip, outcome: 'FAILURE' });
       throw new UnauthorizedException(GENERIC_ERROR);
@@ -94,7 +77,7 @@ export class AuthenticateWithPasswordUseCase {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30d
 
     const session = await this.sessionRepository.create({
-      userId: identity.userId,
+      userId: identityWithCredential.userId,
       tokenHash,
       ip: input.ip,
       userAgent: input.userAgent,
@@ -102,7 +85,7 @@ export class AuthenticateWithPasswordUseCase {
     });
 
     const accessToken = this.tokenIssuer.issueAccessToken({
-      sub: identity.userId,
+      sub: identityWithCredential.userId,
       jti: session.id,
     });
 
@@ -111,11 +94,7 @@ export class AuthenticateWithPasswordUseCase {
     return {
       accessToken,
       refreshToken: rawToken,
-      user: {
-        id: identity.user.id,
-        email: identity.user.email,
-        displayName: identity.user.displayName,
-      },
+      user: identityWithCredential.user,
     };
   }
 }

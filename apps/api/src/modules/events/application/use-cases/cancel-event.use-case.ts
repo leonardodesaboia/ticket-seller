@@ -1,10 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { EventNotCancellableError, EventNotFoundError } from '../../domain/event-cancellation.errors';
+import { InsufficientRoleError, OrganizationAccessDeniedError } from '../../domain/event.errors';
 import {
   EVENT_CANCELLATION_REPOSITORY,
   IEventCancellationRepository,
   CancelEventResult,
 } from '../ports/event-cancellation-repository.port';
+import {
+  EVENT_CREATOR_ROLES,
+  ORGANIZATION_ACCESS_PORT,
+  type IOrganizationAccessPort,
+} from '../../domain/ports/organization-access.port';
 
 export interface CancelEventInput {
   eventId: string;
@@ -18,30 +24,43 @@ export class CancelEventUseCase {
   constructor(
     @Inject(EVENT_CANCELLATION_REPOSITORY)
     private readonly repo: IEventCancellationRepository,
+    @Inject(ORGANIZATION_ACCESS_PORT)
+    private readonly orgAccess: IOrganizationAccessPort,
   ) {}
 
   async execute(input: CancelEventInput): Promise<CancelEventResult> {
     const { eventId, organizationId, reason, actorId } = input;
 
-    // 1. Fetch event and verify it belongs to the org
+    // 1. Authorization: verify actor is an active member with event-creator role
+    if (actorId) {
+      const member = await this.orgAccess.findMember(organizationId, actorId);
+      if (!member || member.status !== 'ACTIVE') {
+        throw new OrganizationAccessDeniedError();
+      }
+      if (!(EVENT_CREATOR_ROLES as readonly string[]).includes(member.role)) {
+        throw new InsufficientRoleError();
+      }
+    }
+
+    // 2. Fetch event and verify it belongs to the org
     const eventRow = await this.repo.getEventStatus(eventId, organizationId);
 
-    // 2. Validate: event exists and belongs to org
+    // 3. Validate: event exists and belongs to org
     if (!eventRow) {
       throw new EventNotFoundError();
     }
 
-    // 3. Verify status: if already CANCELLED → throw EventNotCancellableError (422)
+    // 4. Verify status: if already CANCELLED → throw EventNotCancellableError (422)
     if (eventRow.status === 'CANCELLED') {
       throw new EventNotCancellableError('EVENT_ALREADY_CANCELLED');
     }
 
-    // 4. Verify event is in a cancellable state (PUBLISHED or DRAFT)
+    // 5. Verify event is in a cancellable state (PUBLISHED or DRAFT)
     if (eventRow.status !== 'PUBLISHED' && eventRow.status !== 'DRAFT') {
       throw new EventNotCancellableError(`EVENT_IN_NON_CANCELLABLE_STATE`);
     }
 
-    // 5. Perform cancellation inside a transaction
+    // 6. Perform cancellation inside a transaction
     return this.repo.cancelEvent({ eventId, organizationId, reason, actorId });
   }
 }

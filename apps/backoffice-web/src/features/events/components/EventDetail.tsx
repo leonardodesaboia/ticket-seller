@@ -40,12 +40,20 @@ export function EventDetail({ event }: EventDetailProps) {
       <dl className="flex flex-col gap-1 text-sm text-muted-foreground">
         <div className="flex gap-2">
           <dt className="font-medium">Criado em:</dt>
-          <dd>{new Date(event.createdAt).toLocaleString('pt-BR')}</dd>
+          <dd>
+            <time dateTime={event.createdAt} suppressHydrationWarning>
+              {new Date(event.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+            </time>
+          </dd>
         </div>
         {event.updatedAt && (
           <div className="flex gap-2">
             <dt className="font-medium">Atualizado em:</dt>
-            <dd>{new Date(event.updatedAt).toLocaleString('pt-BR')}</dd>
+            <dd>
+              <time dateTime={event.updatedAt} suppressHydrationWarning>
+                {new Date(event.updatedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+              </time>
+            </dd>
           </div>
         )}
       </dl>

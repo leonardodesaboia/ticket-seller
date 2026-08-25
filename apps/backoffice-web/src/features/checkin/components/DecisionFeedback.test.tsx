@@ -44,18 +44,18 @@ describe('DecisionFeedback', () => {
     expect(screen.getByText('Transferência pendente')).toBeInTheDocument();
   });
 
-  it('applies green styling for ADMITTED', () => {
+  it('applies primary styling for ADMITTED', () => {
     render(<DecisionFeedback decision="ADMITTED" allowed={true} />);
     const alert = screen.getByRole('alert');
-    expect(alert.className).toContain('bg-green-100');
-    expect(alert.className).toContain('text-green-800');
+    expect(alert.className).toContain('bg-primary/10');
+    expect(alert.className).toContain('text-primary');
   });
 
-  it('applies red styling for non-ADMITTED decisions', () => {
+  it('applies destructive styling for non-ADMITTED decisions', () => {
     render(<DecisionFeedback decision="ALREADY_CHECKED_IN" allowed={false} />);
     const alert = screen.getByRole('alert');
-    expect(alert.className).toContain('bg-red-100');
-    expect(alert.className).toContain('text-red-800');
+    expect(alert.className).toContain('bg-destructive/10');
+    expect(alert.className).toContain('text-destructive');
   });
 
   it('shows checkmark icon for ADMITTED', () => {

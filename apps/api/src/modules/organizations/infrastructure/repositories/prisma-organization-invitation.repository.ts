@@ -236,6 +236,14 @@ export class PrismaOrganizationInvitationRepository implements IOrganizationInvi
     });
   }
 
+  async findUserEmailById(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    return user?.email ?? null;
+  }
+
   private toDomain(record: {
     id: string;
     organizationId: string;

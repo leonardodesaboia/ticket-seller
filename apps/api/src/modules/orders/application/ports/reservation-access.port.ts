@@ -5,6 +5,7 @@ export interface CreateOrderFromReservationInput {
   tokenHash: string;
   idempotencyKey: string;
   requestHash: string;
+  buyerEmail: string;
 }
 
 export interface IReservationAccess {

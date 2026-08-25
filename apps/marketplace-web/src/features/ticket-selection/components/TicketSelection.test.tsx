@@ -34,7 +34,7 @@ describe('TicketSelection', () => {
     fireEvent.click(increase);
 
     expect(screen.getByLabelText('Quantidade selecionada de Inteira')).toHaveTextContent('2');
-    expect(screen.getByText('Subtotal visual: R$ 100,00')).toBeInTheDocument();
+    expect(screen.getByText('Subtotal: R$ 100,00')).toBeInTheDocument();
     expect(increase).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Diminuir quantidade de Inteira' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Reservar ingressos' })).toBeEnabled();

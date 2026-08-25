@@ -17,8 +17,16 @@ export const AuthRegisterThrottle = () => Throttle({ global: { limit: 10, ttl: 3
 
 export const AuthRefreshThrottle = () => Throttle({ global: { limit: 20, ttl: 300_000 } });
 
+export const AuthResetPasswordThrottle = () => Throttle({ global: { limit: 5, ttl: 3_600_000 } });
+
+export const AuthVerifyEmailThrottle = () => Throttle({ global: { limit: 10, ttl: 3_600_000 } });
+
 export const InvitationThrottle = () => Throttle({ global: { limit: 10, ttl: 3_600_000 } });
 
 export const ReservationThrottle = () => Throttle({ global: { limit: 20, ttl: 60_000 } });
 
 export const PaymentThrottle = () => Throttle({ global: { limit: 10, ttl: 300_000 } });
+
+export const AdminReadThrottle = () => Throttle({ global: { limit: 60, ttl: 60_000 } });
+
+export const AdminActionThrottle = () => Throttle({ global: { limit: 10, ttl: 60_000 } });

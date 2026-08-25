@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { USER_REPOSITORY, type IUserRepository } from '../../domain/ports/user.repository.port';
 
 export interface GetCurrentIdentityInput {
   userId: string;
@@ -16,38 +16,15 @@ export interface GetCurrentIdentityOutput {
 
 @Injectable()
 export class GetCurrentIdentityUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository) {}
 
   async execute(input: GetCurrentIdentityInput): Promise<GetCurrentIdentityOutput> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: input.userId },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        locale: true,
-        timezone: true,
-        identities: {
-          where: { provider: 'local' },
-          select: { emailVerified: true },
-          take: 1,
-        },
-      },
-    });
+    const profile = await this.userRepository.findProfile(input.userId);
 
-    if (!user) {
+    if (!profile) {
       throw new NotFoundException('User not found');
     }
 
-    const emailVerified = user.identities[0]?.emailVerified ?? false;
-
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      emailVerified,
-      locale: user.locale,
-      timezone: user.timezone,
-    };
+    return profile;
   }
 }

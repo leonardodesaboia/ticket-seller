@@ -105,7 +105,6 @@ export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
         AND requested_at < NOW() - (${this.stuckMinutes} * INTERVAL '1 minute')
       ORDER BY requested_at ASC
       LIMIT 50
-      FOR UPDATE SKIP LOCKED
     `;
 
     return rows.map((row) => ({

@@ -18,6 +18,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRY: z.string().default('30d'),
   // Email provider
   RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().email().default('noreply@ticket-seller.com'),
   FRONTEND_URL: z.string().url().default('http://localhost:3001'),
   // Object storage
   OBJECT_STORAGE_PROVIDER: z.enum(['minio', 's3']).default('minio'),
@@ -29,6 +30,10 @@ const envSchema = z.object({
   AWS_S3_REGION: z.string().default('us-east-1'),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  // Admin notification email — receives internal operational alerts (chargebacks, event cancellations)
+  ADMIN_NOTIFICATION_EMAIL: z.string().email().default('admin@ticket-seller.local'),
+  // Outbox polling interval (ms)
+  OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(500).default(5000),
   // OpenTelemetry (opt-in)
   OTEL_ENABLED: z.string().default('false').transform((v) => v === 'true'),
   OTEL_SERVICE_NAME: z.string().default('ticket-seller-api'),

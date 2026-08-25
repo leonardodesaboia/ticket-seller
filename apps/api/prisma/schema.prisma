@@ -332,6 +332,7 @@ model Order {
   subtotalAmount       BigInt    @map("subtotal_amount")
   totalAmount          BigInt    @map("total_amount")
   idempotencyKey       String?   @unique @map("idempotency_key") @db.VarChar(255)
+  buyerEmail           String?   @map("buyer_email") @db.VarChar(255)
   expiresAt            DateTime  @map("expires_at") @db.Timestamptz
   cancelledAt          DateTime? @map("cancelled_at") @db.Timestamptz
   cancellationReason   String?   @map("cancellation_reason") @db.VarChar(255)

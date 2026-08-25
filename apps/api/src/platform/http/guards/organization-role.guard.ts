@@ -45,6 +45,15 @@ export class OrganizationRoleGuard implements CanActivate {
       throw new ForbiddenException('Access denied');
     }
 
+    // Check suspension before any role lookup — a suspended org denies all members
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { suspendedAt: true },
+    });
+    if (org?.suspendedAt) {
+      throw new ForbiddenException('Organization suspended');
+    }
+
     const member = await this.invitationRepo.findActiveMemberByUserId(orgId, actor.userId);
     if (!member) {
       throw new ForbiddenException('Access denied');
@@ -53,15 +62,6 @@ export class OrganizationRoleGuard implements CanActivate {
     const caps = ROLE_CAPABILITIES[member.role] ?? [];
     if (!caps.includes(requiredCapability)) {
       throw new ForbiddenException('Insufficient permissions');
-    }
-
-    // Check organization suspension
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-      select: { suspendedAt: true },
-    });
-    if (org?.suspendedAt) {
-      throw new ForbiddenException('Organization suspended');
     }
 
     return true;

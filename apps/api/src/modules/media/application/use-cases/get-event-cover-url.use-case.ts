@@ -1,11 +1,13 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
 import {
   OBJECT_STORAGE_PORT,
   type IObjectStoragePort,
 } from '../../../../shared/ports/object-storage.port';
-
-const DOWNLOAD_URL_EXPIRES_IN = 3600;
+import {
+  EVENT_COVER_REPOSITORY,
+  type IEventCoverRepository,
+} from '../../domain/ports/event-cover-repository.port';
+import { DOWNLOAD_URL_EXPIRES_IN_SECONDS } from '../../domain/media.constants';
 
 export interface GetEventCoverUrlCommand {
   organizationId: string;
@@ -21,16 +23,14 @@ export class GetEventCoverUrlUseCase {
   constructor(
     @Inject(OBJECT_STORAGE_PORT)
     private readonly storage: IObjectStoragePort,
-    private readonly prisma: PrismaService,
+    @Inject(EVENT_COVER_REPOSITORY)
+    private readonly eventCoverRepo: IEventCoverRepository,
   ) {}
 
   async execute(command: GetEventCoverUrlCommand): Promise<GetEventCoverUrlResult> {
     const { eventId, organizationId } = command;
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId, organizationId },
-      select: { coverImageKey: true },
-    });
+    const event = await this.eventCoverRepo.findByOrganization(eventId, organizationId);
 
     if (!event || !event.coverImageKey) {
       throw new NotFoundException('Event cover image not found');
@@ -38,7 +38,7 @@ export class GetEventCoverUrlUseCase {
 
     const url = await this.storage.generateDownloadUrl({
       key: event.coverImageKey,
-      expiresInSeconds: DOWNLOAD_URL_EXPIRES_IN,
+      expiresInSeconds: DOWNLOAD_URL_EXPIRES_IN_SECONDS,
     });
 
     return { url };

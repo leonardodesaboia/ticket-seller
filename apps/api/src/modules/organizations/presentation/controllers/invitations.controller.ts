@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   GoneException,
   HttpCode,
   NotFoundException,
@@ -14,6 +15,7 @@ import {
   InvitationAlreadyUsedError,
   InvitationRevokedError,
   InvitationExpiredError,
+  InvitationEmailMismatchError,
 } from '../../application/use-cases/accept-organization-invitation.use-case';
 import { ActorGuard } from '../../../../platform/http/guards/actor.guard';
 import { CurrentActor } from '../../../../shared/kernel/current-actor.decorator';
@@ -56,6 +58,9 @@ export class InvitationsController {
         err instanceof InvitationExpiredError
       ) {
         throw new GoneException(err.message);
+      }
+      if (err instanceof InvitationEmailMismatchError) {
+        throw new ForbiddenException({ message: err.message, code: 'INVITATION_EMAIL_MISMATCH' });
       }
       throw err;
     }

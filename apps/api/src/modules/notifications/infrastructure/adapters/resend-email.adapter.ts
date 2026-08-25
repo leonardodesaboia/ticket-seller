@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Resend } from 'resend';
 import { env } from '../../../../platform/config/env';
 import type { IEmailProvider, EmailMessage } from '../../domain/ports/email-provider.port';
+import { EmailSendError } from '../../domain/notification.errors';
 
 @Injectable()
 export class ResendEmailAdapter implements IEmailProvider {
@@ -19,12 +20,16 @@ export class ResendEmailAdapter implements IEmailProvider {
   }
 
   async send(message: EmailMessage): Promise<void> {
-    await this.getClient().emails.send({
-      from: 'noreply@ticket-seller.com',
-      to: message.to,
-      subject: message.subject,
-      text: message.text,
-    });
+    try {
+      await this.getClient().emails.send({
+        from: env.RESEND_FROM,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+      });
+    } catch (err) {
+      throw new EmailSendError(`Resend delivery failed: ${String(err)}`, err instanceof Error ? err : undefined);
+    }
 
     this.logger.debug(`Email sent via Resend — subject: "${message.subject}"`);
   }

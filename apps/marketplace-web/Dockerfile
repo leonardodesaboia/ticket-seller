@@ -43,6 +43,6 @@ USER appuser
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
-  CMD wget -qO- http://localhost:3001/ || exit 1
+  CMD wget -qO- http://localhost:3001/api/health || exit 1
 
 CMD ["node", "apps/marketplace-web/server.js"]

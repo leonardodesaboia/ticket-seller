@@ -18,6 +18,7 @@ interface RawOrderRow {
   status: string;
   total_amount: bigint;
   currency: string;
+  buyer_email: string | null;
 }
 
 interface RawOrderItemRow {
@@ -119,8 +120,8 @@ export class PrismaOrderCancellationRepository implements IOrderCancellationRepo
 
     await this.prisma.$transaction(async (tx) => {
       // 1. Lock and re-verify status
-      const rows = await tx.$queryRaw<Array<{ id: string; status: string }>>`
-        SELECT id, status FROM orders
+      const rows = await tx.$queryRaw<Array<{ id: string; status: string; buyer_email: string | null }>>`
+        SELECT id, status, buyer_email FROM orders
         WHERE id = ${orderId}::uuid
           AND organization_id = ${organizationId}::uuid
         FOR UPDATE
@@ -189,7 +190,7 @@ export class PrismaOrderCancellationRepository implements IOrderCancellationRepo
           ${orderId},
           'order.cancelled.v1',
           '1',
-          ${JSON.stringify({ orderId, organizationId, source, requiresRefund: false })}::jsonb,
+          ${JSON.stringify({ orderId, organizationId, source, requiresRefund: false, buyerEmail: order.buyer_email ?? null })}::jsonb,
           ${organizationId}::uuid,
           NOW()
         )
@@ -203,8 +204,8 @@ export class PrismaOrderCancellationRepository implements IOrderCancellationRepo
 
     await this.prisma.$transaction(async (tx) => {
       // 1. Lock and re-verify
-      const rows = await tx.$queryRaw<Array<{ id: string; status: string }>>`
-        SELECT id, status FROM orders
+      const rows = await tx.$queryRaw<Array<{ id: string; status: string; buyer_email: string | null }>>`
+        SELECT id, status, buyer_email FROM orders
         WHERE id = ${orderId}::uuid
           AND organization_id = ${organizationId}::uuid
         FOR UPDATE
@@ -313,7 +314,7 @@ export class PrismaOrderCancellationRepository implements IOrderCancellationRepo
           ${orderId},
           'order.cancelled.v1',
           '1',
-          ${JSON.stringify({ orderId, organizationId, source, requiresRefund: true })}::jsonb,
+          ${JSON.stringify({ orderId, organizationId, source, requiresRefund: true, buyerEmail: order.buyer_email ?? null })}::jsonb,
           ${organizationId}::uuid,
           NOW()
         )
