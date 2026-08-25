@@ -15,7 +15,9 @@ Decisões arquiteturais desta fase (ver ADRs)
 - ADR-008: IObjectStoragePort com MinioObjectStorageAdapter (dev) e S3ObjectStorageAdapter (prod); ResendEmailAdapter para email transacional em production.
 - ADR-009: Dockerfiles multi-stage portáveis, sem acoplamento a cloud provider específica.
 
-Implementado (pós-RC-1.0, em commit único 2026-08-25)
+Implementado (pós-RC-1.0, commits 2026-08-25)
+
+**Sessão 1 — commit 93bdf7a:**
 - Revisão de todos os módulos da API: identity, organizations, events/venues, orders/reservations, payments/finance, tickets/checkin/inventory, notifications, media, platform-admin.
 - Revisão de frontend: backoffice-web e marketplace-web (UI/UX + features).
 - Correções de segurança: IDOR em refund, cancelamento de pedido, aceitação de convite, cancelamento de evento.
@@ -24,6 +26,18 @@ Implementado (pós-RC-1.0, em commit único 2026-08-25)
 - Correções de UI/UX: botão copiar PIX, hydration mismatch, labels de desenvolvimento expostos, ARIA.
 - Correções de notificações: emails de alerta admin configuráveis via `ADMIN_NOTIFICATION_EMAIL`.
 - Nova migration: `orders.buyer_email`.
+
+**Sessão 2 — commits 6dfa5ea, 1f723e0, 238153f:**
+- finance/process-payout-webhook: SELECT FOR UPDATE recheck em handleSucceeded/handleFailed — race condition de webhooks concorrentes resolvida.
+- finance/settle-order: guard `pending_amount >= sellerNetAmount` — previne underflow pós-refund.
+- finance/settlement.worker: flag `isRunning` — previne overlapping polls.
+- finance/reconciliation.worker: isRunning, FOR UPDATE SKIP LOCKED, status recheck nos handlers.
+- identity/reset-password: `resetPasswordAtomically` — markUsed + updateCredentialHash atômicos.
+- identity/refresh-session: IP e UserAgent preservados na rotação de tokens.
+- organizations/remove-member: CannotRemoveSelfError — auto-remoção bloqueada na transação.
+- organizations/invite-member: email normalizado (lowercase/trim).
+- organizations/revoke-invitation: guard isUsed adicionado além de isRevoked.
+- orders/reservation: isSerializationFailure captura 40P01 (deadlock).
 - 440/440 testes passando.
 
 Em andamento
@@ -36,11 +50,14 @@ Implementar TASK-063, em seguida: E2E manual em staging com auth real, load test
 
 Pendências documentadas (não bloqueantes para commit)
 Ver relatórios individuais em `.ai/reports/module-review-2026/` para lista completa por módulo.
-Prioridades de médio prazo:
-- Finance: ledger desbalanceado em record-refund (A1), race condition payout webhook, settle-order negative
-- Tickets: IDOR em findByClaimTokenHash (C1 crítico — próxima tarefa após TASK-063)
-- Identity: TOCTOU em P2002, timing side-channel, emailVerification fora de transação
-- Platform-admin: layer violation (todos os use cases), PII em list-admin-users
+Prioridades remanescentes (sessão 2 resolveu a maioria):
+- Finance: A2 chargeback sem verificar settled, A6 testes para record-sale/record-refund, A7 UNIQUE PARTIAL em payment_attempts
+- Identity: M2 emailVerification fora de transação, M4 forceReset não verificado, M5 findActive* retorna inativas
+- Organizations: A1 ADMIN pode promover OWNER, A3 índices compostos faltando, M1 markInvitationUsed fora de transação
+- Orders: C1 TOCTOU em cancel(), A3 total_amount sem taxas, A4 resolveUniqueConflict sem transação
+- Platform-admin: A1 layer violation (8 use cases), A2 PII em list-admin-users, A3 cursor collision
+- Tickets: A5 findByTokenHash em credential sem org, A6 testes em repositórios críticos
+- Events: A4 FOR UPDATE SKIP LOCKED em cancel, A5 zero testes em venues
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)

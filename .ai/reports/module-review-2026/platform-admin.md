@@ -206,7 +206,7 @@ Foram identificados **2 bloqueantes**, **4 altos**, **5 médios** e **3 baixos**
 - A1: Layer violation — todos os use cases injetam `PrismaService` diretamente (criar `IAdminUserRepository`, `IAdminOrganizationRepository`, `IAdminPayoutRepository`)
 - A2: `list-admin-users` expõe `email` e `platformRole` para `PLATFORM_SUPPORT`
 - A3: Cursor de paginação baseado em `createdAt` — colisão silenciosa
-- A4: Guard silencioso quando `@RequirePlatformRole` ausente
-- M2: `unsuspend-*` não são idempotentes
-- M3: `event.count()` sem filtro de status no dashboard
+- ~~A4: Guard silencioso quando `@RequirePlatformRole` ausente~~ — **FALSO POSITIVO**: `AdminController` já tem `@RequirePlatformRole(PlatformRole.PLATFORM_SUPPORT)` ao nível da classe (linha 31) — novas rotas herdam a proteção mínima automaticamente
+- ~~M2: `unsuspend-*` não são idempotentes~~ — **FALSO POSITIVO**: `unsuspend-organization.use-case.ts:23-33` e `unsuspend-user.use-case.ts:23-33` já têm early-return com log de noop quando `suspendedAt === null`
+- ~~M3: `event.count()` sem filtro de status~~ — **FALSO POSITIVO**: `get-platform-dashboard.use-case.ts:30` já usa `where: { status: { not: 'CANCELLED' } }`
 - M4: Suspensão não invalida sessões ativas dos membros

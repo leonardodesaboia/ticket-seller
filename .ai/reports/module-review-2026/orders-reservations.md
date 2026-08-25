@@ -121,7 +121,7 @@ Os módulos `orders` e `reservations` implementam o fluxo de compra desde a rese
 
 **Pendente:**
 - C1: `cancel()` de reserva ainda pode ter janela de TOCTOU se `findReservation` for feito antes do lock
-- A2: `isSerializationFailure` não captura `40P01` (deadlock)
+- ~~A2: `isSerializationFailure` não captura `40P01`~~ — **CORRIGIDO 2026-08-25**: `msg.includes('40P01')` adicionado à função `isSerializationFailure`
 - A3: `total_amount` sempre igual a `subtotal_amount` — taxas nunca aplicadas
 - A4: `resolveUniqueConflict` — 3 queries fora de transação
 - M2: N+1 em `expireActiveReservations`
