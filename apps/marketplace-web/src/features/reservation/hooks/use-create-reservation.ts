@@ -12,7 +12,7 @@ export function useCreateReservation(eventSlug: string) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const resetAttempt = useCallback(() => undefined, []);
+  const resetAttempt = useCallback(() => { setError(null); }, []);
   const create = useCallback(async (items: Array<{ ticketTypeId: string; quantity: number }>): Promise<PublicReservation> => {
     setIsCreating(true);
     setError(null);

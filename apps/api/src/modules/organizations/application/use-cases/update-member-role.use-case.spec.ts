@@ -13,6 +13,7 @@ const makeRepo = (): jest.Mocked<IOrganizationInvitationRepository> => ({
   createInvitation: jest.fn(),
   findInvitationByTokenHash: jest.fn(),
   findInvitationById: jest.fn(),
+  findPendingInvitationByEmail: jest.fn().mockResolvedValue(null),
   markInvitationUsed: jest.fn(),
   revokeInvitation: jest.fn(),
   isActiveMember: jest.fn(),

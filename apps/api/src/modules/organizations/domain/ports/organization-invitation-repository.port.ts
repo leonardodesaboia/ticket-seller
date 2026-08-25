@@ -27,6 +27,8 @@ export interface IOrganizationInvitationRepository {
   createInvitation(input: CreateInvitationInput): Promise<OrganizationInvitation>;
   findInvitationByTokenHash(tokenHash: string): Promise<OrganizationInvitation | null>;
   findInvitationById(id: string, organizationId: string): Promise<OrganizationInvitation | null>;
+  /** Returns the first active (non-used, non-revoked, not expired) pending invitation for this email. */
+  findPendingInvitationByEmail(organizationId: string, email: string): Promise<OrganizationInvitation | null>;
   markInvitationUsed(id: string, userId: string): Promise<void>;
   revokeInvitation(id: string): Promise<void>;
 

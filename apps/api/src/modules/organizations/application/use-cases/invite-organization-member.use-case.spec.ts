@@ -6,6 +6,7 @@ const makeRepo = (): jest.Mocked<IOrganizationInvitationRepository> => ({
   createInvitation: jest.fn(),
   findInvitationByTokenHash: jest.fn(),
   findInvitationById: jest.fn(),
+  findPendingInvitationByEmail: jest.fn().mockResolvedValue(null),
   markInvitationUsed: jest.fn(),
   revokeInvitation: jest.fn(),
   isActiveMember: jest.fn(),
@@ -48,6 +49,7 @@ describe('InviteOrganizationMemberUseCase', () => {
 
   it('should create invitation for a non-member email', async () => {
     repo.isActiveMember.mockResolvedValue(false);
+    repo.findPendingInvitationByEmail.mockResolvedValue(null);
     repo.createInvitation.mockResolvedValue(makeInvitation());
 
     const result = await useCase.execute({
@@ -61,6 +63,24 @@ describe('InviteOrganizationMemberUseCase', () => {
     expect(result.email).toBe('test@example.com');
     expect(result.role).toBe('ADMIN');
     expect(result.rawToken).toBeDefined();
+  });
+
+  it('should revoke existing pending invitation before creating a new one', async () => {
+    const existingInvitation = makeInvitation();
+    repo.isActiveMember.mockResolvedValue(false);
+    repo.findPendingInvitationByEmail.mockResolvedValue(existingInvitation);
+    repo.revokeInvitation.mockResolvedValue(undefined);
+    repo.createInvitation.mockResolvedValue(makeInvitation());
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      inviterId: 'inviter-1',
+      email: 'test@example.com',
+      role: 'ADMIN',
+    });
+
+    expect(repo.revokeInvitation).toHaveBeenCalledWith(existingInvitation.id);
+    expect(repo.createInvitation).toHaveBeenCalledTimes(1);
   });
 
   it('should return synthetic result without DB write when email is already a member (security: no reveal)', async () => {

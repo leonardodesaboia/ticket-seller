@@ -46,6 +46,20 @@ export class PrismaOrganizationInvitationRepository implements IOrganizationInvi
     return record ? this.toDomain(record) : null;
   }
 
+  async findPendingInvitationByEmail(organizationId: string, email: string): Promise<OrganizationInvitation | null> {
+    const record = await this.prisma.organizationInvitation.findFirst({
+      where: {
+        organizationId,
+        email,
+        usedAt: null,
+        revokedAt: null,
+        expiresAt: { gte: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return record ? this.toDomain(record) : null;
+  }
+
   async markInvitationUsed(id: string, userId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       // Read invitation inside the transaction: any concurrent revocation between

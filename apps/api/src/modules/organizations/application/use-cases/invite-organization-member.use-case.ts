@@ -78,6 +78,16 @@ export class InviteOrganizationMemberUseCase {
     let invitation: OrganizationInvitation;
 
     if (!alreadyMember) {
+      // Revoke any existing pending invitation before creating a new one to avoid
+      // accumulating multiple valid tokens for the same email.
+      const existing = await this.repo.findPendingInvitationByEmail(command.organizationId, normalizedEmail);
+      if (existing) {
+        await this.repo.revokeInvitation(existing.id);
+        this.logger.debug(
+          `Revoked previous pending invitation ${existing.id} for email ${normalizedEmail} in org ${command.organizationId}`,
+        );
+      }
+
       invitation = await this.repo.createInvitation({
         id,
         organizationId: command.organizationId,
