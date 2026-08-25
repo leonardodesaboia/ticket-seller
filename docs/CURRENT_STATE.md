@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-25 (revisão completa de módulos concluída; TASK-063 planejada)
+Última atualização: 2026-08-25 (sessões 3–8 de correções concluídas)
 
 Fase
 
@@ -8,10 +8,10 @@ Pós-RC-1.0 — Correções de segurança e qualidade em andamento.
 
 Objetivo da fase
 
-Corrigir vulnerabilidades e bugs identificados na revisão de módulos pós-RC-1.0 (sessões 1–3 + revisão frontend). Integrar autenticação real no backoffice (TASK-063).
+Corrigir vulnerabilidades e bugs identificados na revisão de módulos pós-RC-1.0. Integrar autenticação real no backoffice (TASK-063).
 
 Decisões arquiteturais desta fase (ver ADRs)
-- ADR-007: Auth próprio com email + senha, argon2id, JWT (access 15min + refresh 30d em cookie HttpOnly), refresh token rotation, JwtActorAdapter.
+- ADR-007: Auth própria com email + senha, argon2id, JWT (access 15min + refresh 30d em cookie HttpOnly), refresh token rotation, JwtActorAdapter.
 - ADR-008: IObjectStoragePort com MinioObjectStorageAdapter (dev) e S3ObjectStorageAdapter (prod); ResendEmailAdapter para email transacional em production.
 - ADR-009: Dockerfiles multi-stage portáveis, sem acoplamento a cloud provider específica.
 
@@ -21,24 +21,71 @@ Implementado (pós-RC-1.0, commits 2026-08-25)
 - Revisão de todos os módulos da API: identity, organizations, events/venues, orders/reservations, payments/finance, tickets/checkin/inventory, notifications, media, platform-admin.
 - Revisão de frontend: backoffice-web e marketplace-web (UI/UX + features).
 - Correções de segurança: IDOR em refund, cancelamento de pedido, aceitação de convite, cancelamento de evento.
-- Correções de concorrência: `cancel()` com FOR UPDATE e retry, inventory sem transação, requestHash sem idempotencyKey.
+- Correções de concorrência: cancel() com FOR UPDATE e retry, inventory sem transação, requestHash sem idempotencyKey.
 - Correções de arquitetura: IUserRepository (identity), IEventCoverRepository (media) — PrismaService removido da camada de aplicação.
 - Correções de UI/UX: botão copiar PIX, hydration mismatch, labels de desenvolvimento expostos, ARIA.
-- Correções de notificações: emails de alerta admin configuráveis via `ADMIN_NOTIFICATION_EMAIL`.
-- Nova migration: `orders.buyer_email`.
+- Correções de notificações: emails de alerta admin configuráveis via ADMIN_NOTIFICATION_EMAIL.
+- Nova migration: orders.buyer_email.
 
 **Sessão 2 — commits 6dfa5ea, 1f723e0, 238153f:**
-- finance/process-payout-webhook: SELECT FOR UPDATE recheck em handleSucceeded/handleFailed — race condition de webhooks concorrentes resolvida.
-- finance/settle-order: guard `pending_amount >= sellerNetAmount` — previne underflow pós-refund.
-- finance/settlement.worker: flag `isRunning` — previne overlapping polls.
-- finance/reconciliation.worker: isRunning, FOR UPDATE SKIP LOCKED, status recheck nos handlers.
-- identity/reset-password: `resetPasswordAtomically` — markUsed + updateCredentialHash atômicos.
+- finance/process-payout-webhook: SELECT FOR UPDATE recheck em handleSucceeded/handleFailed.
+- finance/settle-order: guard pending_amount >= sellerNetAmount.
+- finance/settlement.worker + reconciliation.worker: flags isRunning, FOR UPDATE SKIP LOCKED.
+- identity/reset-password: resetPasswordAtomically — markUsed + updateCredentialHash atômicos.
 - identity/refresh-session: IP e UserAgent preservados na rotação de tokens.
-- organizations/remove-member: CannotRemoveSelfError — auto-remoção bloqueada na transação.
+- organizations/remove-member: CannotRemoveSelfError — auto-remoção bloqueada.
 - organizations/invite-member: email normalizado (lowercase/trim).
-- organizations/revoke-invitation: guard isUsed adicionado além de isRevoked.
+- organizations/revoke-invitation: guard isUsed além de isRevoked.
 - orders/reservation: isSerializationFailure captura 40P01 (deadlock).
 - 440/440 testes passando.
+
+**Sessão 3 — commit 67c3537:**
+- identity: emailVerificationRepository.create com try/catch — falha logada como CRITICAL sem propagar 500.
+
+**Sessão 4 — commits 8e7caa6, 45b7591:**
+- organizations/M1: markInvitationUsed movido para dentro da transação com guard revokedAt.
+- organizations/A1: update-member-role verifica ROLES_ASSIGN antes de promover a OWNER.
+- organizations/A3: indexes compostos em OrganizationMember (organizationId+status, organizationId+role+status).
+- finance/A2: record-chargeback distingue se pedido foi settled — decrementa pending vs available.
+- identity/M4: forceReset lido do PasswordCredential no login; AuthenticateWithPasswordOutput inclui mustResetPassword.
+- identity/M5: findActiveByTokenHash e findActiveById filtram revokedAt=null + expiresAt>=now no banco.
+- identity/M6: resetPasswordAtomically via transaction array do Prisma.
+- identity/M7: RefreshSessionInput aceita ip e userAgent.
+- tickets/C2: findByIdempotencyKey em check-in filtra por organization_id — vazamento cross-tenant corrigido.
+- tickets/A2: acceptAtomically com FOR UPDATE + verificação expires_at <= NOW() dentro da transação.
+- tickets/A4: initializeForEvent envolto em $transaction.
+- tickets/A5: findByTokenHash em ticket-credential recebe organizationId e filtra no banco.
+
+**Sessão 5 — commit 8ae3ca0:**
+- identity/A3: refresh-session envolve sessionRepository.create em try/catch — 503 em vez de 500.
+- identity/A4: index @@index([ip, attemptedAt]) em AuthenticationAttempt para countRecentFailures.
+- 445/445 testes passando.
+
+**Sessão 6 — commits 7164194, 2468cc0:**
+- frontend/BO-05: usePayouts e useTransactions com queryFn pura + useEffect para acúmulo de páginas.
+- frontend/MK-04: retry com backoff em erros transientes no checkout.
+- frontend/MK-05: tratamento de erro permanente sem retry infinito.
+- organizations/M2: findPendingInvitationByEmail adicionado; invite revoga convite pendente antes de criar novo.
+
+**Sessão 7 — commits 665761a, f2fd5ef, 29a781b:**
+- organizations/M5: MEMBERS_VIEW capability adicionada a todos os roles — GET /members usa MEMBERS_VIEW.
+- organizations/M6: DELETE /members retorna 204 sem body.
+- finance/A6: record-sale.use-case.spec.ts (9 testes) e record-refund.use-case.spec.ts (10 testes).
+- finance/A7: migration UNIQUE PARTIAL INDEX em payment_attempts (PENDING/PROCESSING por order_id); use case trata P2002 como PaymentAlreadyActiveError.
+- orders/M9: REFUNDED adicionado ao union type OrderStatus.
+- events/M2: update e updateConfiguration distinguem EventNotFoundError vs EventNotInDraftError vs EventVersionConflictError.
+- events/M12: PublicationReadinessPolicy valida startsAt no passado (EVENT_STARTS_AT_IN_PAST), com guard para evento já encerrado.
+- identity/M2: criação de emailVerificationToken feita atomicamente na mesma transação de registro.
+
+**Sessão 8 — commits e3cdbc1, c085bd0, a041d95:**
+- orders/M2: expireActiveReservations reescrito de O(R x (3+T)) queries para O(2) bulk SQL.
+- events/A5: create-venue.use-case.spec.ts (9 testes) e list-organization-venues.use-case.spec.ts (5 testes).
+- orders/M5: revogação de credenciais em cancelamento usa bulk UPDATE WHERE ticket_id = ANY(ids::uuid[]).
+- orders/M6: outbox de cancelamento usa bulk INSERT via Prisma.join.
+- inventory/M4: releaseHold — tentativa exata (AND reserved >= quantity) antes de fallback reset-to-0; log warn em underflow.
+- tickets/M8: stale-while-revalidate reduzido de 30 para 5 segundos.
+- identity/B2: algorithm: 'HS256' explícito no JwtModule.register.
+- events/M9: hard limit take:200 em findByOrganization de venues.
 
 Em andamento
 
@@ -48,16 +95,23 @@ Próxima fase
 
 Implementar TASK-063, em seguida: E2E manual em staging com auth real, load test, e configuração de cloud target para deployment.
 
-Pendências documentadas (não bloqueantes para commit)
-Ver relatórios individuais em `.ai/reports/module-review-2026/` para lista completa por módulo.
-Prioridades remanescentes (sessão 2 resolveu a maioria):
-- Finance: A2 chargeback sem verificar settled, A6 testes para record-sale/record-refund, A7 UNIQUE PARTIAL em payment_attempts
-- Identity: M2 emailVerification fora de transação, M4 forceReset não verificado, M5 findActive* retorna inativas
-- Organizations: A1 ADMIN pode promover OWNER, A3 índices compostos faltando, M1 markInvitationUsed fora de transação
-- Orders: C1 TOCTOU em cancel(), A3 total_amount sem taxas, A4 resolveUniqueConflict sem transação
-- Platform-admin: A1 layer violation (8 use cases), A2 PII em list-admin-users, A3 cursor collision
-- Tickets: A5 findByTokenHash em credential sem org, A6 testes em repositórios críticos
-- Events: A4 FOR UPDATE SKIP LOCKED em cancel, A5 zero testes em venues
+Pendências abertas (não bloqueantes para commit)
+Ver relatórios individuais em .ai/reports/module-review-2026/ para lista completa por módulo.
+Issues remanescentes após sessões 1-8:
+
+- Orders/A3: total_amount = subtotal_amount — taxas nunca repassadas ao comprador (decisão de produto pendente)
+- Tickets/A3: getAvailability vs tryReserve — duas fontes de verdade (decisão de design pendente)
+- Tickets/A6: testes ausentes em prisma-ticket-transfer, prisma-ticket-credential, prisma-inventory, PrismaCheckInRepository
+- Tickets/M1: POST /public/transfers/:token/accept sem rate-limit
+- Finance/M1: unitIndex < item.quantity — quantity string de $queryRaw causa nenhum ticket emitido (bug silencioso)
+- Finance/M7: falta INDEX ON ledger_entries (account_id, occurred_at DESC)
+- Finance/M8: findOrCreateOrgAccount — race condition entre SELECT e INSERT
+- Platform-admin/A1: todos os use cases injetam PrismaService diretamente (refactor estrutural)
+- Platform-admin/M4: suspensão não invalida sessões ativas dos membros
+- Notifications/A3: contrato de NotificationAlreadySentError (lançar vs retornar silenciosamente)
+- Notifications/M3-M5: testes de adapters de email; campo html ausente no port
+- Media/M1-M4: falha de bucket silenciada, maxBytes ignorado, casts sem validação, entidade anêmica
+- Events/M9: paginação por cursor em venues (mitigado com take:200, solução definitiva pendente)
 
 Próximas tarefas
 TASK-001 — Fundação do repositório. (CONCLUÍDA)
