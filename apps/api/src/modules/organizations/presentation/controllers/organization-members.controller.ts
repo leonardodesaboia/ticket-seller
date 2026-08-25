@@ -91,7 +91,7 @@ export class OrganizationMembersController {
   }
 
   @Get('members')
-  @RequireCapability(OrganizationCapability.MEMBERS_MANAGE)
+  @RequireCapability(OrganizationCapability.MEMBERS_VIEW)
   @ApiOperation({ summary: 'List organization members' })
   @ApiResponse({ status: 200, description: 'Members list' })
   async list(@Param('orgId') orgId: string) {
@@ -143,20 +143,19 @@ export class OrganizationMembersController {
   }
 
   @Delete('members/:memberId')
-  @HttpCode(200)
+  @HttpCode(204)
   @RequireCapability(OrganizationCapability.MEMBERS_MANAGE)
   @ApiOperation({ summary: 'Remove organization member' })
-  @ApiResponse({ status: 200, description: 'Member removed' })
+  @ApiResponse({ status: 204, description: 'Member removed' })
   @ApiResponse({ status: 404, description: 'Member not found' })
   @ApiResponse({ status: 422, description: 'Last owner protection violation' })
   async removeOrganizationMember(
     @CurrentActor() actor: ICurrentActor,
     @Param('orgId') orgId: string,
     @Param('memberId') memberId: string,
-  ) {
+  ): Promise<void> {
     try {
       await this.removeMember.execute({ organizationId: orgId, memberId, actorUserId: actor.userId });
-      return { success: true };
     } catch (err) {
       if (err instanceof RemoveMemberNotFoundError) {
         throw new NotFoundException(err.message);

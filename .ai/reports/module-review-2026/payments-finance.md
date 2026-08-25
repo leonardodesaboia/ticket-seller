@@ -120,7 +120,7 @@ Os módulos `payments` e `finance` são o núcleo financeiro do sistema. A anál
 - ~~A1: `record-refund.use-case.ts` — ledger desbalanceado~~ — **JÁ CORRIGIDO**: `totalPlatformFee = platformFeeAmount + processingFeeAmount` em todas as 3 políticas (RETAIN, REFUND, PROPORTIONAL)
 - ~~A2: `record-chargeback.use-case.ts` — decrementa `available` sem verificar se settled~~ — **CORRIGIDO 2026-08-25**: método `adjustSellerBalanceForChargeback` adicionado — consulta `balance_settlements` para o `orderId`; se settled: `decrementAvailable`; se não: `decrementPending`. Segue o mesmo padrão de `record-refund.use-case.ts`.
 - ~~A5: Race condition no `process-payout-webhook.use-case.ts`~~ — **CORRIGIDO 2026-08-25**: `SELECT ... FOR UPDATE` após dedup INSERT nos handlers `handleSucceeded` e `handleFailed`, revalida status antes de mutar
-- A6: Sem testes para `record-sale` e `record-refund`
+- ~~A6: Sem testes para `record-sale` e `record-refund`~~ — **CORRIGIDO 2026-08-25**: `record-sale.use-case.spec.ts` (9 testes: fallback de política, ledger entries, pending balance, tx passado adiante, erros) e `record-refund.use-case.spec.ts` (10 testes: sem snapshot, RETAIN/TBD/REFUND/PROPORTIONAL policies, settled vs. non-settled balance, zero sellerNet) adicionados.
 - A7: Race condition em `create-payment-attempt` (constraint `UNIQUE PARTIAL` faltando)
 - ~~M2: `settle-order` — `pending_amount` pode ir negativo~~ — **CORRIGIDO 2026-08-25**: `WHERE pending_amount >= ${sellerNetAmount}` adicionado; 0 rows → log warning (refund pode ter ajustado saldo)
 - ~~M4: `settlement.worker.ts` drain-loop sem flag `isRunning`~~ — **CORRIGIDO 2026-08-25**: flag `isRunning` + `finally` adicionados
