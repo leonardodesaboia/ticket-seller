@@ -105,6 +105,16 @@ export class PrismaUserRepository implements IUserRepository {
           data: { userId: user.id, hash: input.credentialHash, algorithm: 'argon2id' },
         });
 
+        if (input.emailVerificationToken) {
+          await tx.emailVerificationToken.create({
+            data: {
+              userId: user.id,
+              tokenHash: input.emailVerificationToken.tokenHash,
+              expiresAt: input.emailVerificationToken.expiresAt,
+            },
+          });
+        }
+
         return { userId: user.id };
       });
     } catch (err) {

@@ -1,19 +1,11 @@
 import { ConflictException } from '@nestjs/common';
 import { RegisterWithPasswordUseCase } from './register-with-password.use-case';
 import type { IPasswordHasher } from '../../domain/ports/password-hasher.port';
-import type { IEmailVerificationRepository } from '../../domain/ports/email-verification.repository.port';
 import type { IUserRepository } from '../../domain/ports/user.repository.port';
 
 const mockHasher: IPasswordHasher = {
   hash: jest.fn().mockResolvedValue('$argon2id$hashed'),
   verify: jest.fn(),
-};
-
-const mockEmailVerificationRepository: IEmailVerificationRepository = {
-  create: jest.fn().mockResolvedValue({ id: 'evtoken-id' }),
-  findByTokenHash: jest.fn(),
-  markUsed: jest.fn(),
-  markIdentityEmailVerified: jest.fn(),
 };
 
 const mockUserRepository: IUserRepository = {
@@ -25,11 +17,7 @@ const mockUserRepository: IUserRepository = {
 };
 
 function makeUseCase(): RegisterWithPasswordUseCase {
-  return new RegisterWithPasswordUseCase(
-    mockUserRepository,
-    mockHasher,
-    mockEmailVerificationRepository,
-  );
+  return new RegisterWithPasswordUseCase(mockUserRepository, mockHasher);
 }
 
 describe('RegisterWithPasswordUseCase', () => {
@@ -40,17 +28,21 @@ describe('RegisterWithPasswordUseCase', () => {
     (mockHasher.hash as jest.Mock).mockResolvedValue('$argon2id$hashed');
   });
 
-  it('creates user, identity, and credential for a new email', async () => {
+  it('calls register with email, credentialHash, and emailVerificationToken atomically', async () => {
     const useCase = makeUseCase();
-    const result = await useCase.execute({
-      email: 'new@example.com',
-      password: 'securepassword',
-    });
+    const result = await useCase.execute({ email: 'new@example.com', password: 'securepassword' });
 
     expect(result).toHaveProperty('userId');
     expect(mockHasher.hash).toHaveBeenCalledWith('securepassword');
-    expect(mockEmailVerificationRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-new-id' }),
+    expect(mockUserRepository.register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'new@example.com',
+        credentialHash: '$argon2id$hashed',
+        emailVerificationToken: expect.objectContaining({
+          tokenHash: expect.any(String),
+          expiresAt: expect.any(Date),
+        }),
+      }),
     );
   });
 
@@ -84,12 +76,12 @@ describe('RegisterWithPasswordUseCase', () => {
     expect(resultStr).not.toContain('argon2');
   });
 
-  it('succeeds even if emailVerification.create fails — user already created', async () => {
-    (mockEmailVerificationRepository.create as jest.Mock).mockRejectedValue(new Error('DB error'));
+  it('propagates registration error (user + verification token are atomic)', async () => {
+    (mockUserRepository.register as jest.Mock).mockRejectedValue(new Error('DB error'));
     const useCase = makeUseCase();
 
-    const result = await useCase.execute({ email: 'new@example.com', password: 'password123' });
-
-    expect(result).toHaveProperty('userId', 'user-new-id');
+    await expect(
+      useCase.execute({ email: 'new@example.com', password: 'password123' }),
+    ).rejects.toThrow('DB error');
   });
 });

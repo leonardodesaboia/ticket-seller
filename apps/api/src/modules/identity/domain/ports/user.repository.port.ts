@@ -18,6 +18,8 @@ export interface RegisterUserInput {
   email: string;
   displayName: string | null;
   credentialHash: string;
+  /** When provided, an email_verification_tokens row is created atomically in the same transaction. */
+  emailVerificationToken?: { tokenHash: string; expiresAt: Date };
 }
 
 export interface IUserRepository {
