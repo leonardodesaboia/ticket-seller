@@ -48,6 +48,7 @@ TASK-023	TASK-022	—	TASK-024
 TASK-024	TASK-021, TASK-022, TASK-023	Backoffice e marketplace entre si	—
 TASK-026	TASK-025	TASK-024 (frontend-only)	TASK-028
 TASK-027	TASK-026	—	TASK-028
+TASK-065	TASK-029, TASK-060	—	—
 
 Regras
 dependências precisam estar em MERGED;

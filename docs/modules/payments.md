@@ -24,6 +24,14 @@ Adapter em `infrastructure/adapters/fake/fake-payment.gateway.ts`.
 - Assinatura de webhook via HMAC-SHA256 + `crypto.timingSafeEqual`.
 - Secret lido de `FAKE_GATEWAY_SECRET`; obrigatório em produção.
 
+### Configuração do provider (TASK-065)
+
+- `PAYMENT_PROVIDER=fake` seleciona explicitamente o único adapter disponível no MVP.
+- Em produção, `FAKE_GATEWAY_SECRET` é validado antes do bootstrap quando o provider `fake` está selecionado.
+- A seleção ocorre em `PaymentsInfrastructureModule`; domínio, DTOs e controllers não acessam variáveis de ambiente.
+- O compose de produção deve fornecer `PAYMENT_PROVIDER` e `FAKE_GATEWAY_SECRET` ao serviço da API.
+- A neutralização dos tipos `FAKE_*` no contrato e a integração de PSP real permanecem fora desta task.
+
 ### PaymentAttempt
 Tabela `payment_attempts` (migration 20260812000010).
 Entidade em `domain/payment-attempt.entity.ts` com `isActive()` e `isTerminal()`.

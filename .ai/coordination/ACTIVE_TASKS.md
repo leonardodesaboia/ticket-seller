@@ -1,6 +1,6 @@
 Tarefas ativas
 
-Última atualização: 2026-08-25
+Última atualização: 2026-08-26
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
@@ -68,6 +68,7 @@ TASK-059: Security Hardening & Data Protection — MERGED em develop 2026-08-24
 TASK-060: Production Infrastructure & Deployment — MERGED em develop 2026-08-24
 TASK-061: Backup, Disaster Recovery & Operational Runbooks — MERGED em develop 2026-08-24
 TASK-062: Release Readiness & E2E Certification — MERGED em develop 2026-08-24 (commit e9f0435) — RC-1.0 READY
+TASK-065: Payment Provider Configuration Hardening — MERGED em 2026-08-26
 
 Regras
 uma tarefa deve aparecer uma única vez;

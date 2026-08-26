@@ -10,6 +10,10 @@ const envSchema = z.object({
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().default(1025),
   SMTP_FROM: z.string().default('noreply@ticket-seller.local'),
+  // Payment provider — only the fake gateway is available in the MVP.
+  PAYMENT_PROVIDER: z.enum(['fake']).default('fake'),
+  // Required for the fake payment provider in production.
+  FAKE_GATEWAY_SECRET: z.string().min(1).optional(),
   // Payout gateway secret — required in production, optional in development
   FAKE_PAYOUT_SECRET: z.string().optional(),
   // JWT authentication — JWT_SECRET required in production
@@ -52,6 +56,10 @@ if (parsed.NODE_ENV === 'production' && parsed.CORS_ORIGINS.includes('*')) {
   throw new Error(
     'CORS_ORIGINS cannot contain wildcard (*) in production. Set explicit allowed origins.',
   );
+}
+
+if (parsed.NODE_ENV === 'production' && parsed.PAYMENT_PROVIDER === 'fake' && !parsed.FAKE_GATEWAY_SECRET) {
+  throw new Error('FAKE_GATEWAY_SECRET is required in production when PAYMENT_PROVIDER is fake');
 }
 
 if (parsed.OBJECT_STORAGE_PROVIDER === 's3' && !parsed.AWS_S3_BUCKET) {

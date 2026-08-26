@@ -14,6 +14,7 @@ Fila de integração
 | 60 | TASK-060 | WAITING |
 | 61 | TASK-061 | WAITING |
 | 62 | TASK-062 | WAITING |
+| 65 | TASK-065 | MERGED |
 
 Histórico recente
 Ordem	Tarefa	Status	Data
@@ -69,6 +70,7 @@ Ordem	Tarefa	Status	Data
 50	TASK-050	MERGED	2026-08-18
 51	TASK-051	MERGED	2026-08-18
 52	TASK-052	MERGED	2026-08-18
+65	TASK-065	MERGED	2026-08-26
 
 Estados
 WAITING;

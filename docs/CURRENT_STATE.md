@@ -115,6 +115,11 @@ E2E manual em staging com auth real, load test, e configuração de cloud target
 - 75 test suites (API) + 15 test suites (backoffice-web), 491 + 96 = 587 testes passando
 - TASK-063 concluída: 0 ocorrências de devUserId/X-Dev-User-Id no backoffice, TypeScript limpo, 96/96 testes passando
 
+**Sessão 10 — 2026-08-26:**
+- TASK-064 concluída: auditoria arquitetural da API registrada; remediações futuras separadas por escopo.
+- TASK-065 concluída: `PAYMENT_PROVIDER=fake` explícito, `FAKE_GATEWAY_SECRET` validado em produção e provider selecionado somente na infraestrutura.
+- TASK-065: teste de wiring Nest cobre a resolução de `PAYMENT_GATEWAY_PORT` para `FakePaymentGateway`; rotas, DTOs, port, schema e migrations não foram alterados.
+
 Pendências abertas (não bloqueantes para commit)
 Ver relatórios individuais em .ai/reports/module-review-2026/ para lista completa por módulo.
 Issues remanescentes após sessão 9:

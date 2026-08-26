@@ -1,6 +1,6 @@
 Propriedade temporária de arquivos
 
-Última atualização: 2026-08-24
+Última atualização: 2026-08-26
 
 Caminho	Responsável	Tarefa	Estado
 apps/api/**	—	—	AVAILABLE
@@ -28,7 +28,7 @@ prisma/migrations/**	Database Owner
 packages/contracts/**	Contract Owner
 openapi.json	Contract Owner
 
-Nota: RC-1.0 entregue em 2026-08-24. Nenhuma tarefa ativa — todos os caminhos estão AVAILABLE.
+Nota: TASK-065 integrada em 2026-08-26. Nenhuma tarefa ativa — todos os caminhos estão AVAILABLE.
 
 Regras
 somente o responsável pode alterar o caminho;

@@ -23,11 +23,17 @@ function makeInput(overrides: Partial<CreatePaymentInput> = {}): CreatePaymentIn
 
 describe('FakePaymentGateway', () => {
   let gateway: FakePaymentGateway;
+  let originalEnvironment: NodeJS.ProcessEnv;
 
   beforeEach(() => {
+    originalEnvironment = { ...process.env };
     process.env['FAKE_GATEWAY_SECRET'] = 'fake-secret-for-dev';
     process.env['NODE_ENV'] = 'test';
     gateway = new FakePaymentGateway();
+  });
+
+  afterEach(() => {
+    process.env = originalEnvironment;
   });
 
   describe('createPayment', () => {
@@ -140,13 +146,9 @@ describe('FakePaymentGateway', () => {
 
   describe('constructor', () => {
     it('throws in production when FAKE_GATEWAY_SECRET is missing', () => {
-      const origSecret = process.env['FAKE_GATEWAY_SECRET'];
-      const origEnv = process.env['NODE_ENV'];
       delete process.env['FAKE_GATEWAY_SECRET'];
       process.env['NODE_ENV'] = 'production';
       expect(() => new FakePaymentGateway()).toThrow('FAKE_GATEWAY_SECRET is required in production');
-      process.env['FAKE_GATEWAY_SECRET'] = origSecret;
-      process.env['NODE_ENV'] = origEnv;
     });
   });
 
