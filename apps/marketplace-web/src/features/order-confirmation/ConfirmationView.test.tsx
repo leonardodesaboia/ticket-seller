@@ -75,7 +75,8 @@ describe('ConfirmationView', () => {
 
     expect(
       await screen.findByRole('alert'),
-    ).toHaveTextContent('Não foi possível carregar seus ingressos. Recarregue a página.');
+    ).toHaveTextContent('Não foi possível carregar seus ingressos.');
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
   });
 
   it('sends the reservation token in the tickets request', async () => {

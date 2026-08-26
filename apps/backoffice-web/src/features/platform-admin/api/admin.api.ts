@@ -25,14 +25,8 @@ function adminBase(): string {
   return `${API_BASE_URL}/admin`;
 }
 
-function buildHeaders(devUserId?: string): Record<string, string> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (devUserId) {
-    headers['X-Dev-User-Id'] = devUserId;
-  }
-  return headers;
+function authHeaders(token: string): Record<string, string> {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 
 export interface PlatformDashboard {
@@ -68,9 +62,9 @@ export interface PaginatedResult<T> {
   nextCursor: string | null;
 }
 
-export async function getDashboard(devUserId?: string): Promise<PlatformDashboard> {
+export async function getDashboard(token: string): Promise<PlatformDashboard> {
   const res = await fetch(`${adminBase()}/dashboard`, {
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));
@@ -80,14 +74,14 @@ export async function getDashboard(devUserId?: string): Promise<PlatformDashboar
 
 export async function listAdminOrganizations(
   params: { cursor?: string; limit?: number },
-  devUserId?: string,
+  token: string,
 ): Promise<PaginatedResult<AdminOrganizationItem>> {
   const qs = new URLSearchParams();
   if (params.cursor) qs.set('cursor', params.cursor);
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
   const query = qs.toString() ? `?${qs.toString()}` : '';
   const res = await fetch(`${adminBase()}/organizations${query}`, {
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));
@@ -97,14 +91,14 @@ export async function listAdminOrganizations(
 
 export async function listAdminUsers(
   params: { cursor?: string; limit?: number },
-  devUserId?: string,
+  token: string,
 ): Promise<PaginatedResult<AdminUserItem>> {
   const qs = new URLSearchParams();
   if (params.cursor) qs.set('cursor', params.cursor);
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
   const query = qs.toString() ? `?${qs.toString()}` : '';
   const res = await fetch(`${adminBase()}/users${query}`, {
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));
@@ -115,11 +109,11 @@ export async function listAdminUsers(
 export async function suspendOrganization(
   orgId: string,
   reason: string,
-  devUserId?: string,
+  token: string,
 ): Promise<void> {
   const res = await fetch(`${adminBase()}/organizations/${orgId}/suspend`, {
     method: 'POST',
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     body: JSON.stringify({ reason }),
   });
   const body = await res.json().catch(() => ({}));
@@ -129,11 +123,11 @@ export async function suspendOrganization(
 export async function unsuspendOrganization(
   orgId: string,
   reason: string,
-  devUserId?: string,
+  token: string,
 ): Promise<void> {
   const res = await fetch(`${adminBase()}/organizations/${orgId}/unsuspend`, {
     method: 'POST',
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     body: JSON.stringify({ reason }),
   });
   const body = await res.json().catch(() => ({}));
@@ -143,11 +137,11 @@ export async function unsuspendOrganization(
 export async function suspendUser(
   userId: string,
   reason: string,
-  devUserId?: string,
+  token: string,
 ): Promise<void> {
   const res = await fetch(`${adminBase()}/users/${userId}/suspend`, {
     method: 'POST',
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     body: JSON.stringify({ reason }),
   });
   const body = await res.json().catch(() => ({}));
@@ -157,11 +151,11 @@ export async function suspendUser(
 export async function unsuspendUser(
   userId: string,
   reason: string,
-  devUserId?: string,
+  token: string,
 ): Promise<void> {
   const res = await fetch(`${adminBase()}/users/${userId}/unsuspend`, {
     method: 'POST',
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     body: JSON.stringify({ reason }),
   });
   const body = await res.json().catch(() => ({}));
@@ -171,11 +165,11 @@ export async function unsuspendUser(
 export async function blockPayout(
   payoutId: string,
   reason: string,
-  devUserId?: string,
+  token: string,
 ): Promise<void> {
   const res = await fetch(`${adminBase()}/payouts/${payoutId}/block`, {
     method: 'POST',
-    headers: buildHeaders(devUserId),
+    headers: authHeaders(token),
     body: JSON.stringify({ reason }),
   });
   const body = await res.json().catch(() => ({}));

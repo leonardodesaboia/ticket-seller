@@ -30,3 +30,5 @@ export const PaymentThrottle = () => Throttle({ global: { limit: 10, ttl: 300_00
 export const AdminReadThrottle = () => Throttle({ global: { limit: 60, ttl: 60_000 } });
 
 export const AdminActionThrottle = () => Throttle({ global: { limit: 10, ttl: 60_000 } });
+
+export const TransferAcceptThrottle = () => Throttle({ global: { limit: 10, ttl: 3_600_000 } });

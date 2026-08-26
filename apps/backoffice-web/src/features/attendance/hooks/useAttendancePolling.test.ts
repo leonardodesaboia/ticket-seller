@@ -2,6 +2,11 @@ import { renderHook, act } from '@testing-library/react';
 import { useAttendancePolling } from './useAttendancePolling';
 import type { AttendanceResponse } from '../../../shared/api/attendance.api';
 
+// Mock auth so the hook works outside AuthProvider
+jest.mock('@/features/auth', () => ({
+  useAuth: () => ({ token: 'test-token', userId: 'user-1' }),
+}));
+
 // Mock the attendance API — use relative path to bypass moduleNameMapper hoisting
 jest.mock('../../../shared/api/attendance.api', () => ({
   getEventAttendance: jest.fn(),

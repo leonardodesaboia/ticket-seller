@@ -9,7 +9,6 @@ import { CreateVenueForm } from './CreateVenueForm';
 
 interface VenueSelectProps {
   organizationId: string;
-  devUserId: string;
   value: string | null | undefined;
   onChange: (venueId: string | null) => void;
   disabled?: boolean;
@@ -18,14 +17,13 @@ interface VenueSelectProps {
 
 export function VenueSelect({
   organizationId,
-  devUserId,
   value,
   onChange,
   disabled,
   hasError,
 }: VenueSelectProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const { data: venues = [], isLoading, refetch } = useListVenues(organizationId, devUserId);
+  const { data: venues = [], isLoading, refetch } = useListVenues(organizationId);
 
   function handleVenueCreated(venue: Venue) {
     void refetch();
@@ -70,7 +68,6 @@ export function VenueSelect({
           <p className="mb-3 text-sm font-medium">Criar novo local</p>
           <CreateVenueForm
             organizationId={organizationId}
-            devUserId={devUserId}
             onSuccess={handleVenueCreated}
             onCancel={() => setShowCreateForm(false)}
           />

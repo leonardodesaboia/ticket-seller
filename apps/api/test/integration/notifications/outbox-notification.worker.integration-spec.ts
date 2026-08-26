@@ -139,6 +139,7 @@ describe('OutboxNotificationWorker — transactional notifications', () => {
       source: 'ADMIN',
       requiresRefund: false,
       reason: 'Evento remarcado',
+      buyerEmail: 'buyer@example.com',
     });
 
     await (worker as unknown as { poll: Poll }).poll();
@@ -166,6 +167,7 @@ describe('OutboxNotificationWorker — transactional notifications', () => {
       amount: 5000,
       currency: 'BRL',
       externalRefundId: 'refund_abc123',
+      buyerEmail: 'buyer@example.com',
     });
 
     await (worker as unknown as { poll: Poll }).poll();
@@ -223,14 +225,14 @@ describe('OutboxNotificationWorker — transactional notifications', () => {
     expect(mockEmailProvider.send).toHaveBeenCalledTimes(1);
     const call = mockEmailProvider.send.mock.calls[0]![0];
     expect(call.subject).toBe('Alerta: chargeback recebido');
-    expect(call.to).toBe('backoffice@ticket-seller.local');
+    expect(call.to).toBe('admin@ticket-seller.local');
     expect(call.text).toContain('dispute_xyz');
 
     const logRows = await prisma.$queryRaw<{ event_type: string; recipient_email: string }[]>`
       SELECT event_type, recipient_email FROM notification_log WHERE event_type = 'order.chargeback.v1'
     `;
     expect(logRows).toHaveLength(1);
-    expect(logRows[0]!.recipient_email).toBe('backoffice@ticket-seller.local');
+    expect(logRows[0]!.recipient_email).toBe('admin@ticket-seller.local');
   });
 
   it('idempotency: second poll skips order.cancelled.v1 already in notification_log', async () => {
@@ -239,6 +241,7 @@ describe('OutboxNotificationWorker — transactional notifications', () => {
 
     await insertOutboxEvent(orgId, 'order.cancelled.v1', {
       orderId, organizationId: orgId, source: 'ADMIN', requiresRefund: false, reason: null,
+      buyerEmail: 'buyer@example.com',
     });
 
     await (worker as unknown as { poll: Poll }).poll();
@@ -281,9 +284,11 @@ describe('OutboxNotificationWorker — transactional notifications', () => {
 
     await insertOutboxEvent(orgId, 'order.cancelled.v1', {
       orderId: randomUUID(), organizationId: orgId, source: 'ADMIN', requiresRefund: false, reason: null,
+      buyerEmail: 'buyer1@example.com',
     });
     await insertOutboxEvent(orgId, 'order.refunded.v1', {
       orderId: randomUUID(), organizationId: orgId, amount: 2000, currency: 'BRL', externalRefundId: 'ref_1',
+      buyerEmail: 'buyer2@example.com',
     });
 
     await (worker as unknown as { poll: Poll }).poll();

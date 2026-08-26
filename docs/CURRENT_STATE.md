@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-25 (sessões 3–8 de correções concluídas)
+Última atualização: 2026-08-26 (sessão 9 de correções concluída)
 
 Fase
 
@@ -89,28 +89,46 @@ Implementado (pós-RC-1.0, commits 2026-08-25)
 
 Em andamento
 
-TASK-063 — Backoffice Auth Integration (READY)
+Nenhuma tarefa em andamento — TASK-063 concluída.
 
 Próxima fase
 
-Implementar TASK-063, em seguida: E2E manual em staging com auth real, load test, e configuração de cloud target para deployment.
+E2E manual em staging com auth real, load test, e configuração de cloud target para deployment.
+
+**Sessão 9 — 2026-08-26:**
+- marketplace/ConfirmationView.test.tsx: expectativa de texto sincronizada com componente (botão "Tentar novamente")
+- backoffice/AttendanceDashboard.test.tsx: expectativa sincronizada com mensagem user-friendly
+- payments/M1: `Number(item.quantity)` em process-payment-webhook — quantity string de $queryRaw corrigida
+- payments/process-payment-webhook.use-case.spec.ts: novo teste cobre quantity como string
+- prisma/schema.prisma: `@@index([accountId, occurredAt(sort: Desc)])` em LedgerEntry
+- migration 20260826000040_add_ledger_entries_cursor_index: índice composto para cursor
+- media/MediaUpload: métodos confirm(), markOrphaned(), isExpired() adicionados à entidade
+- media/confirm-event-cover-upload: use case usa métodos da entidade (Rich Domain Model)
+- notifications/outbox-notification.worker: SELECT FOR UPDATE SKIP LOCKED + processed_at atomicamente dentro da $transaction (BL2+A2)
+- notifications/outbox-notification.worker.integration-spec: buyerEmail adicionado aos payloads + admin email corrigido
+- platform-admin: 4 ports criados (IAdminUserRepository, IAdminOrganizationRepository, IAdminPayoutRepository, IAdminDashboardRepository)
+- platform-admin: 4 adapters Prisma criados em infrastructure/repositories
+- platform-admin: todos os 8 use cases migrados de PrismaService para ports (arquitetura hexagonal)
+- platform-admin/M4: suspend-organization e suspend-user revogam sessões ativas dos membros imediatamente
+- marketplace/AcceptTransferPage: captura e exibe newCredentialToken com botão copiar no estado SUCCESS
+- tickets: PrismaTicketTransferRepository.spec.ts criado com 10 testes (cancel, find, acceptAtomically — incluindo paths de erro TransferAlreadyAcceptedError, TransferExpiredError, TicketAlreadyAdmittedError)
+- 75 test suites (API) + 15 test suites (backoffice-web), 491 + 96 = 587 testes passando
+- TASK-063 concluída: 0 ocorrências de devUserId/X-Dev-User-Id no backoffice, TypeScript limpo, 96/96 testes passando
 
 Pendências abertas (não bloqueantes para commit)
 Ver relatórios individuais em .ai/reports/module-review-2026/ para lista completa por módulo.
-Issues remanescentes após sessões 1-8:
+Issues remanescentes após sessão 9:
 
+- TASK-063: Autenticação real no backoffice — CONCLUÍDA (sessão 9)
 - Orders/A3: total_amount = subtotal_amount — taxas nunca repassadas ao comprador (decisão de produto pendente)
 - Tickets/A3: getAvailability vs tryReserve — duas fontes de verdade (decisão de design pendente)
-- Tickets/A6: testes ausentes em prisma-ticket-transfer, prisma-ticket-credential, prisma-inventory, PrismaCheckInRepository
+- Tickets/A6 (parcial): prisma-ticket-credential, prisma-inventory, PrismaCheckInRepository ainda sem testes
 - Tickets/M1: POST /public/transfers/:token/accept sem rate-limit
-- Finance/M1: unitIndex < item.quantity — quantity string de $queryRaw causa nenhum ticket emitido (bug silencioso)
-- Finance/M7: falta INDEX ON ledger_entries (account_id, occurred_at DESC)
-- Finance/M8: findOrCreateOrgAccount — race condition entre SELECT e INSERT
-- Platform-admin/A1: todos os use cases injetam PrismaService diretamente (refactor estrutural)
-- Platform-admin/M4: suspensão não invalida sessões ativas dos membros
+- Finance/M8: findOrCreateOrgAccount — padrão ON CONFLICT DO NOTHING + SELECT já é correto; falso positivo confirmado
 - Notifications/A3: contrato de NotificationAlreadySentError (lançar vs retornar silenciosamente)
 - Notifications/M3-M5: testes de adapters de email; campo html ausente no port
-- Media/M1-M4: falha de bucket silenciada, maxBytes ignorado, casts sem validação, entidade anêmica
+- Media/M2: maxBytes ignorado na URL pré-assinada — limitação documentada (validação é post-upload)
+- Media/B1: MAX_UPLOAD_SIZE_BYTES não configurável via env — pendente de escopo
 - Events/M9: paginação por cursor em venues (mitigado com take:200, solução definitiva pendente)
 
 Próximas tarefas
@@ -176,7 +194,7 @@ TASK-059 — Security Hardening & Data Protection. (CONCLUÍDA)
 TASK-060 — Production Infrastructure & Deployment. (CONCLUÍDA)
 TASK-061 — Backup, Disaster Recovery & Operational Runbooks. (CONCLUÍDA)
 TASK-062 — Release Readiness & E2E Certification. (CONCLUÍDA)
-TASK-063 — Backoffice Auth Integration. (READY)
+TASK-063 — Backoffice Auth Integration. (CONCLUÍDA)
 Decisões confirmadas
 monólito modular;
 arquitetura hexagonal;

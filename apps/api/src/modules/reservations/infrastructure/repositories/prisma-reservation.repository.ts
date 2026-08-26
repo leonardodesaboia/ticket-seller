@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../platform/database/prisma.service';
@@ -68,6 +69,11 @@ function toView(row: ReservationRow, items: ReservationItemRow[]): ReservationVi
 function isIdempotencyUniqueViolation(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
   return String(error.meta?.['target'] ?? '').toLowerCase().includes('idempotency');
+}
+
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
 }
 
 function isSerializationFailure(error: unknown): boolean {
@@ -171,7 +177,7 @@ export class PrismaReservationRepository implements IReservationRepository {
   async get(reservationId: string, tokenHash: string): Promise<ReservationView> {
     const reservation = await this.findReservation(this.prisma, 'id', reservationId);
     if (!reservation) throw new ReservationNotFoundError();
-    if (reservation.continuation_token_hash !== tokenHash) throw new InvalidReservationTokenError();
+    if (!safeCompare(reservation.continuation_token_hash, tokenHash)) throw new InvalidReservationTokenError();
     if (reservation.status === 'EXPIRED' || reservation.expires_at <= new Date()) throw new ReservationExpiredError();
     return toView(reservation, await this.findItems(this.prisma, reservation.id));
   }
@@ -193,7 +199,7 @@ export class PrismaReservationRepository implements IReservationRepository {
         `;
         const reservation = locked[0] ?? null;
         if (!reservation) throw new ReservationNotFoundError();
-        if (reservation.continuation_token_hash !== tokenHash) throw new InvalidReservationTokenError();
+        if (!safeCompare(reservation.continuation_token_hash, tokenHash)) throw new InvalidReservationTokenError();
         // Treat an expired-but-still-ACTIVE reservation as expired
         if (reservation.status === 'EXPIRED' || reservation.expires_at <= new Date()) return;
         if (reservation.status === 'CONSUMED') throw new ReservationAlreadyConsumedError();

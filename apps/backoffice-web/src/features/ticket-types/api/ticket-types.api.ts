@@ -24,22 +24,27 @@ function extractDetail(body: unknown, fallback: string): string {
   return fallback;
 }
 
+function authHeaders(token: string, idempotencyKey?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+  return headers;
+}
+
 export async function createTicketType(
   organizationId: string,
   eventId: string,
   input: CreateTicketTypeInput,
   idempotencyKey: string,
-  devUserId: string,
+  token: string,
 ): Promise<TicketType> {
   const res = await fetch(
     `${API_BASE_URL}/organizations/${organizationId}/events/${eventId}/ticket-types`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-        'X-Dev-User-Id': devUserId,
-      },
+      headers: authHeaders(token, idempotencyKey),
       body: JSON.stringify(input),
     },
   );
@@ -55,11 +60,11 @@ export async function createTicketType(
 export async function listTicketTypes(
   organizationId: string,
   eventId: string,
-  devUserId: string,
+  token: string,
 ): Promise<ListTicketTypesResponse> {
   const res = await fetch(
     `${API_BASE_URL}/organizations/${organizationId}/events/${eventId}/ticket-types`,
-    { headers: { 'X-Dev-User-Id': devUserId } },
+    { headers: authHeaders(token) },
   );
 
   const body = await res.json().catch(() => ({}));
@@ -75,16 +80,13 @@ export async function updateTicketType(
   eventId: string,
   ticketTypeId: string,
   input: UpdateTicketTypeInput,
-  devUserId: string,
+  token: string,
 ): Promise<TicketType> {
   const res = await fetch(
     `${API_BASE_URL}/organizations/${organizationId}/events/${eventId}/ticket-types/${ticketTypeId}`,
     {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Dev-User-Id': devUserId,
-      },
+      headers: authHeaders(token),
       body: JSON.stringify(input),
     },
   );

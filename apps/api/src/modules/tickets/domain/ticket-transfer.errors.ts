@@ -37,3 +37,11 @@ export class TransferNotFoundError extends Error {
     this.name = 'TransferNotFoundError';
   }
 }
+
+export class TicketCancelledForTransferError extends Error {
+  readonly code = 'TICKET_CANCELLED';
+  constructor(ticketId: string) {
+    super(`Ticket ${ticketId} is cancelled and cannot be transferred`);
+    this.name = 'TicketCancelledForTransferError';
+  }
+}

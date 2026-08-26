@@ -12,12 +12,15 @@ export interface AcceptTransferPageProps {
 
 export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
   const [state, setState] = useState<PageState>('CONFIRMING');
+  const [credentialToken, setCredentialToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleAccept() {
     setState('ACCEPTING');
     const idempotencyKey = crypto.randomUUID();
     try {
-      await acceptTransfer(claimToken, idempotencyKey);
+      const result = await acceptTransfer(claimToken, idempotencyKey);
+      setCredentialToken(result.newCredentialToken);
       setState('SUCCESS');
     } catch (err) {
       if (err instanceof PublicApiError) {
@@ -36,6 +39,13 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
       }
       setState('ERROR');
     }
+  }
+
+  async function handleCopy() {
+    if (!credentialToken) return;
+    await navigator.clipboard.writeText(credentialToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   if (state === 'CONFIRMING' || state === 'ACCEPTING') {
@@ -65,10 +75,35 @@ export function AcceptTransferPage({ claimToken }: AcceptTransferPageProps) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6">
         <div className="w-full max-w-md rounded-lg border border-input bg-background p-8 shadow-sm">
-          <h1 className="mb-4 text-xl font-bold text-foreground">Transferência concluída!</h1>
-          <p className="text-sm text-muted-foreground">
-            Ingresso transferido! Você já pode gerar seu novo QR Code no app.
+          <h1 className="mb-2 text-xl font-bold text-foreground">Transferência concluída!</h1>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Ingresso transferido com sucesso. Guarde o código abaixo — ele é necessário para gerar
+            seu QR Code de entrada.
           </p>
+
+          {credentialToken && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Código do ingresso
+              </label>
+              <div className="flex items-center gap-2 rounded-md border border-input bg-muted p-3">
+                <span className="flex-1 break-all font-mono text-xs text-foreground select-all">
+                  {credentialToken}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  aria-label="Copiar código do ingresso"
+                  className="shrink-0 rounded px-2 py-1 text-xs font-medium text-primary hover:bg-accent"
+                >
+                  {copied ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Salve este código em local seguro. Você precisará dele para acessar o evento.
+              </p>
+            </div>
+          )}
         </div>
       </main>
     );

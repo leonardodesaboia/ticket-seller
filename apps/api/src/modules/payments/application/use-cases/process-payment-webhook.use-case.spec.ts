@@ -138,6 +138,46 @@ describe('ProcessPaymentWebhookUseCase', () => {
     expect((prisma.$transaction as jest.Mock)).toHaveBeenCalledTimes(1);
   });
 
+  it('issues correct number of tickets when quantity is returned as string by the driver', async () => {
+    // Regression: $queryRaw with pg driver can return INTEGER columns as string.
+    // Number(item.quantity) must coerce '2' → 2 so the loop runs twice instead of zero.
+    (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce(parsed);
+
+    const orderItemsWithStringQuantity = [
+      {
+        id: 'item-1',
+        ticket_type_id: 'tt-1',
+        quantity: '2' as unknown as number, // pg driver can return string for INTEGER
+        event_id: 'event-1',
+      },
+    ];
+
+    const innerExecuteRaw = jest.fn().mockResolvedValue(1);
+    const prisma = makePrisma({
+      $transaction: jest.fn().mockImplementation(
+        (fn: (tx: { $queryRaw: jest.Mock; $executeRaw: jest.Mock }) => Promise<void>) =>
+          fn({
+            $queryRaw: jest
+              .fn()
+              .mockResolvedValueOnce([makeOrderRow()])           // SELECT FOR UPDATE orders
+              .mockResolvedValueOnce(orderItemsWithStringQuantity), // SELECT order_items
+            $executeRaw: innerExecuteRaw,
+          }),
+      ),
+    });
+    const uc = new ProcessPaymentWebhookUseCase(gateway, prisma, mockChargeback, mockFinancialRecord);
+
+    await expect(
+      uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' }),
+    ).resolves.toBeUndefined();
+
+    // 3 executeRaw before loop + 2 ticket INSERTs (quantity=2) + 3 after = 8 total
+    // The key assertion: transaction ran without TypeError and executed more than the
+    // pre-loop calls (which would be 3 if the loop body never ran at all)
+    expect(innerExecuteRaw.mock.calls.length).toBeGreaterThan(5);
+    expect((prisma.$transaction as jest.Mock)).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores status regression for terminal attempts', async () => {
     const terminalAttempt = { ...makeAttemptRow(), status: 'APPROVED' };
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce({

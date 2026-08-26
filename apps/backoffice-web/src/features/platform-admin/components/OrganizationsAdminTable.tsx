@@ -2,12 +2,9 @@
 
 import { useState } from 'react';
 import { useAdminOrganizations } from '../hooks/useAdminOrganizations';
+import { useAuth } from '@/features/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { suspendOrganization, unsuspendOrganization } from '../api/admin.api';
-
-interface OrganizationsAdminTableProps {
-  devUserId?: string | undefined;
-}
 
 interface ReasonDialog {
   type: 'suspend' | 'unsuspend';
@@ -15,7 +12,8 @@ interface ReasonDialog {
   orgName: string;
 }
 
-export function OrganizationsAdminTable({ devUserId }: OrganizationsAdminTableProps) {
+export function OrganizationsAdminTable() {
+  const { token } = useAuth();
   const queryClient = useQueryClient();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -25,7 +23,7 @@ export function OrganizationsAdminTable({ devUserId }: OrganizationsAdminTablePr
 
   const orgQuery: { cursor?: string; limit?: number } = { limit: 50 };
   if (cursor !== undefined) orgQuery.cursor = cursor;
-  const { data, isLoading, error } = useAdminOrganizations(orgQuery, devUserId);
+  const { data, isLoading, error } = useAdminOrganizations(orgQuery);
 
   function openSuspend(orgId: string, orgName: string) {
     setReasonInput('');
@@ -42,9 +40,9 @@ export function OrganizationsAdminTable({ devUserId }: OrganizationsAdminTablePr
     setSubmitting(true);
     try {
       if (dialog.type === 'suspend') {
-        await suspendOrganization(dialog.orgId, reasonInput.trim(), devUserId);
+        await suspendOrganization(dialog.orgId, reasonInput.trim(), token ?? '');
       } else {
-        await unsuspendOrganization(dialog.orgId, reasonInput.trim(), devUserId);
+        await unsuspendOrganization(dialog.orgId, reasonInput.trim(), token ?? '');
       }
       await queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       setActionError(null);

@@ -8,7 +8,6 @@ type Period = 7 | 30 | 90;
 
 interface FinancialSummaryPanelProps {
   organizationId: string;
-  devUserId: string;
 }
 
 function periodDates(days: Period): { from: string; to: string } {
@@ -27,11 +26,11 @@ const PERIOD_LABELS: Record<Period, string> = {
   90: '90 dias',
 };
 
-export function FinancialSummaryPanel({ organizationId, devUserId }: FinancialSummaryPanelProps) {
+export function FinancialSummaryPanel({ organizationId }: FinancialSummaryPanelProps) {
   const [period, setPeriod] = useState<Period>(30);
   const { from, to } = periodDates(period);
 
-  const { data: summary, isLoading, error } = useFinanceSummary(organizationId, from, to, devUserId);
+  const { data: summary, isLoading, error } = useFinanceSummary(organizationId, from, to);
 
   return (
     <div className="flex flex-col gap-4">

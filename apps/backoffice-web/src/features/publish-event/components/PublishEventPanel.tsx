@@ -18,7 +18,6 @@ interface PublishEventPanelProps {
   organizationId: string;
   eventId: string;
   version: number;
-  devUserId: string;
 }
 
 function errorMessage(error: unknown): string {
@@ -38,10 +37,9 @@ export function PublishEventPanel({
   organizationId,
   eventId,
   version,
-  devUserId,
 }: PublishEventPanelProps) {
-  const readinessQuery = usePublicationReadiness(organizationId, eventId, devUserId);
-  const mutation = usePublishEvent(organizationId, eventId, devUserId);
+  const readinessQuery = usePublicationReadiness(organizationId, eventId);
+  const mutation = usePublishEvent(organizationId, eventId);
   const operationRef = useRef<IdempotencyOperationState>(createEmptyIdempotencyOperation());
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [confirming, setConfirming] = useState(false);

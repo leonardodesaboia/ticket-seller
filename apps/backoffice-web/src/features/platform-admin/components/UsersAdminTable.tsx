@@ -2,12 +2,9 @@
 
 import { useState } from 'react';
 import { useAdminUsers } from '../hooks/useAdminUsers';
+import { useAuth } from '@/features/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { suspendUser, unsuspendUser } from '../api/admin.api';
-
-interface UsersAdminTableProps {
-  devUserId?: string | undefined;
-}
 
 interface ReasonDialog {
   type: 'suspend' | 'unsuspend';
@@ -15,7 +12,8 @@ interface ReasonDialog {
   userEmail: string;
 }
 
-export function UsersAdminTable({ devUserId }: UsersAdminTableProps) {
+export function UsersAdminTable() {
+  const { token } = useAuth();
   const queryClient = useQueryClient();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -25,7 +23,7 @@ export function UsersAdminTable({ devUserId }: UsersAdminTableProps) {
 
   const usersQuery: { cursor?: string; limit?: number } = { limit: 50 };
   if (cursor !== undefined) usersQuery.cursor = cursor;
-  const { data, isLoading, error } = useAdminUsers(usersQuery, devUserId);
+  const { data, isLoading, error } = useAdminUsers(usersQuery);
 
   function openSuspend(userId: string, userEmail: string) {
     setReasonInput('');
@@ -42,9 +40,9 @@ export function UsersAdminTable({ devUserId }: UsersAdminTableProps) {
     setSubmitting(true);
     try {
       if (dialog.type === 'suspend') {
-        await suspendUser(dialog.userId, reasonInput.trim(), devUserId);
+        await suspendUser(dialog.userId, reasonInput.trim(), token ?? '');
       } else {
-        await unsuspendUser(dialog.userId, reasonInput.trim(), devUserId);
+        await unsuspendUser(dialog.userId, reasonInput.trim(), token ?? '');
       }
       await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setActionError(null);

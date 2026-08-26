@@ -28,16 +28,20 @@ function extractDetail(body: unknown, fallback: string): string {
   return fallback;
 }
 
+function authHeaders(token: string): Record<string, string> {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
 function orgBase(organizationId: string): string {
   return `${API_BASE_URL}/organizations/${organizationId}/finance`;
 }
 
 export async function getBalance(
   organizationId: string,
-  devUserId: string,
+  token: string,
 ): Promise<BalanceResponse> {
   const res = await fetch(`${orgBase(organizationId)}/balance`, {
-    headers: { 'X-Dev-User-Id': devUserId },
+    headers: authHeaders(token),
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));
@@ -49,11 +53,11 @@ export async function getFinancialSummary(
   organizationId: string,
   from: string,
   to: string,
-  devUserId: string,
+  token: string,
 ): Promise<FinancialSummary> {
   const qs = new URLSearchParams({ from, to });
   const res = await fetch(`${orgBase(organizationId)}/summary?${qs.toString()}`, {
-    headers: { 'X-Dev-User-Id': devUserId },
+    headers: authHeaders(token),
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));
@@ -64,14 +68,14 @@ export async function getFinancialSummary(
 export async function listTransactions(
   organizationId: string,
   params: { cursor?: string; limit?: number },
-  devUserId: string,
+  token: string,
 ): Promise<ListTransactionsResponse> {
   const qs = new URLSearchParams();
   if (params.cursor) qs.set('cursor', params.cursor);
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
   const query = qs.toString() ? `?${qs.toString()}` : '';
   const res = await fetch(`${orgBase(organizationId)}/transactions${query}`, {
-    headers: { 'X-Dev-User-Id': devUserId },
+    headers: authHeaders(token),
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));
@@ -83,14 +87,14 @@ export async function listTransactions(
 export async function listPayouts(
   organizationId: string,
   params: { cursor?: string; limit?: number },
-  devUserId: string,
+  token: string,
 ): Promise<ListPayoutsResponse> {
   const qs = new URLSearchParams();
   if (params.cursor) qs.set('cursor', params.cursor);
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
   const query = qs.toString() ? `?${qs.toString()}` : '';
   const res = await fetch(`${orgBase(organizationId)}/payouts${query}`, {
-    headers: { 'X-Dev-User-Id': devUserId },
+    headers: authHeaders(token),
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));
@@ -102,14 +106,11 @@ export async function listPayouts(
 export async function createPayout(
   organizationId: string,
   body: { amount: number; currency: string; idempotencyKey: string },
-  devUserId: string,
+  token: string,
 ): Promise<CreatePayoutResponse> {
   const res = await fetch(`${orgBase(organizationId)}/payouts`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Dev-User-Id': devUserId,
-    },
+    headers: authHeaders(token),
     body: JSON.stringify(body),
   });
   const resBody = await res.json().catch(() => ({}));

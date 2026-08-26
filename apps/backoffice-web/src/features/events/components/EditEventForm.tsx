@@ -13,12 +13,11 @@ import type { Event } from '../types';
 interface EditEventFormProps {
   event: Event;
   organizationId: string;
-  devUserId: string;
   onSuccess: (updated: Event) => void;
 }
 
-export function EditEventForm({ event, organizationId, devUserId, onSuccess }: EditEventFormProps) {
-  const mutation = useUpdateEvent(organizationId, event.id, devUserId);
+export function EditEventForm({ event, organizationId, onSuccess }: EditEventFormProps) {
+  const mutation = useUpdateEvent(organizationId, event.id);
 
   const {
     register,

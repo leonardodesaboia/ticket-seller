@@ -5,9 +5,6 @@ export const metadata = {
 };
 
 export default function AdminDashboardPage() {
-  // In development, pass X-Dev-User-Id; in production, cookies handle auth
-  const devUserId = process.env['DEV_PLATFORM_ADMIN_ID'];
-
   return (
     <main className="flex flex-col gap-6 p-6">
       <div>
@@ -19,7 +16,7 @@ export default function AdminDashboardPage() {
 
       <section>
         <h2 className="mb-3 text-base font-semibold text-foreground">Métricas gerais</h2>
-        <AdminDashboardCards devUserId={devUserId} />
+        <AdminDashboardCards />
       </section>
 
       <section>

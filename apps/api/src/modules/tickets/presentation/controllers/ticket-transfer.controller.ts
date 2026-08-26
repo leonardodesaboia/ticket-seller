@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -16,6 +17,7 @@ import { CancelTransferUseCase } from '../../application/use-cases/cancel-transf
 import { TicketInvalidTokenError } from '../../domain/ticket.errors';
 import {
   TicketAlreadyAdmittedError,
+  TicketCancelledForTransferError,
   TransferAlreadyPendingError,
   TransferNotFoundError,
 } from '../../domain/ticket-transfer.errors';
@@ -65,6 +67,9 @@ export class TicketTransferController {
           message: error.message,
           code: 'INVALID_RESERVATION_TOKEN',
         });
+      }
+      if (error instanceof TicketCancelledForTransferError) {
+        throw new BadRequestException({ message: error.message, code: error.code });
       }
       if (error instanceof TicketAlreadyAdmittedError) {
         throw new ConflictException({ message: error.message, code: error.code });

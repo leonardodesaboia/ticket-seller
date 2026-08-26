@@ -17,7 +17,11 @@ import {
   ICheckInAccessForTransferPort,
 } from '../ports/check-in-access-for-transfer.port';
 import { TicketInvalidTokenError } from '../../domain/ticket.errors';
-import { TicketAlreadyAdmittedError, TransferAlreadyPendingError } from '../../domain/ticket-transfer.errors';
+import {
+  TicketAlreadyAdmittedError,
+  TicketCancelledForTransferError,
+  TransferAlreadyPendingError,
+} from '../../domain/ticket-transfer.errors';
 
 export interface InitiateTransferInput {
   orderId: string;
@@ -52,6 +56,9 @@ export class InitiateTransferUseCase {
     const tickets = await this.ticketRepo.findByOrderId(input.orderId, order.organizationId);
     const ticket = tickets.find((t) => t.id === input.ticketId);
     if (!ticket) throw new TicketInvalidTokenError();
+
+    // Cancelled tickets cannot be transferred
+    if (ticket.status === 'CANCELLED') throw new TicketCancelledForTransferError(input.ticketId);
 
     // Check if ticket has been admitted
     const admitted = await this.checkInAccess.hasAdmittedCheckIn(input.ticketId);

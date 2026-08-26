@@ -15,3 +15,58 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
   return response.json() as Promise<T>;
 }
+
+/**
+ * Creates an authenticated fetch function that:
+ * - Injects Authorization: Bearer <token> into every request
+ * - On 401, calls the refresh endpoint and retries the original request once
+ * - On second 401 (after refresh), calls onUnauthorized (e.g. redirect to /login)
+ */
+export function createAuthenticatedFetch(
+  getToken: () => string | null,
+  onUnauthorized: () => void,
+) {
+  async function doRefresh(): Promise<string | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { accessToken: string };
+      return data.accessToken;
+    } catch {
+      return null;
+    }
+  }
+
+  return async function authenticatedFetch(
+    path: string,
+    init?: RequestInit,
+  ): Promise<Response> {
+    const token = getToken();
+    const headers = new Headers(init?.headers);
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const url = `${API_BASE_URL}${path}`;
+    let response = await fetch(url, { ...init, headers, credentials: 'include' });
+
+    if (response.status === 401) {
+      const newToken = await doRefresh();
+      if (newToken) {
+        headers.set('Authorization', `Bearer ${newToken}`);
+        response = await fetch(url, { ...init, headers, credentials: 'include' });
+      }
+      if (response.status === 401) {
+        onUnauthorized();
+      }
+    }
+
+    return response;
+  };
+}

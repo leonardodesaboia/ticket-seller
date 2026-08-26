@@ -10,12 +10,11 @@ import type { Event } from '../types';
 
 interface CreateEventFormProps {
   organizationId: string;
-  devUserId: string;
   onSuccess: (event: Event) => void;
 }
 
-export function CreateEventForm({ organizationId, devUserId, onSuccess }: CreateEventFormProps) {
-  const mutation = useCreateEvent(organizationId, devUserId);
+export function CreateEventForm({ organizationId, onSuccess }: CreateEventFormProps) {
+  const mutation = useCreateEvent(organizationId);
 
   const {
     register,

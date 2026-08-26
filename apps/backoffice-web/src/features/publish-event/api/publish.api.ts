@@ -19,22 +19,26 @@ function readString(body: Record<string, unknown>, key: string): string | null {
   return typeof body[key] === 'string' ? (body[key] as string) : null;
 }
 
+function authHeaders(token: string, idempotencyKey: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    'Idempotency-Key': idempotencyKey,
+  };
+}
+
 export async function publishEvent(
   organizationId: string,
   eventId: string,
   version: number,
   idempotencyKey: string,
-  devUserId: string,
+  token: string,
 ): Promise<Event> {
   const res = await fetch(
     `${API_BASE_URL}/organizations/${organizationId}/events/${eventId}/publish`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey,
-        'X-Dev-User-Id': devUserId,
-      },
+      headers: authHeaders(token, idempotencyKey),
       body: JSON.stringify({ version }),
     },
   );

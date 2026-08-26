@@ -86,10 +86,13 @@ export class ConfirmEventCoverUploadUseCase {
       );
     }
 
+    upload.confirm(metadata.sizeBytes);
+
     await this.mediaUploadRepo.update(upload.id, {
-      status: 'CONFIRMED',
-      sizeBytes: BigInt(metadata.sizeBytes),
-      confirmedAt: new Date(),
+      status: upload.status,
+      // Non-null: confirm() guarantees sizeBytes and confirmedAt are set
+      sizeBytes: upload.sizeBytes!,
+      confirmedAt: upload.confirmedAt!,
     });
 
     await this.eventCoverRepo.updateCoverKey(eventId, organizationId, key);

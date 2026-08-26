@@ -1,40 +1,45 @@
 import { Test } from '@nestjs/testing';
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { SuspendUserUseCase } from './suspend-user.use-case';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import {
+  ADMIN_USER_REPOSITORY,
+  IAdminUserRepository,
+} from '../../domain/ports/admin-user-repository.port';
 import { PlatformRole } from '../../../../shared/kernel/platform-role';
 
 describe('SuspendUserUseCase', () => {
   let useCase: SuspendUserUseCase;
-  let prisma: jest.Mocked<PrismaService>;
+  let userRepo: jest.Mocked<IAdminUserRepository>;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
       providers: [
         SuspendUserUseCase,
         {
-          provide: PrismaService,
+          provide: ADMIN_USER_REPOSITORY,
           useValue: {
-            user: {
-              findUnique: jest.fn(),
-              update: jest.fn(),
-            },
+            findById: jest.fn(),
+            findAll: jest.fn(),
+            suspend: jest.fn(),
+            unsuspend: jest.fn(),
+            revokeAllSessions: jest.fn(),
           },
         },
       ],
     }).compile();
 
     useCase = module.get(SuspendUserUseCase);
-    prisma = module.get(PrismaService) as jest.Mocked<PrismaService>;
+    userRepo = module.get(ADMIN_USER_REPOSITORY) as jest.Mocked<IAdminUserRepository>;
   });
 
-  it('should suspend a regular user', async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+  it('should suspend a regular user and revoke their sessions', async () => {
+    userRepo.findById.mockResolvedValue({
       id: 'user-2',
       platformRole: null,
       suspendedAt: null,
     });
-    (prisma.user.update as jest.Mock).mockResolvedValue({});
+    userRepo.suspend.mockResolvedValue(undefined);
+    userRepo.revokeAllSessions.mockResolvedValue(undefined);
 
     await useCase.execute({
       actorId: 'admin-1',
@@ -42,10 +47,8 @@ describe('SuspendUserUseCase', () => {
       reason: 'Terms violation',
     });
 
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user-2' },
-      data: { suspendedAt: expect.any(Date) },
-    });
+    expect(userRepo.suspend).toHaveBeenCalledWith('user-2');
+    expect(userRepo.revokeAllSessions).toHaveBeenCalledWith('user-2');
   });
 
   it('should throw 422 when trying to suspend self', async () => {
@@ -57,21 +60,21 @@ describe('SuspendUserUseCase', () => {
       }),
     ).rejects.toThrow(UnprocessableEntityException);
 
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(userRepo.suspend).not.toHaveBeenCalled();
   });
 
   it('should throw 404 when user does not exist', async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+    userRepo.findById.mockResolvedValue(null);
 
     await expect(
       useCase.execute({ actorId: 'admin-1', userId: 'ghost-user', reason: 'Test' }),
     ).rejects.toThrow(NotFoundException);
 
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(userRepo.suspend).not.toHaveBeenCalled();
   });
 
   it('should throw 422 when trying to suspend a PLATFORM_ADMIN', async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+    userRepo.findById.mockResolvedValue({
       id: 'admin-2',
       platformRole: PlatformRole.PLATFORM_ADMIN,
       suspendedAt: null,
@@ -81,11 +84,11 @@ describe('SuspendUserUseCase', () => {
       useCase.execute({ actorId: 'admin-1', userId: 'admin-2', reason: 'Test' }),
     ).rejects.toThrow(UnprocessableEntityException);
 
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(userRepo.suspend).not.toHaveBeenCalled();
   });
 
   it('should throw 422 when trying to suspend a PLATFORM_SUPPORT', async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+    userRepo.findById.mockResolvedValue({
       id: 'support-1',
       platformRole: PlatformRole.PLATFORM_SUPPORT,
       suspendedAt: null,
@@ -95,11 +98,11 @@ describe('SuspendUserUseCase', () => {
       useCase.execute({ actorId: 'admin-1', userId: 'support-1', reason: 'Test' }),
     ).rejects.toThrow(UnprocessableEntityException);
 
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(userRepo.suspend).not.toHaveBeenCalled();
   });
 
   it('should be idempotent when user is already suspended', async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+    userRepo.findById.mockResolvedValue({
       id: 'user-2',
       platformRole: null,
       suspendedAt: new Date(),
@@ -111,6 +114,7 @@ describe('SuspendUserUseCase', () => {
       reason: 'Re-suspend',
     });
 
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(userRepo.suspend).not.toHaveBeenCalled();
+    expect(userRepo.revokeAllSessions).not.toHaveBeenCalled();
   });
 });

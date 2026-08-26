@@ -9,12 +9,11 @@ import { createOrganizationSchema, type CreateOrganizationFormData } from '../sc
 import type { Organization } from '../types';
 
 interface CreateOrganizationFormProps {
-  devUserId: string;
   onSuccess: (org: Organization) => void;
 }
 
-export function CreateOrganizationForm({ devUserId, onSuccess }: CreateOrganizationFormProps) {
-  const mutation = useCreateOrganization(devUserId);
+export function CreateOrganizationForm({ onSuccess }: CreateOrganizationFormProps) {
+  const mutation = useCreateOrganization();
 
   const {
     register,

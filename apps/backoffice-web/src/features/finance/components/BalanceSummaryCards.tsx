@@ -5,7 +5,6 @@ import { formatCurrency } from '../lib/currency';
 
 interface BalanceSummaryCardsProps {
   organizationId: string;
-  devUserId: string;
 }
 
 interface CardProps {
@@ -31,8 +30,8 @@ function Card({ label, value, currency, description }: CardProps) {
   );
 }
 
-export function BalanceSummaryCards({ organizationId, devUserId }: BalanceSummaryCardsProps) {
-  const { data: balance, isLoading, error } = useBalance(organizationId, devUserId);
+export function BalanceSummaryCards({ organizationId }: BalanceSummaryCardsProps) {
+  const { data: balance, isLoading, error } = useBalance(organizationId);
 
   if (isLoading) {
     return (

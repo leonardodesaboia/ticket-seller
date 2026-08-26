@@ -10,18 +10,16 @@ import type { Venue } from '../types';
 
 interface CreateVenueFormProps {
   organizationId: string;
-  devUserId: string;
   onSuccess: (venue: Venue) => void;
   onCancel: () => void;
 }
 
 export function CreateVenueForm({
   organizationId,
-  devUserId,
   onSuccess,
   onCancel,
 }: CreateVenueFormProps) {
-  const mutation = useCreateVenue(organizationId, devUserId);
+  const mutation = useCreateVenue(organizationId);
 
   const {
     register,

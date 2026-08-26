@@ -2,12 +2,14 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useAuth } from '@/features/auth';
 import { listEvents } from '../api/events.api';
 import type { Event } from '../types';
 
 const PAGE_SIZE = 20;
 
-export function useListEvents(organizationId: string, devUserId: string) {
+export function useListEvents(organizationId: string) {
+  const { token } = useAuth();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [allEvents, setAllEvents] = useState<Event[]>([]);
 
@@ -17,7 +19,7 @@ export function useListEvents(organizationId: string, devUserId: string) {
       const result = await listEvents(
         organizationId,
         { ...(cursor !== undefined && { cursor }), limit: PAGE_SIZE },
-        devUserId,
+        token ?? '',
       );
       if (cursor === undefined) {
         setAllEvents(result.data);
@@ -26,7 +28,7 @@ export function useListEvents(organizationId: string, devUserId: string) {
       }
       return result;
     },
-    enabled: Boolean(organizationId && devUserId),
+    enabled: Boolean(organizationId && token),
   });
 
   function loadMore() {

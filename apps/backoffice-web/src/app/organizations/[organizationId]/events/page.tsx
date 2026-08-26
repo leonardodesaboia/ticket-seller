@@ -5,13 +5,10 @@ import { useParams } from 'next/navigation';
 import { EventList } from '../../../../features/events/components/EventList';
 import { useListEvents } from '../../../../features/events/hooks/use-list-events';
 
-const DEV_USER_ID = process.env['NEXT_PUBLIC_DEV_USER_ID'] ?? '';
-
 export default function EventsPage() {
   const { organizationId } = useParams<{ organizationId: string }>();
   const { events, nextCursor, isLoading, isFetching, error, loadMore } = useListEvents(
     organizationId,
-    DEV_USER_ID,
   );
 
   if (error) {

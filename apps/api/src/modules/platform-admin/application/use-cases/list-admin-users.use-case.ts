@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  ADMIN_USER_REPOSITORY,
+  IAdminUserRepository,
+} from '../../domain/ports/admin-user-repository.port';
 
 export interface AdminUserItem {
   id: string;
@@ -38,32 +41,18 @@ function encodeCursor(id: string, createdAt: Date): string {
 
 @Injectable()
 export class ListAdminUsersUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ADMIN_USER_REPOSITORY)
+    private readonly userRepo: IAdminUserRepository,
+  ) {}
 
   async execute(query: ListAdminUsersQuery): Promise<ListAdminUsersResult> {
     const limit = Math.min(query.limit ?? 50, 100);
 
     const decoded = query.cursor ? decodeCursor(query.cursor) : null;
 
-    const users = await this.prisma.user.findMany({
-      where: {
-        deletedAt: null,
-        ...(decoded
-          ? {
-              OR: [
-                { createdAt: { lt: decoded.createdAt } },
-                { createdAt: decoded.createdAt, id: { lt: decoded.id } },
-              ],
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        displayName: true,
-        suspendedAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
+    const users = await this.userRepo.findAll({
+      cursor: decoded,
       take: limit + 1,
     });
 

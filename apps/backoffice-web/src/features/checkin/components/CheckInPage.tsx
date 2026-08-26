@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useAuth } from '@/features/auth';
 import { performCheckIn, type AdmissionDecision } from '@/shared/api/check-in.api';
 import { CameraScanner } from './CameraScanner';
 import { ManualEntryForm } from './ManualEntryForm';
 import { DecisionFeedback } from './DecisionFeedback';
-
-const DEV_USER_ID = process.env['NEXT_PUBLIC_DEV_USER_ID'] ?? '';
 
 type PageState = 'SCANNING' | 'VALIDATING' | 'FEEDBACK' | 'OFFLINE' | 'CAMERA_ERROR';
 
@@ -21,6 +20,7 @@ interface CheckInPageProps {
 }
 
 export function CheckInPage({ orgId, eventId }: CheckInPageProps) {
+  const { token: authToken } = useAuth();
   const [state, setState] = useState<PageState>('SCANNING');
   const [feedback, setFeedback] = useState<FeedbackResult | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,7 +34,7 @@ export function CheckInPage({ orgId, eventId }: CheckInPageProps) {
   }, []);
 
   const handleToken = useCallback(
-    async (token: string) => {
+    async (credential: string) => {
       if (state === 'VALIDATING') return;
 
       const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? '<mock-uuid>';
@@ -45,8 +45,8 @@ export function CheckInPage({ orgId, eventId }: CheckInPageProps) {
         const result = await performCheckIn(
           orgId,
           eventId,
-          { credential: token },
-          DEV_USER_ID,
+          { credential },
+          authToken ?? '',
           idempotencyKey,
         );
 
@@ -71,7 +71,7 @@ export function CheckInPage({ orgId, eventId }: CheckInPageProps) {
         }
       }
     },
-    [state, orgId, eventId],
+    [state, orgId, eventId, authToken],
   );
 
   const handleCameraError = useCallback(() => {

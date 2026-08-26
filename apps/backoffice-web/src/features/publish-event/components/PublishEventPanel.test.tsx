@@ -21,7 +21,6 @@ const PROPS = {
   organizationId: 'org-1',
   eventId: 'evt-1',
   version: 3,
-  devUserId: 'user-1',
 };
 
 function makeQuery(overrides: Record<string, unknown> = {}) {

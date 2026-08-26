@@ -1,6 +1,11 @@
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import { CheckInPage } from './CheckInPage';
 
+// Mock auth so the component works outside AuthProvider
+jest.mock('@/features/auth', () => ({
+  useAuth: () => ({ token: 'test-token', userId: 'user-1' }),
+}));
+
 // Mock the API module — use relative path because jest.mock hoisting bypasses moduleNameMapper
 jest.mock('../../../shared/api/check-in.api', () => ({
   performCheckIn: jest.fn(),

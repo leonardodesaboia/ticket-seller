@@ -17,7 +17,6 @@ import type { Event } from '../types';
 interface EventConfigurationFormProps {
   event: Event;
   organizationId: string;
-  devUserId: string;
   onSuccess: (updated: Event) => void;
 }
 
@@ -30,10 +29,9 @@ const FORMAT_LABELS: Record<string, string> = {
 export function EventConfigurationForm({
   event,
   organizationId,
-  devUserId,
   onSuccess,
 }: EventConfigurationFormProps) {
-  const mutation = useUpdateEventConfiguration(organizationId, event.id, devUserId);
+  const mutation = useUpdateEventConfiguration(organizationId, event.id);
 
   const {
     register,
@@ -208,7 +206,6 @@ export function EventConfigurationForm({
             render={({ field }) => (
               <VenueSelect
                 organizationId={organizationId}
-                devUserId={devUserId}
                 value={field.value}
                 onChange={field.onChange}
                 hasError={!!errors.venueId}

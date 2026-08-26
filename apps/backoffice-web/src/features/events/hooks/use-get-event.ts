@@ -1,12 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/features/auth';
 import { getEvent } from '../api/events.api';
 
-export function useGetEvent(organizationId: string, eventId: string, devUserId: string) {
+export function useGetEvent(organizationId: string, eventId: string) {
+  const { token } = useAuth();
   return useQuery({
     queryKey: ['event', organizationId, eventId],
-    queryFn: () => getEvent(organizationId, eventId, devUserId),
-    enabled: Boolean(organizationId && eventId && devUserId),
+    queryFn: () => getEvent(organizationId, eventId, token ?? ''),
+    enabled: Boolean(organizationId && eventId && token),
   });
 }

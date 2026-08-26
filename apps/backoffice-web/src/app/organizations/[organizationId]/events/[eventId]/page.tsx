@@ -6,15 +6,13 @@ import { EventDetail } from '../../../../../features/events';
 import { useGetEvent } from '../../../../../features/events/hooks/use-get-event';
 import { PublishEventPanel } from '../../../../../features/publish-event';
 
-const DEV_USER_ID = process.env['NEXT_PUBLIC_DEV_USER_ID'] ?? '';
-
 export default function EventPage() {
   const { organizationId, eventId } = useParams<{
     organizationId: string;
     eventId: string;
   }>();
 
-  const { data: event, isLoading, error } = useGetEvent(organizationId, eventId, DEV_USER_ID);
+  const { data: event, isLoading, error } = useGetEvent(organizationId, eventId);
 
   if (isLoading) {
     return (
@@ -59,7 +57,6 @@ export default function EventPage() {
             organizationId={organizationId}
             eventId={eventId}
             version={event.version}
-            devUserId={DEV_USER_ID}
           />
         </>
       )}

@@ -5,14 +5,13 @@ import { useCreatePayout } from '../hooks/useCreatePayout';
 
 interface PayoutRequestModalProps {
   organizationId: string;
-  devUserId: string;
   onClose: () => void;
 }
 
-export function PayoutRequestModal({ organizationId, devUserId, onClose }: PayoutRequestModalProps) {
+export function PayoutRequestModal({ organizationId, onClose }: PayoutRequestModalProps) {
   const [amountInput, setAmountInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const mutation = useCreatePayout(organizationId, devUserId);
+  const mutation = useCreatePayout(organizationId);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

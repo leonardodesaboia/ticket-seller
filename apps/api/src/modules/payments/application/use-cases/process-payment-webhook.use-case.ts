@@ -203,7 +203,7 @@ export class ProcessPaymentWebhookUseCase {
       `;
 
       for (const item of orderItems) {
-        for (let unitIndex = 0; unitIndex < item.quantity; unitIndex++) {
+        for (let unitIndex = 0; unitIndex < Number(item.quantity); unitIndex++) {
           const publicCode = crypto.randomBytes(32).toString('hex');
           const ticketId = crypto.randomUUID();
           await tx.$executeRaw`

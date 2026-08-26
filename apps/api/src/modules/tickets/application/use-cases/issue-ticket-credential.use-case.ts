@@ -56,30 +56,43 @@ export class IssueTicketCredentialUseCase {
       input.ticketId,
       order.organizationId,
     );
-    const version = existing ? existing.version + 1 : 1;
 
-    const credential = existing
-      ? await this.credentialRepo.rotateCredential(input.ticketId, order.organizationId, {
+    let credential: TicketCredential;
+
+    if (existing) {
+      credential = await this.credentialRepo.rotateCredential(input.ticketId, order.organizationId, {
+        id,
+        ticketId: input.ticketId,
+        organizationId: order.organizationId,
+        tokenHash,
+        version: existing.version + 1,
+      });
+    } else {
+      const created = await this.credentialRepo.createIfNoneActive({
+        id,
+        ticketId: input.ticketId,
+        organizationId: order.organizationId,
+        tokenHash,
+        version: 1,
+      });
+      if (created) {
+        credential = created;
+      } else {
+        // Race: another request created an active credential between our read and insert.
+        // Re-fetch so we use the correct version number before rotating.
+        const raceExisting = await this.credentialRepo.findActiveByTicketId(
+          input.ticketId,
+          order.organizationId,
+        );
+        credential = await this.credentialRepo.rotateCredential(input.ticketId, order.organizationId, {
           id,
           ticketId: input.ticketId,
           organizationId: order.organizationId,
           tokenHash,
-          version,
-        })
-      : (await this.credentialRepo.createIfNoneActive({
-          id,
-          ticketId: input.ticketId,
-          organizationId: order.organizationId,
-          tokenHash,
-          version,
-        })) ??
-        (await this.credentialRepo.rotateCredential(input.ticketId, order.organizationId, {
-          id,
-          ticketId: input.ticketId,
-          organizationId: order.organizationId,
-          tokenHash,
-          version,
-        }));
+          version: (raceExisting?.version ?? 0) + 1,
+        });
+      }
+    }
 
     return { credentialToken: token, credential };
   }

@@ -8,8 +8,6 @@ import { useGetEvent } from '../../../../../../features/events/hooks/use-get-eve
 import { TicketTypeList } from '../../../../../../features/ticket-types/components/TicketTypeList';
 import type { Event } from '../../../../../../features/events/types';
 
-const DEV_USER_ID = process.env['NEXT_PUBLIC_DEV_USER_ID'] ?? '';
-
 export default function EventConfigurationPage() {
   const { organizationId, eventId } = useParams<{
     organizationId: string;
@@ -19,7 +17,6 @@ export default function EventConfigurationPage() {
   const { data: event, isLoading, error, refetch } = useGetEvent(
     organizationId,
     eventId,
-    DEV_USER_ID,
   );
 
   const [localEvent, setLocalEvent] = useState<Event | null>(null);
@@ -85,7 +82,6 @@ export default function EventConfigurationPage() {
           <EventConfigurationForm
             event={displayEvent}
             organizationId={organizationId}
-            devUserId={DEV_USER_ID}
             onSuccess={handleConfigurationSuccess}
           />
         )}
@@ -97,7 +93,6 @@ export default function EventConfigurationPage() {
           organizationId={organizationId}
           eventId={eventId}
           eventCurrency={displayEvent?.currency ?? null}
-          devUserId={DEV_USER_ID}
         />
       </section>
     </main>

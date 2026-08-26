@@ -6,6 +6,7 @@ import {
   BadRequestException,
   ConflictException,
   HttpCode,
+  Header,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AcceptTransferUseCase } from '../../application/use-cases/accept-transfer.use-case';
@@ -16,6 +17,7 @@ import {
   TicketAlreadyAdmittedError,
 } from '../../domain/ticket-transfer.errors';
 import { AcceptTransferResponse } from '../dto/transfer.dto';
+import { TransferAcceptThrottle } from '../../../../platform/http/decorators/throttle.decorator';
 
 const TOKEN_HEX = /^[0-9a-f]{64}$/i;
 
@@ -26,6 +28,8 @@ export class PublicTransferAcceptController {
 
   @Post(':claimToken/accept')
   @HttpCode(200)
+  @TransferAcceptThrottle()
+  @Header('Cache-Control', 'no-store, private')
   async accept(@Param('claimToken') claimToken: string): Promise<AcceptTransferResponse> {
     if (!TOKEN_HEX.test(claimToken)) {
       throw new NotFoundException({ message: 'Transfer not found', code: 'TRANSFER_NOT_FOUND' });

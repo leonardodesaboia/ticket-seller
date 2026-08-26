@@ -38,22 +38,26 @@ function extractDetail(body: unknown, fallback: string): string {
   return fallback;
 }
 
+function authHeaders(token: string, idempotencyKey: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    'Idempotency-Key': idempotencyKey,
+  };
+}
+
 export async function performCheckIn(
   organizationId: string,
   eventId: string,
   input: CheckInInput,
-  devUserId: string,
+  token: string,
   idempotencyKey: string,
 ): Promise<CheckInResponse> {
   const res = await fetch(
     `${API_BASE_URL}/api/v1/organizations/${organizationId}/events/${eventId}/check-ins`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Dev-User-Id': devUserId,
-        'Idempotency-Key': idempotencyKey,
-      },
+      headers: authHeaders(token, idempotencyKey),
       signal: AbortSignal.timeout(5000),
       body: JSON.stringify(input),
     },

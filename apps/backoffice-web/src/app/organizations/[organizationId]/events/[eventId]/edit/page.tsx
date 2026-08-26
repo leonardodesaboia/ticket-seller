@@ -5,8 +5,6 @@ import { EditEventForm } from '../../../../../../features/events/components/Edit
 import { useGetEvent } from '../../../../../../features/events/hooks/use-get-event';
 import type { Event } from '../../../../../../features/events/types';
 
-const DEV_USER_ID = process.env['NEXT_PUBLIC_DEV_USER_ID'] ?? '';
-
 export default function EditEventPage() {
   const { organizationId, eventId } = useParams<{
     organizationId: string;
@@ -14,7 +12,7 @@ export default function EditEventPage() {
   }>();
   const router = useRouter();
 
-  const { data: event, isLoading, error } = useGetEvent(organizationId, eventId, DEV_USER_ID);
+  const { data: event, isLoading, error } = useGetEvent(organizationId, eventId);
 
   function handleSuccess(updated: Event) {
     router.push(`/organizations/${organizationId}/events/${updated.id}`);
@@ -54,7 +52,6 @@ export default function EditEventPage() {
       <EditEventForm
         event={event}
         organizationId={organizationId}
-        devUserId={DEV_USER_ID}
         onSuccess={handleSuccess}
       />
     </main>

@@ -5,7 +5,6 @@ export const metadata = {
 };
 
 export default function AdminUsersPage() {
-  const devUserId = process.env['DEV_PLATFORM_ADMIN_ID'];
 
   return (
     <main className="flex flex-col gap-6 p-6">
@@ -25,7 +24,7 @@ export default function AdminUsersPage() {
         </p>
       </div>
 
-      <UsersAdminTable devUserId={devUserId} />
+      <UsersAdminTable />
     </main>
   );
 }

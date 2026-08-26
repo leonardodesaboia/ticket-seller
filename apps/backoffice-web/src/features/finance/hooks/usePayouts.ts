@@ -2,12 +2,14 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/features/auth';
 import { listPayouts } from '../api/finance.api';
 import type { PayoutItem } from '../types';
 
 const PAGE_SIZE = 20;
 
-export function usePayouts(organizationId: string, devUserId: string) {
+export function usePayouts(organizationId: string) {
+  const { token } = useAuth();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [allItems, setAllItems] = useState<PayoutItem[]>([]);
 
@@ -17,9 +19,9 @@ export function usePayouts(organizationId: string, devUserId: string) {
       listPayouts(
         organizationId,
         { ...(cursor !== undefined && { cursor }), limit: PAGE_SIZE },
-        devUserId,
+        token ?? '',
       ),
-    enabled: Boolean(organizationId && devUserId),
+    enabled: Boolean(organizationId && token),
   });
 
   useEffect(() => {

@@ -12,16 +12,17 @@ export class ApiError extends Error {
   }
 }
 
+function authHeaders(token: string): Record<string, string> {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
 export async function createOrganization(
   input: CreateOrganizationInput,
-  devUserId: string,
+  token: string,
 ): Promise<Organization> {
   const res = await fetch(`${API_BASE_URL}/organizations`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Dev-User-Id': devUserId,
-    },
+    headers: authHeaders(token),
     body: JSON.stringify(input),
   });
 

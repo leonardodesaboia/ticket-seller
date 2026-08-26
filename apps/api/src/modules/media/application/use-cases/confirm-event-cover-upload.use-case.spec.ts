@@ -4,6 +4,7 @@ import { ConfirmEventCoverUploadUseCase } from './confirm-event-cover-upload.use
 import { OBJECT_STORAGE_PORT } from '../../../../shared/ports/object-storage.port';
 import { MEDIA_UPLOAD_REPOSITORY } from '../../domain/ports/media-upload-repository.port';
 import { EVENT_COVER_REPOSITORY } from '../../domain/ports/event-cover-repository.port';
+import { MediaUpload } from '../../domain/entities/media-upload.entity';
 
 describe('ConfirmEventCoverUploadUseCase', () => {
   let useCase: ConfirmEventCoverUploadUseCase;
@@ -28,14 +29,22 @@ describe('ConfirmEventCoverUploadUseCase', () => {
     updateCoverKey: jest.fn(),
   };
 
-  const validUpload = {
-    id: 'upload-1',
-    organizationId: 'org-1',
-    entityId: 'event-1',
-    objectKey: 'uploads/org-1/event-cover/event-1/abc.jpg',
-    status: 'PENDING',
-    contentType: 'image/jpeg',
-  };
+  function makeUpload(overrides: Partial<ConstructorParameters<typeof MediaUpload>[0]> = {}): MediaUpload {
+    return new MediaUpload({
+      id: 'upload-1',
+      organizationId: 'org-1',
+      uploaderId: 'user-1',
+      objectKey: 'uploads/org-1/event-cover/event-1/abc.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: null,
+      purpose: 'EVENT_COVER',
+      entityId: 'event-1',
+      status: 'PENDING',
+      confirmedAt: null,
+      createdAt: new Date(),
+      ...overrides,
+    });
+  }
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -60,80 +69,81 @@ describe('ConfirmEventCoverUploadUseCase', () => {
   });
 
   it('should throw NotFoundException when upload belongs to different org', async () => {
-    mockRepo.findByObjectKey.mockResolvedValue({ ...validUpload, organizationId: 'other-org' });
+    mockRepo.findByObjectKey.mockResolvedValue(makeUpload({ organizationId: 'other-org' }));
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: validUpload.objectKey }),
+      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('should throw NotFoundException when upload is not PENDING', async () => {
-    mockRepo.findByObjectKey.mockResolvedValue({ ...validUpload, status: 'CONFIRMED' });
+    mockRepo.findByObjectKey.mockResolvedValue(makeUpload({ status: 'CONFIRMED' }));
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: validUpload.objectKey }),
+      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('should throw BadRequestException when headObject returns null', async () => {
-    mockRepo.findByObjectKey.mockResolvedValue(validUpload);
+    mockRepo.findByObjectKey.mockResolvedValue(makeUpload());
     mockStorage.headObject.mockResolvedValue(null);
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: validUpload.objectKey }),
+      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('should throw BadRequestException for disallowed content-type', async () => {
-    mockRepo.findByObjectKey.mockResolvedValue(validUpload);
+    mockRepo.findByObjectKey.mockResolvedValue(makeUpload());
     mockStorage.headObject.mockResolvedValue({
-      key: validUpload.objectKey,
+      key: 'uploads/org-1/event-cover/event-1/abc.jpg',
       contentType: 'image/gif',
       sizeBytes: 1024,
     });
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: validUpload.objectKey }),
+      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('should throw BadRequestException and delete object when file exceeds max size', async () => {
-    mockRepo.findByObjectKey.mockResolvedValue(validUpload);
+    mockRepo.findByObjectKey.mockResolvedValue(makeUpload());
     mockStorage.headObject.mockResolvedValue({
-      key: validUpload.objectKey,
+      key: 'uploads/org-1/event-cover/event-1/abc.jpg',
       contentType: 'image/jpeg',
       sizeBytes: 11 * 1024 * 1024, // 11 MB — over limit
     });
     mockStorage.deleteObject.mockResolvedValue(undefined);
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: validUpload.objectKey }),
+      useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
     ).rejects.toThrow(BadRequestException);
 
-    expect(mockStorage.deleteObject).toHaveBeenCalledWith(validUpload.objectKey);
+    expect(mockStorage.deleteObject).toHaveBeenCalledWith('uploads/org-1/event-cover/event-1/abc.jpg');
     expect(mockRepo.update).not.toHaveBeenCalled();
   });
 
   it('should confirm upload and update event on success', async () => {
-    mockRepo.findByObjectKey.mockResolvedValue(validUpload);
+    const objectKey = 'uploads/org-1/event-cover/event-1/abc.jpg';
+    mockRepo.findByObjectKey.mockResolvedValue(makeUpload());
     mockStorage.headObject.mockResolvedValue({
-      key: validUpload.objectKey,
+      key: objectKey,
       contentType: 'image/jpeg',
       sizeBytes: 102400,
     });
-    mockRepo.update.mockResolvedValue({ ...validUpload, status: 'CONFIRMED' });
+    mockRepo.update.mockResolvedValue(makeUpload({ status: 'CONFIRMED' }));
     mockEventCoverRepo.updateCoverKey.mockResolvedValue(undefined);
     mockStorage.generateDownloadUrl.mockResolvedValue('https://cdn.example.com/image.jpg');
 
     const result = await useCase.execute({
       organizationId: 'org-1',
       eventId: 'event-1',
-      key: validUpload.objectKey,
+      key: objectKey,
     });
 
-    expect(result.key).toBe(validUpload.objectKey);
+    expect(result.key).toBe(objectKey);
     expect(result.url).toBe('https://cdn.example.com/image.jpg');
     expect(mockRepo.update).toHaveBeenCalledWith('upload-1', expect.objectContaining({ status: 'CONFIRMED' }));
-    expect(mockEventCoverRepo.updateCoverKey).toHaveBeenCalledWith('event-1', 'org-1', validUpload.objectKey);
+    expect(mockEventCoverRepo.updateCoverKey).toHaveBeenCalledWith('event-1', 'org-1', objectKey);
   });
 });

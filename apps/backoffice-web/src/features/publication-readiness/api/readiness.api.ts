@@ -8,14 +8,18 @@ function extractDetail(body: unknown, fallback: string): string {
   return fallback;
 }
 
+function authHeaders(token: string): Record<string, string> {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
 export async function getPublicationReadiness(
   organizationId: string,
   eventId: string,
-  devUserId: string,
+  token: string,
 ): Promise<PublicationReadiness> {
   const res = await fetch(
     `${API_BASE_URL}/organizations/${organizationId}/events/${eventId}/publication-readiness`,
-    { headers: { 'X-Dev-User-Id': devUserId } },
+    { headers: authHeaders(token) },
   );
 
   const body = await res.json().catch(() => ({}));

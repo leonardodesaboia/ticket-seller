@@ -5,7 +5,6 @@ import { formatCurrency } from '../lib/currency';
 
 interface TransactionHistoryTableProps {
   organizationId: string;
-  devUserId: string;
 }
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -17,10 +16,9 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   PAYOUT_FAILED: 'Saque falhou',
 };
 
-export function TransactionHistoryTable({ organizationId, devUserId }: TransactionHistoryTableProps) {
+export function TransactionHistoryTable({ organizationId }: TransactionHistoryTableProps) {
   const { transactions, nextCursor, isLoading, isFetching, error, loadMore } = useTransactions(
     organizationId,
-    devUserId,
   );
 
   if (isLoading) {

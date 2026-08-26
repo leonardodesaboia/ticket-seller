@@ -64,7 +64,7 @@ describe('AttendanceDashboard', () => {
     render(<AttendanceDashboard orgId="org-1" eventId="event-1" />);
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('attendance fetch failed: 500');
+    expect(screen.getByRole('alert')).toHaveTextContent('Erro ao carregar dados de presença. Tente novamente em instantes.');
   });
 
   it('passes orgId and eventId to the polling hook', () => {

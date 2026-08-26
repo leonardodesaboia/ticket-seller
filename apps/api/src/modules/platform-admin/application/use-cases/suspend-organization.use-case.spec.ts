@@ -1,10 +1,14 @@
 import { Test } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { SuspendOrganizationUseCase } from './suspend-organization.use-case';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import {
+  ADMIN_ORGANIZATION_REPOSITORY,
+  IAdminOrganizationRepository,
+} from '../../domain/ports/admin-organization-repository.port';
 
 describe('SuspendOrganizationUseCase', () => {
   let useCase: SuspendOrganizationUseCase;
-  let prisma: jest.Mocked<PrismaService>;
+  let orgRepo: jest.Mocked<IAdminOrganizationRepository>;
 
   const mockOrg = { id: 'org-1', suspendedAt: null };
 
@@ -13,24 +17,26 @@ describe('SuspendOrganizationUseCase', () => {
       providers: [
         SuspendOrganizationUseCase,
         {
-          provide: PrismaService,
+          provide: ADMIN_ORGANIZATION_REPOSITORY,
           useValue: {
-            organization: {
-              findUnique: jest.fn(),
-              update: jest.fn(),
-            },
+            findById: jest.fn(),
+            findAll: jest.fn(),
+            suspend: jest.fn(),
+            unsuspend: jest.fn(),
+            revokeMemberSessions: jest.fn(),
           },
         },
       ],
     }).compile();
 
     useCase = module.get(SuspendOrganizationUseCase);
-    prisma = module.get(PrismaService) as jest.Mocked<PrismaService>;
+    orgRepo = module.get(ADMIN_ORGANIZATION_REPOSITORY) as jest.Mocked<IAdminOrganizationRepository>;
   });
 
-  it('should suspend an active organization', async () => {
-    (prisma.organization.findUnique as jest.Mock).mockResolvedValue(mockOrg);
-    (prisma.organization.update as jest.Mock).mockResolvedValue({ ...mockOrg, suspendedAt: new Date() });
+  it('should suspend an active organization and revoke member sessions', async () => {
+    orgRepo.findById.mockResolvedValue(mockOrg);
+    orgRepo.suspend.mockResolvedValue(undefined);
+    orgRepo.revokeMemberSessions.mockResolvedValue(undefined);
 
     await useCase.execute({
       actorId: 'admin-1',
@@ -38,17 +44,12 @@ describe('SuspendOrganizationUseCase', () => {
       reason: 'Policy violation',
     });
 
-    expect(prisma.organization.update).toHaveBeenCalledWith({
-      where: { id: 'org-1' },
-      data: { suspendedAt: expect.any(Date) },
-    });
+    expect(orgRepo.suspend).toHaveBeenCalledWith('org-1');
+    expect(orgRepo.revokeMemberSessions).toHaveBeenCalledWith('org-1');
   });
 
   it('should be idempotent when organization is already suspended', async () => {
-    (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
-      ...mockOrg,
-      suspendedAt: new Date(),
-    });
+    orgRepo.findById.mockResolvedValue({ ...mockOrg, suspendedAt: new Date() });
 
     await useCase.execute({
       actorId: 'admin-1',
@@ -56,6 +57,15 @@ describe('SuspendOrganizationUseCase', () => {
       reason: 'Policy violation',
     });
 
-    expect(prisma.organization.update).not.toHaveBeenCalled();
+    expect(orgRepo.suspend).not.toHaveBeenCalled();
+    expect(orgRepo.revokeMemberSessions).not.toHaveBeenCalled();
+  });
+
+  it('should throw 404 when organization is not found', async () => {
+    orgRepo.findById.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ actorId: 'admin-1', organizationId: 'missing-org', reason: 'Test' }),
+    ).rejects.toThrow(NotFoundException);
   });
 });

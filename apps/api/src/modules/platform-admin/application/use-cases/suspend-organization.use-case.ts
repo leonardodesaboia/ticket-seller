@@ -1,5 +1,8 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ADMIN_ORGANIZATION_REPOSITORY,
+  IAdminOrganizationRepository,
+} from '../../domain/ports/admin-organization-repository.port';
 
 export interface SuspendOrganizationCommand {
   actorId: string;
@@ -11,13 +14,13 @@ export interface SuspendOrganizationCommand {
 export class SuspendOrganizationUseCase {
   private readonly logger = new Logger(SuspendOrganizationUseCase.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ADMIN_ORGANIZATION_REPOSITORY)
+    private readonly orgRepo: IAdminOrganizationRepository,
+  ) {}
 
   async execute(command: SuspendOrganizationCommand): Promise<void> {
-    const org = await this.prisma.organization.findUnique({
-      where: { id: command.organizationId },
-      select: { id: true, suspendedAt: true },
-    });
+    const org = await this.orgRepo.findById(command.organizationId);
 
     if (!org) throw new NotFoundException('Organization not found');
 
@@ -34,10 +37,10 @@ export class SuspendOrganizationUseCase {
       return;
     }
 
-    await this.prisma.organization.update({
-      where: { id: command.organizationId },
-      data: { suspendedAt: new Date() },
-    });
+    await this.orgRepo.suspend(command.organizationId);
+
+    // M4: Revoke active sessions of all organization members immediately upon suspension
+    await this.orgRepo.revokeMemberSessions(command.organizationId);
 
     this.logger.log({
       msg: 'platform_admin_action',

@@ -25,17 +25,18 @@ function extractDetail(body: unknown, fallback: string): string {
   return fallback;
 }
 
+function authHeaders(token: string): Record<string, string> {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
 export async function createEvent(
   organizationId: string,
   input: CreateEventInput,
-  devUserId: string,
+  token: string,
 ): Promise<Event> {
   const res = await fetch(`${API_BASE_URL}/organizations/${organizationId}/events`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Dev-User-Id': devUserId,
-    },
+    headers: authHeaders(token),
     body: JSON.stringify(input),
   });
 
@@ -50,10 +51,10 @@ export async function createEvent(
 export async function getEvent(
   organizationId: string,
   eventId: string,
-  devUserId: string,
+  token: string,
 ): Promise<Event> {
   const res = await fetch(`${API_BASE_URL}/organizations/${organizationId}/events/${eventId}`, {
-    headers: { 'X-Dev-User-Id': devUserId },
+    headers: authHeaders(token),
   });
 
   const body = await res.json().catch(() => ({}));
@@ -67,7 +68,7 @@ export async function getEvent(
 export async function listEvents(
   organizationId: string,
   params: { cursor?: string; limit?: number },
-  devUserId: string,
+  token: string,
 ): Promise<ListEventsResponse> {
   const qs = new URLSearchParams();
   if (params.cursor) qs.set('cursor', params.cursor);
@@ -75,7 +76,7 @@ export async function listEvents(
   const query = qs.toString() ? `?${qs.toString()}` : '';
 
   const res = await fetch(`${API_BASE_URL}/organizations/${organizationId}/events${query}`, {
-    headers: { 'X-Dev-User-Id': devUserId },
+    headers: authHeaders(token),
   });
 
   const body = await res.json().catch(() => ({}));
@@ -90,14 +91,11 @@ export async function updateEvent(
   organizationId: string,
   eventId: string,
   input: UpdateEventInput,
-  devUserId: string,
+  token: string,
 ): Promise<Event> {
   const res = await fetch(`${API_BASE_URL}/organizations/${organizationId}/events/${eventId}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Dev-User-Id': devUserId,
-    },
+    headers: authHeaders(token),
     body: JSON.stringify(input),
   });
 
@@ -113,16 +111,13 @@ export async function updateEventConfiguration(
   organizationId: string,
   eventId: string,
   input: UpdateEventConfigurationInput,
-  devUserId: string,
+  token: string,
 ): Promise<Event> {
   const res = await fetch(
     `${API_BASE_URL}/organizations/${organizationId}/events/${eventId}/configuration`,
     {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Dev-User-Id': devUserId,
-      },
+      headers: authHeaders(token),
       body: JSON.stringify(input),
     },
   );

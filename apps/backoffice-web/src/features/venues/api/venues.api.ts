@@ -19,17 +19,18 @@ function extractDetail(body: unknown, fallback: string): string {
   return fallback;
 }
 
+function authHeaders(token: string): Record<string, string> {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
 export async function createVenue(
   organizationId: string,
   input: CreateVenueInput,
-  devUserId: string,
+  token: string,
 ): Promise<Venue> {
   const res = await fetch(`${API_BASE_URL}/organizations/${organizationId}/venues`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Dev-User-Id': devUserId,
-    },
+    headers: authHeaders(token),
     body: JSON.stringify(input),
   });
 
@@ -41,9 +42,9 @@ export async function createVenue(
   return body as Venue;
 }
 
-export async function listVenues(organizationId: string, devUserId: string): Promise<Venue[]> {
+export async function listVenues(organizationId: string, token: string): Promise<Venue[]> {
   const res = await fetch(`${API_BASE_URL}/organizations/${organizationId}/venues`, {
-    headers: { 'X-Dev-User-Id': devUserId },
+    headers: authHeaders(token),
   });
 
   const body = await res.json().catch(() => ({}));

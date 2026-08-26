@@ -1,6 +1,8 @@
 import { API_BASE_URL } from './api-client';
 
-const DEV_USER_ID = process.env['NEXT_PUBLIC_DEV_USER_ID'] ?? '';
+function authHeaders(token: string): Record<string, string> {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
 
 export interface AttendanceByTicketType {
   ticketTypeId: string;
@@ -27,11 +29,11 @@ export interface AttendanceResponse {
 export async function getEventAttendance(
   orgId: string,
   eventId: string,
-  devUserId: string = DEV_USER_ID,
+  token: string,
 ): Promise<AttendanceResponse> {
   const res = await fetch(
     `${API_BASE_URL}/api/v1/organizations/${encodeURIComponent(orgId)}/events/${encodeURIComponent(eventId)}/attendance`,
-    { headers: { 'X-Dev-User-Id': devUserId } },
+    { headers: authHeaders(token) },
   );
   if (!res.ok) throw new Error(`attendance fetch failed: ${res.status}`);
   return res.json() as Promise<AttendanceResponse>;

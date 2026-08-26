@@ -28,7 +28,7 @@ describe('AcceptTransferPage', () => {
     expect(screen.getByText('Você recebeu um ingresso. Deseja aceitar?')).toBeInTheDocument();
   });
 
-  it('shows success message after accepting transfer', async () => {
+  it('shows success message and credential token after accepting transfer', async () => {
     jest.mocked(fetch).mockResolvedValueOnce(
       response({ newCredentialToken: 'new-secret-token' }),
     );
@@ -38,13 +38,12 @@ describe('AcceptTransferPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Ingresso transferido! Você já pode gerar seu novo QR Code no app.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Transferência concluída!')).toBeInTheDocument();
     });
 
-    // Ensure the token is never displayed
-    expect(screen.queryByText('new-secret-token')).not.toBeInTheDocument();
+    // Token must be visible so the recipient can save it
+    expect(screen.getByText('new-secret-token')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiar código do ingresso' })).toBeInTheDocument();
   });
 
   it('shows expired message for TRANSFER_EXPIRED error (400)', async () => {

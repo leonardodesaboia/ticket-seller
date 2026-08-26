@@ -1,5 +1,8 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ADMIN_ORGANIZATION_REPOSITORY,
+  IAdminOrganizationRepository,
+} from '../../domain/ports/admin-organization-repository.port';
 
 export interface UnsuspendOrganizationCommand {
   actorId: string;
@@ -11,13 +14,13 @@ export interface UnsuspendOrganizationCommand {
 export class UnsuspendOrganizationUseCase {
   private readonly logger = new Logger(UnsuspendOrganizationUseCase.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ADMIN_ORGANIZATION_REPOSITORY)
+    private readonly orgRepo: IAdminOrganizationRepository,
+  ) {}
 
   async execute(command: UnsuspendOrganizationCommand): Promise<void> {
-    const org = await this.prisma.organization.findUnique({
-      where: { id: command.organizationId },
-      select: { id: true, suspendedAt: true },
-    });
+    const org = await this.orgRepo.findById(command.organizationId);
     if (!org) throw new NotFoundException('Organization not found');
 
     if (org.suspendedAt === null) {
@@ -32,10 +35,7 @@ export class UnsuspendOrganizationUseCase {
       return;
     }
 
-    await this.prisma.organization.update({
-      where: { id: command.organizationId },
-      data: { suspendedAt: null },
-    });
+    await this.orgRepo.unsuspend(command.organizationId);
 
     this.logger.log({
       msg: 'platform_admin_action',

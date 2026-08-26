@@ -6,7 +6,6 @@ import type { PayoutStatus } from '../types';
 
 interface PayoutHistoryTableProps {
   organizationId: string;
-  devUserId: string;
 }
 
 const STATUS_LABELS: Record<PayoutStatus, string> = {
@@ -29,10 +28,9 @@ const STATUS_CLASSES: Record<PayoutStatus, string> = {
   REVERSED: 'bg-orange-100 text-orange-700',
 };
 
-export function PayoutHistoryTable({ organizationId, devUserId }: PayoutHistoryTableProps) {
+export function PayoutHistoryTable({ organizationId }: PayoutHistoryTableProps) {
   const { payouts, nextCursor, isLoading, isFetching, error, loadMore } = usePayouts(
     organizationId,
-    devUserId,
   );
 
   if (isLoading) {

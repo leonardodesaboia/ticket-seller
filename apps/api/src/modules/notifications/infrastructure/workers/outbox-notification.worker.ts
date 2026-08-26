@@ -1,7 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../platform/database/prisma.service";
 import { SendEmailUseCase, SendEmailInput } from "../../application/use-cases/send-email.use-case";
 import { env } from "../../../../platform/config/env";
+
+type TransactionClient = Prisma.TransactionClient;
 
 
 const HANDLED_TYPES = [
@@ -50,24 +53,26 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
     if (this.isPolling) return;
     this.isPolling = true;
     try {
-      // FOR UPDATE SKIP LOCKED cannot be used here because email I/O must happen
-      // outside a transaction — holding a row lock open during an HTTP call would
-      // exhaust the connection pool. Duplicate-send prevention is handled by
-      // notification_log in SendEmailUseCase (unique check per orderId+eventType
-      // or outboxEventId before each send).
-      const rows = await this.prisma.$queryRaw<OutboxEventRow[]>`
-        SELECT id, type, payload, organization_id
-        FROM outbox_events
-        WHERE type = ANY(${HANDLED_TYPES}::text[])
-          AND processed_at IS NULL
-          AND failed_at IS NULL
-        ORDER BY occurred_at ASC
-        LIMIT 10
-      `;
+      // SELECT FOR UPDATE SKIP LOCKED inside a transaction prevents concurrent
+      // replicas from processing the same event simultaneously. The processed_at /
+      // failed_at UPDATE is committed within the same transaction, so a crash
+      // between email send and UPDATE cannot leave an event permanently unprocessed.
+      await this.prisma.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<OutboxEventRow[]>`
+          SELECT id, type, payload, organization_id
+          FROM outbox_events
+          WHERE type = ANY(${HANDLED_TYPES}::text[])
+            AND processed_at IS NULL
+            AND failed_at IS NULL
+          ORDER BY occurred_at ASC
+          LIMIT 10
+          FOR UPDATE SKIP LOCKED
+        `;
 
-      for (const row of rows) {
-        await this.processEvent(row);
-      }
+        for (const row of rows) {
+          await this.processEvent(tx, row);
+        }
+      });
     } catch (err) {
       this.logger.error("Error polling outbox_events", err);
     } finally {
@@ -75,7 +80,7 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async processEvent(row: OutboxEventRow): Promise<void> {
+  private async processEvent(tx: TransactionClient, row: OutboxEventRow): Promise<void> {
     try {
       const payload = typeof row.payload === "string"
         ? (JSON.parse(row.payload) as Record<string, unknown>)
@@ -99,15 +104,16 @@ export class OutboxNotificationWorker implements OnModuleInit, OnModuleDestroy {
           break;
       }
 
-      // Mark event as processed
-      await this.prisma.$executeRaw`
+      // Mark event as processed within the same transaction (BL2 + A2)
+      await tx.$executeRaw`
         UPDATE outbox_events
         SET processed_at = NOW(), attempts = attempts + 1
         WHERE id = ${row.id}::uuid
       `;
     } catch (err) {
       this.logger.error(`Failed to process outbox event id=${row.id} type=${row.type}`, err);
-      await this.prisma.$executeRaw`
+      // Mark failure within the same transaction so the status is committed atomically
+      await tx.$executeRaw`
         UPDATE outbox_events
         SET failed_at = NOW(),
             attempts = attempts + 1,

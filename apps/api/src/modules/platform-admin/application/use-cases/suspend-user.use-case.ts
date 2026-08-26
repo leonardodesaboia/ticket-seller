@@ -1,5 +1,8 @@
-import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ADMIN_USER_REPOSITORY,
+  IAdminUserRepository,
+} from '../../domain/ports/admin-user-repository.port';
 
 export interface SuspendUserCommand {
   actorId: string;
@@ -11,17 +14,17 @@ export interface SuspendUserCommand {
 export class SuspendUserUseCase {
   private readonly logger = new Logger(SuspendUserUseCase.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ADMIN_USER_REPOSITORY)
+    private readonly userRepo: IAdminUserRepository,
+  ) {}
 
   async execute(command: SuspendUserCommand): Promise<void> {
     if (command.actorId === command.userId) {
       throw new UnprocessableEntityException('Cannot suspend your own account');
     }
 
-    const target = await this.prisma.user.findUnique({
-      where: { id: command.userId },
-      select: { id: true, platformRole: true, suspendedAt: true },
-    });
+    const target = await this.userRepo.findById(command.userId);
 
     if (!target) {
       throw new NotFoundException('User not found');
@@ -44,10 +47,8 @@ export class SuspendUserUseCase {
       return;
     }
 
-    await this.prisma.user.update({
-      where: { id: command.userId },
-      data: { suspendedAt: new Date() },
-    });
+    await this.userRepo.suspend(command.userId);
+    await this.userRepo.revokeAllSessions(command.userId);
 
     this.logger.log({
       msg: 'platform_admin_action',

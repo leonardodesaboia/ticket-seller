@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  ADMIN_ORGANIZATION_REPOSITORY,
+  IAdminOrganizationRepository,
+} from '../../domain/ports/admin-organization-repository.port';
 
 export interface AdminOrganizationItem {
   id: string;
@@ -40,38 +43,18 @@ function encodeCursor(id: string, createdAt: Date): string {
 
 @Injectable()
 export class ListAdminOrganizationsUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ADMIN_ORGANIZATION_REPOSITORY)
+    private readonly orgRepo: IAdminOrganizationRepository,
+  ) {}
 
   async execute(query: ListAdminOrganizationsQuery): Promise<ListAdminOrganizationsResult> {
     const limit = Math.min(query.limit ?? 50, 100);
 
     const decoded = query.cursor ? decodeCursor(query.cursor) : null;
 
-    const organizations = await this.prisma.organization.findMany({
-      where: {
-        deletedAt: null,
-        ...(decoded
-          ? {
-              OR: [
-                { createdAt: { lt: decoded.createdAt } },
-                { createdAt: decoded.createdAt, id: { lt: decoded.id } },
-              ],
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        name: true,
-        suspendedAt: true,
-        createdAt: true,
-        _count: {
-          select: {
-            members: true,
-            events: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+    const organizations = await this.orgRepo.findAll({
+      cursor: decoded,
       take: limit + 1,
     });
 
@@ -85,8 +68,8 @@ export class ListAdminOrganizationsUseCase {
         name: org.name,
         suspendedAt: org.suspendedAt,
         createdAt: org.createdAt,
-        memberCount: org._count.members,
-        eventCount: org._count.events,
+        memberCount: org.memberCount,
+        eventCount: org.eventCount,
       })),
       nextCursor: hasMore && lastItem ? encodeCursor(lastItem.id, lastItem.createdAt) : null,
     };

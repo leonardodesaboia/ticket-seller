@@ -19,7 +19,6 @@ import {
 interface CreateTicketTypeFormProps {
   organizationId: string;
   eventId: string;
-  devUserId: string;
   onSuccess: (ticketType: TicketType) => void;
   onCancel: () => void;
 }
@@ -27,12 +26,11 @@ interface CreateTicketTypeFormProps {
 export function CreateTicketTypeForm({
   organizationId,
   eventId,
-  devUserId,
   onSuccess,
   onCancel,
 }: CreateTicketTypeFormProps) {
   const operationRef = useRef(createEmptyIdempotencyOperation());
-  const mutation = useCreateTicketType(organizationId, eventId, devUserId);
+  const mutation = useCreateTicketType(organizationId, eventId);
 
   const {
     register,

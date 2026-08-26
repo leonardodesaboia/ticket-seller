@@ -13,20 +13,17 @@ interface TicketTypeListProps {
   organizationId: string;
   eventId: string;
   eventCurrency: string | null;
-  devUserId: string;
 }
 
 export function TicketTypeList({
   organizationId,
   eventId,
   eventCurrency,
-  devUserId,
 }: TicketTypeListProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { data: ticketTypes = [], isLoading, error } = useListTicketTypes(
     organizationId,
     eventId,
-    devUserId,
   );
 
   if (isLoading) {
@@ -54,7 +51,6 @@ export function TicketTypeList({
           currency={eventCurrency}
           organizationId={organizationId}
           eventId={eventId}
-          devUserId={devUserId}
         />
       ))}
 
@@ -64,7 +60,6 @@ export function TicketTypeList({
           <CreateTicketTypeForm
             organizationId={organizationId}
             eventId={eventId}
-            devUserId={devUserId}
             onSuccess={() => setShowCreateForm(false)}
             onCancel={() => setShowCreateForm(false)}
           />
@@ -93,7 +88,6 @@ interface TicketTypeRowProps {
   currency: string | null;
   organizationId: string;
   eventId: string;
-  devUserId: string;
 }
 
 function TicketTypeRow({
@@ -101,14 +95,12 @@ function TicketTypeRow({
   currency,
   organizationId,
   eventId,
-  devUserId,
 }: TicketTypeRowProps) {
   const [confirming, setConfirming] = useState(false);
   const mutation = useUpdateTicketType(
     organizationId,
     eventId,
     ticketType.id,
-    devUserId,
   );
 
   const isActive = ticketType.status === 'ACTIVE';

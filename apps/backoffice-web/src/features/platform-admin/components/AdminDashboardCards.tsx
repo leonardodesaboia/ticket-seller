@@ -2,9 +2,6 @@
 
 import { useAdminDashboard } from '../hooks/useAdminDashboard';
 
-interface AdminDashboardCardsProps {
-  devUserId?: string | undefined;
-}
 
 interface StatCardProps {
   label: string;
@@ -35,8 +32,8 @@ function StatCard({ label, value, highlight }: StatCardProps) {
   );
 }
 
-export function AdminDashboardCards({ devUserId }: AdminDashboardCardsProps) {
-  const { data, isLoading, error } = useAdminDashboard(devUserId);
+export function AdminDashboardCards() {
+  const { data, isLoading, error } = useAdminDashboard();
 
   if (isLoading) {
     return (

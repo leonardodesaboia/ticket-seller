@@ -1,5 +1,8 @@
-import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ADMIN_PAYOUT_REPOSITORY,
+  IAdminPayoutRepository,
+} from '../../domain/ports/admin-payout-repository.port';
 
 export interface BlockPayoutCommand {
   actorId: string;
@@ -13,13 +16,13 @@ const BLOCKABLE_STATUSES = ['SCHEDULED', 'PROCESSING'];
 export class BlockPayoutUseCase {
   private readonly logger = new Logger(BlockPayoutUseCase.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ADMIN_PAYOUT_REPOSITORY)
+    private readonly payoutRepo: IAdminPayoutRepository,
+  ) {}
 
   async execute(command: BlockPayoutCommand): Promise<void> {
-    const payout = await this.prisma.payout.findUnique({
-      where: { id: command.payoutId },
-      select: { id: true, status: true },
-    });
+    const payout = await this.payoutRepo.findById(command.payoutId);
 
     if (!payout) {
       throw new NotFoundException('Payout not found');
@@ -31,10 +34,7 @@ export class BlockPayoutUseCase {
       );
     }
 
-    const result = await this.prisma.payout.updateMany({
-      where: { id: command.payoutId, status: { in: BLOCKABLE_STATUSES } },
-      data: { status: 'BLOCKED' },
-    });
+    const result = await this.payoutRepo.blockIfBlockable(command.payoutId, BLOCKABLE_STATUSES);
 
     if (result.count === 0) {
       throw new UnprocessableEntityException(
