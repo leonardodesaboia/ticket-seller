@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────
 # Stage 1: Builder
 # ──────────────────────────────────────────────
-FROM node:22-alpine AS builder
+FROM node:22.18.0-alpine AS builder
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@11.17.0 --activate
@@ -25,7 +25,7 @@ RUN pnpm --filter @ticket-seller/backoffice-web build
 # ──────────────────────────────────────────────
 # Stage 2: Runner
 # ──────────────────────────────────────────────
-FROM node:22-alpine AS runner
+FROM node:22.18.0-alpine AS runner
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
@@ -43,6 +43,6 @@ USER appuser
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
-  CMD wget -qO- http://localhost:3001/ || exit 1
+  CMD wget -qO- http://localhost:3001/api/health || exit 1
 
 CMD ["node", "apps/backoffice-web/server.js"]

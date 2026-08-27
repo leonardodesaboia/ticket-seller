@@ -141,6 +141,17 @@ jobs:
           docker build -f apps/marketplace-web/Dockerfile . -t test-marketplace --no-cache
           docker build -f apps/backoffice-web/Dockerfile . -t test-backoffice --no-cache
 
+      # Smoke tests catch issues that build-time validation misses (e.g. dangling
+      # symlinks from pnpm isolated linker, missing Prisma engine binaries).
+      # All values are static — no untrusted user input is used here.
+      - name: Smoke test API image
+        run: |
+          docker run --rm test-api node -e \
+            "require('@nestjs/core');require('fastify');require('@prisma/client');console.log('modules-ok')"
+          docker run --rm \
+            -e DATABASE_URL=postgresql://ci:ci@localhost:5432/ci \
+            test-api node_modules/.bin/prisma validate --schema prisma/schema.prisma
+
   # ──────────────────────────────────────────────
   # Validate: structural and security checks
   # ──────────────────────────────────────────────

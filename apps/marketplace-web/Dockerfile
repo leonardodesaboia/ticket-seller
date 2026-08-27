@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────
 # Stage 1: Builder
 # ──────────────────────────────────────────────
-FROM node:22-alpine AS builder
+FROM node:22.18.0-alpine AS builder
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@11.17.0 --activate
@@ -25,7 +25,7 @@ RUN pnpm --filter @ticket-seller/marketplace-web build
 # ──────────────────────────────────────────────
 # Stage 2: Runner
 # ──────────────────────────────────────────────
-FROM node:22-alpine AS runner
+FROM node:22.18.0-alpine AS runner
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 

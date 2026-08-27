@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-26 (sessão 9 de correções concluída)
+Última atualização: 2026-08-27 (sessão 15 — verificação empírica de deploy e correção de Dockerfiles)
 
 Fase
 
@@ -130,6 +130,82 @@ E2E manual em staging com auth real, load test, e configuração de cloud target
 - Payments: quatro ports de operação extraíram Prisma da application; tentativa + outbox tornaram-se atômicos; webhooks, chargebacks e refunds possuem recuperação idempotente.
 - PaymentsModule passou a compor dependências por factories e tokens explícitos, sem reflexão de interfaces TypeScript.
 - Próxima dependência arquitetural: ADR de workers/scheduler para locks, retry/DLQ e observabilidade.
+- ADR-010 rascunhada em `docs/decisions/ADR-010-workers-scheduler-colocation.md` (PROPOSED — aguarda aprovação para desbloquear Fase 4 da TASK-066).
+
+**Sessão 14 — 2026-08-27:**
+- Análise completa da ADR-010 contra manifestos de deploy reais (`compose.yaml`, `docker-compose.prod.yml`).
+- Deploy verificado: `docker-compose.prod.yml` não define `replicas` (padrão = 1); cabeçalho do arquivo afirma "single-server deployment" — co-localização com réplica única é o deploy atual, não uma suposição.
+- ADR-010 atualizada com 4 correções: (1) deploy verificado em vez de assumido; (2) SettlementWorker SKIP LOCKED rebaixado de "requisito de corretude" para "otimização de eficiência" — `ON CONFLICT + SELECT FOR UPDATE` dentro do use case já garantem corretude com múltiplas réplicas; (3) risco de restart-drift do `setInterval` adicionado às consequências negativas; (4) framing do BullMQ corrigido — Redis *já está* na infra, a decisão é de escopo, não de proibição.
+- Insight fundamental documentado na ADR: atomicidade financeira reside na camada use case/adapter, não no scheduling — co-localização vs. processo separado é decisão puramente operacional.
+- Relatório TASK-066 e ADR-010 consistentes. Status da ADR: PROPOSED (aguarda aprovação do usuário).
+
+**Sessão 13 — 2026-08-27:**
+- Correção de 2 fixtures de teste em `prisma-payment-webhook-operation.adapter.spec.ts` e `prisma-payment-chargeback-operation.adapter.spec.ts`.
+- Raiz do problema: os adapters implementam retry-on-unfinished (evento duplicado só é ignorado se `processed_at`/`failed_at` set, ou dispute `status=PROCESSED`); os fixtures testavam skip-em-qualquer-duplicata (comportamento incorreto).
+- Fixtures corrigidos: (1) webhook — 2ª chamada `$queryRaw` retorna `{ processed_at: new Date() }` para simular evento finalizado; (2) chargeback — `makePrisma` recebe `disputeStatusRows` opcional, usado quando `disputeInsertResult=0`.
+- 521/521 testes passando (80 suites), validate-architecture.sh APROVADA, validate-architecture.spec.sh 15/15 PASS.
+- Nenhuma lógica de adapter alterada — apenas alinhamento de mocks de teste.
+
+**Sessão 15 — 2026-08-27 (verificação empírica de deploy):**
+
+Objetivo: construir a imagem Docker da API localmente e validar que o deploy não derruba o site. Cinco bugs reais foram descobertos e corrigidos antes de qualquer commit.
+
+**Bug 1 — Lockfile desatualizado (`ERR_PNPM_OUTDATED_LOCKFILE`)**
+- Causa: `prisma` foi movido de `devDependencies` para `dependencies` em `apps/api/package.json` (necessário para o container `api-migrate` chamar `prisma migrate deploy`), mas o `pnpm-lock.yaml` não foi regenerado.
+- Correção: `pnpm install --no-frozen-lockfile` atualizou o lockfile. `git diff` confirmou a mudança na seção `importer` do `apps/api`.
+- Arquivo afetado: `pnpm-lock.yaml` (modificado no disco, aguarda commit).
+
+**Bug 2 — Geração do Prisma Client após compilação TypeScript**
+- Causa: a ordem no Dockerfile era `build` → `db:generate`. O TypeScript não encontrava os tipos de `@prisma/client` e emitia dezenas de erros como `Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'`.
+- Correção: ordem invertida — `db:generate` antes de `build`.
+- Arquivo afetado: `apps/api/Dockerfile`.
+
+**Bug 3 — `pnpm deploy` sem flag `--legacy` (`ERR_PNPM_DEPLOY_NONINJECTED_WORKSPACE`)**
+- Causa: pnpm 10+ exige `--legacy` quando o workspace não usa `inject-workspace-packages=true`.
+- Correção: `pnpm --filter @ticket-seller/api deploy --prod --legacy /prod/api`.
+- Arquivo afetado: `apps/api/Dockerfile`.
+
+**Bug 4 — COPY de caminho fantasma (`/app/node_modules/.prisma`)**
+- Causa: com o linker isolado do pnpm, `prisma generate` escreve em `.pnpm/@prisma+client@.../node_modules/.prisma`, não em `node_modules/.prisma`. O path tentado não existe. Adicionalmente, `pnpm deploy --legacy` re-executa o `postinstall` de `@prisma/client`, regenerando o client dentro de `/prod/api/` automaticamente.
+- Correção: linha `COPY --from=builder /app/node_modules/.prisma` removida.
+- Arquivo afetado: `apps/api/Dockerfile`.
+
+**Bug 5 — Permissões de escrita do Prisma engine em Alpine (`EACCES`)**
+- Causa: `appuser` não tinha permissão de escrita em `node_modules/.pnpm/@prisma+engines` (arquivos copiados com owner root). O `openssl` ausente impedia o Prisma de detectar o OpenSSL 3.x e selecionar o binário musl pré-compilado.
+- Correção dupla: (1) `apk add --no-cache openssl` no estágio runner; (2) `--chown=appuser:appgroup` em todos os `COPY` do runner.
+- Arquivo afetado: `apps/api/Dockerfile`.
+
+**Smoke tests da API — todos passando:**
+```
+✅ node -e "require('@nestjs/core');require('fastify');require('@prisma/client');console.log('modules-ok')"
+✅ prisma validate --schema prisma/schema.prisma → "The schema at prisma/schema.prisma is valid 🚀"
+✅ prisma migrate deploy (sem --schema, exatamente como em produção) → P1001 (banco inacessível = PASS)
+```
+
+O terceiro smoke test valida o comando exato do `api-migrate` em produção: `node_modules/.bin/prisma migrate deploy` sem `--schema`, com resolução padrão a partir de `/app/prisma/schema.prisma`. O `P1001` confirma que o schema foi carregado corretamente e apenas o banco está inacessível (comportamento esperado em CI sem Postgres real).
+
+**CI smoke test atualizado (`.github/workflows/ci.yml`):**
+- Substituído `prisma --version` por `prisma validate --schema prisma/schema.prisma` com `DATABASE_URL` de CI.
+
+**Bug 6 — Frontend Dockerfiles: `tailwindcss` não resolvível (corrigido)**
+- Causa raiz: `globals.css` usa `@import 'tailwindcss'` (Tailwind CSS v4). O `@tailwindcss/postcss` está em `devDependencies` de ambos os apps, mas `tailwindcss` não era declarado como dependência direta. Com o linker isolado do pnpm, `@tailwindcss/node` tenta resolver `tailwindcss` usando `enhanced-resolve` (webpack) a partir do diretório do arquivo CSS — e falha porque `node_modules/tailwindcss` não existe como symlink direto na hierarquia de resolução quando apenas o app filtrado está instalado no Docker.
+- Correção: `"tailwindcss": "^4.0.0"` adicionado a `devDependencies` de `apps/marketplace-web/package.json` e `apps/backoffice-web/package.json`; lockfile regenerado.
+
+**Smoke tests dos frontends — ambos passando:**
+```
+✅ marketplace: Next.js 15.5.22 — ✓ Ready in 104ms
+✅ backoffice:  Next.js 15.5.22 — ✓ Ready in 105ms
+```
+
+**Estado atual dos arquivos modificados nesta sessão (não commitados — constraint explícita do usuário):**
+- `apps/api/Dockerfile` — corrigido (5 bugs)
+- `apps/api/package.json` — `prisma` em `dependencies`
+- `apps/marketplace-web/package.json` — `tailwindcss` em `devDependencies`
+- `apps/backoffice-web/package.json` — `tailwindcss` em `devDependencies`
+- `pnpm-lock.yaml` — atualizado (prisma + tailwindcss para ambos os frontends)
+- `.github/workflows/ci.yml` — smoke test atualizado
+
+**ATENÇÃO para quem for commitar:** `pnpm-lock.yaml` deve ser commitado **junto** com `apps/api/package.json` e `apps/api/Dockerfile`. Um commit parcial que omita o lockfile reintroduz o `ERR_PNPM_OUTDATED_LOCKFILE` e quebra o build com `--frozen-lockfile`.
 
 Pendências abertas (não bloqueantes para commit)
 Ver relatórios individuais em .ai/reports/module-review-2026/ para lista completa por módulo.

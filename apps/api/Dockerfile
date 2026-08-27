@@ -1,14 +1,13 @@
 # syntax=docker/dockerfile:1
-# ──────────────────────────────────────────────
-# Stage 1: Builder
-# ──────────────────────────────────────────────
-FROM node:22-alpine AS builder
+
+# ── Builder ───────────────────────────────────────────────────────────────────
+FROM node:22.18.0-alpine AS builder
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@11.17.0 --activate
 
-# Copy workspace manifest + lockfile first (layer cache)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml pnpm.json ./
+# Workspace manifests first — maximises cache hits when only source changes
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml pnpm.json .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY packages/ packages/
 
@@ -16,32 +15,38 @@ RUN pnpm install --frozen-lockfile
 
 COPY apps/api/ apps/api/
 
+# Generate Prisma client before compiling TypeScript so the generated
+# types are available to tsc.
+RUN pnpm --filter @ticket-seller/api db:generate
+
 # Compile TypeScript
 RUN pnpm --filter @ticket-seller/api build
 
-# Generate Prisma Client in the dist layer
-RUN pnpm --filter @ticket-seller/api db:generate
+# Create a self-contained production directory.
+# pnpm deploy resolves all pnpm symlinks to real files and strips devDependencies.
+# prisma CLI is included because it was moved to dependencies (needed for api-migrate).
+RUN pnpm --filter @ticket-seller/api deploy --prod --legacy /prod/api
 
-# ──────────────────────────────────────────────
-# Stage 2: Runner
-# ──────────────────────────────────────────────
-FROM node:22-alpine AS runner
+# ── Runner ────────────────────────────────────────────────────────────────────
+FROM node:22.18.0-alpine AS runner
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# openssl is required for Prisma to detect the OpenSSL version on Alpine (musl)
+# and select the correct pre-built engine binary without attempting a download.
+RUN apk add --no-cache openssl && \
+    addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-# Copy compiled output
-COPY --from=builder /app/apps/api/dist ./dist
+# Real node_modules from pnpm deploy (no symlinks, production deps only).
+# --chown ensures appuser can write to node_modules/.pnpm for Prisma engine setup.
+COPY --chown=appuser:appgroup --from=builder /prod/api/node_modules ./node_modules
 
-# Copy API node_modules (includes Prisma binaries)
-COPY --from=builder /app/apps/api/node_modules ./node_modules
+# Compiled application (TypeScript output; dist/ is not in pnpm deploy because
+# the package has no "files" field, so copy from the original build path)
+COPY --chown=appuser:appgroup --from=builder /app/apps/api/dist ./dist
 
-# Copy Prisma schema + migrations (needed for prisma migrate deploy in init container)
-COPY --from=builder /app/apps/api/prisma ./prisma
-
-# Copy generated Prisma engine from the root .prisma store
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Prisma schema + migrations (needed for prisma migrate deploy in api-migrate)
+COPY --chown=appuser:appgroup --from=builder /app/apps/api/prisma ./prisma
 
 USER appuser
 

@@ -54,7 +54,7 @@ services:
 
   # Init container: runs migrations then exits. API waits for this to complete.
   api-migrate:
-    image: ticket-seller-api:${IMAGE_TAG:-latest}
+    image: ${API_IMAGE:-ticket-seller-api}:${IMAGE_TAG:-latest}
     entrypoint: ["node_modules/.bin/prisma", "migrate", "deploy"]
     command: []
     environment:
@@ -65,7 +65,7 @@ services:
     restart: "no"
 
   api:
-    image: ticket-seller-api:${IMAGE_TAG:-latest}
+    image: ${API_IMAGE:-ticket-seller-api}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -113,7 +113,7 @@ services:
       retries: 3
 
   marketplace:
-    image: ticket-seller-marketplace:${IMAGE_TAG:-latest}
+    image: ${MARKETPLACE_IMAGE:-ticket-seller-marketplace}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -122,7 +122,7 @@ services:
       - "${MARKETPLACE_PORT:-3001}:3001"
 
   backoffice:
-    image: ticket-seller-backoffice:${IMAGE_TAG:-latest}
+    image: ${BACKOFFICE_IMAGE:-ticket-seller-backoffice}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
