@@ -1,9 +1,6 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundError, ValidationError } from '../../../../shared/kernel/application-errors';
+import type { ILogger } from '../../../../shared/kernel/logger.port';
 import { ConfirmEventCoverUploadUseCase } from './confirm-event-cover-upload.use-case';
-import { OBJECT_STORAGE_PORT } from '../../../../shared/ports/object-storage.port';
-import { MEDIA_UPLOAD_REPOSITORY } from '../../domain/ports/media-upload-repository.port';
-import { EVENT_COVER_REPOSITORY } from '../../domain/ports/event-cover-repository.port';
 import { MediaUpload } from '../../domain/entities/media-upload.entity';
 
 describe('ConfirmEventCoverUploadUseCase', () => {
@@ -29,6 +26,12 @@ describe('ConfirmEventCoverUploadUseCase', () => {
     updateCoverKey: jest.fn(),
   };
 
+  const mockLogger: ILogger = {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  };
+
   function makeUpload(overrides: Partial<ConstructorParameters<typeof MediaUpload>[0]> = {}): MediaUpload {
     return new MediaUpload({
       id: 'upload-1',
@@ -46,54 +49,45 @@ describe('ConfirmEventCoverUploadUseCase', () => {
     });
   }
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ConfirmEventCoverUploadUseCase,
-        { provide: OBJECT_STORAGE_PORT, useValue: mockStorage },
-        { provide: MEDIA_UPLOAD_REPOSITORY, useValue: mockRepo },
-        { provide: EVENT_COVER_REPOSITORY, useValue: mockEventCoverRepo },
-      ],
-    }).compile();
-
-    useCase = module.get(ConfirmEventCoverUploadUseCase);
+  beforeEach(() => {
+    useCase = new ConfirmEventCoverUploadUseCase(mockStorage as any, mockRepo as any, mockEventCoverRepo as any, mockLogger);
     jest.clearAllMocks();
   });
 
-  it('should throw NotFoundException when MediaUpload is not found', async () => {
+  it('should throw NotFoundError when MediaUpload is not found', async () => {
     mockRepo.findByObjectKey.mockResolvedValue(null);
 
     await expect(
       useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'some-key' }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
   });
 
-  it('should throw NotFoundException when upload belongs to different org', async () => {
+  it('should throw NotFoundError when upload belongs to different org', async () => {
     mockRepo.findByObjectKey.mockResolvedValue(makeUpload({ organizationId: 'other-org' }));
 
     await expect(
       useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
   });
 
-  it('should throw NotFoundException when upload is not PENDING', async () => {
+  it('should throw NotFoundError when upload is not PENDING', async () => {
     mockRepo.findByObjectKey.mockResolvedValue(makeUpload({ status: 'CONFIRMED' }));
 
     await expect(
       useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
   });
 
-  it('should throw BadRequestException when headObject returns null', async () => {
+  it('should throw ValidationError when headObject returns null', async () => {
     mockRepo.findByObjectKey.mockResolvedValue(makeUpload());
     mockStorage.headObject.mockResolvedValue(null);
 
     await expect(
       useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
-  it('should throw BadRequestException for disallowed content-type', async () => {
+  it('should throw ValidationError for disallowed content-type', async () => {
     mockRepo.findByObjectKey.mockResolvedValue(makeUpload());
     mockStorage.headObject.mockResolvedValue({
       key: 'uploads/org-1/event-cover/event-1/abc.jpg',
@@ -103,10 +97,10 @@ describe('ConfirmEventCoverUploadUseCase', () => {
 
     await expect(
       useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
-  it('should throw BadRequestException and delete object when file exceeds max size', async () => {
+  it('should throw ValidationError and delete object when file exceeds max size', async () => {
     mockRepo.findByObjectKey.mockResolvedValue(makeUpload());
     mockStorage.headObject.mockResolvedValue({
       key: 'uploads/org-1/event-cover/event-1/abc.jpg',
@@ -117,7 +111,7 @@ describe('ConfirmEventCoverUploadUseCase', () => {
 
     await expect(
       useCase.execute({ organizationId: 'org-1', eventId: 'event-1', key: 'uploads/org-1/event-cover/event-1/abc.jpg' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
 
     expect(mockStorage.deleteObject).toHaveBeenCalledWith('uploads/org-1/event-cover/event-1/abc.jpg');
     expect(mockRepo.update).not.toHaveBeenCalled();

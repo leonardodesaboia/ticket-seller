@@ -89,3 +89,9 @@ export class EventPublicationNotReadyError extends Error {
     this.name = 'EventPublicationNotReadyError';
   }
 }
+export class InvalidCursorError extends Error {
+  constructor() {
+    super('Invalid pagination cursor');
+    this.name = 'InvalidCursorError';
+  }
+}

@@ -1,9 +1,5 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { ValidationError, NotFoundError } from '../../../../shared/kernel/application-errors';
 import { GenerateEventCoverUploadUrlUseCase } from './generate-event-cover-upload-url.use-case';
-import { OBJECT_STORAGE_PORT } from '../../../../shared/ports/object-storage.port';
-import { MEDIA_UPLOAD_REPOSITORY } from '../../domain/ports/media-upload-repository.port';
-import { EVENT_COVER_REPOSITORY } from '../../domain/ports/event-cover-repository.port';
 
 describe('GenerateEventCoverUploadUrlUseCase', () => {
   let useCase: GenerateEventCoverUploadUrlUseCase;
@@ -28,21 +24,12 @@ describe('GenerateEventCoverUploadUrlUseCase', () => {
     updateCoverKey: jest.fn(),
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GenerateEventCoverUploadUrlUseCase,
-        { provide: OBJECT_STORAGE_PORT, useValue: mockStorage },
-        { provide: MEDIA_UPLOAD_REPOSITORY, useValue: mockRepo },
-        { provide: EVENT_COVER_REPOSITORY, useValue: mockEventCoverRepo },
-      ],
-    }).compile();
-
-    useCase = module.get(GenerateEventCoverUploadUrlUseCase);
+  beforeEach(() => {
+    useCase = new GenerateEventCoverUploadUrlUseCase(mockStorage as any, mockRepo as any, mockEventCoverRepo as any);
     jest.clearAllMocks();
   });
 
-  it('should throw BadRequestException for invalid content-type', async () => {
+  it('should throw ValidationError for invalid content-type', async () => {
     await expect(
       useCase.execute({
         organizationId: 'org-1',
@@ -50,10 +37,10 @@ describe('GenerateEventCoverUploadUrlUseCase', () => {
         uploaderId: 'user-1',
         contentType: 'application/pdf',
       }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
-  it('should throw NotFoundException when event does not belong to the organization', async () => {
+  it('should throw NotFoundError when event does not belong to the organization', async () => {
     mockEventCoverRepo.existsInOrganization.mockResolvedValue(false);
 
     await expect(
@@ -63,7 +50,7 @@ describe('GenerateEventCoverUploadUrlUseCase', () => {
         uploaderId: 'user-1',
         contentType: 'image/jpeg',
       }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
 
     expect(mockStorage.generateUploadUrl).not.toHaveBeenCalled();
     expect(mockRepo.create).not.toHaveBeenCalled();

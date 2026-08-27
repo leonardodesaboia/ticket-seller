@@ -6,6 +6,7 @@ import type { ILedgerRepository } from '../../domain/ports/ledger.repository.por
 import type { ISellerBalanceRepository } from '../../domain/ports/seller-balance.repository.port';
 import type { FeePolicy } from '../../domain/entities/fee-policy.entity';
 import type { LedgerAccount } from '../../domain/entities/ledger-account.entity';
+import type { ILogger } from '../../../../shared/kernel/logger.port';
 
 function makePolicy(overrides: Partial<FeePolicy> = {}): FeePolicy {
   return {
@@ -77,12 +78,14 @@ describe('RecordSaleUseCase', () => {
     });
     ledgerRepo.findOrCreateOrgAccount.mockResolvedValue(payableAccount);
 
+    const logger: ILogger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
     useCase = new RecordSaleUseCase(
       feePolicyRepo,
       snapshotRepo,
       ledgerRepo,
       sellerBalanceRepo,
       new CalculateOrderPricingUseCase(),
+      logger,
     );
   });
 

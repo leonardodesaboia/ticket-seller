@@ -1,9 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
-import {
-  ORGANIZATION_INVITATION_REPOSITORY,
-  type IOrganizationInvitationRepository,
-} from '../../domain/ports/organization-invitation-repository.port';
+import type { IOrganizationInvitationRepository } from '../../domain/ports/organization-invitation-repository.port';
 import { InvitationAlreadyUsedError } from '../../domain/organization.errors';
 
 export { InvitationAlreadyUsedError };
@@ -46,10 +42,8 @@ export class InvitationEmailMismatchError extends Error {
   }
 }
 
-@Injectable()
 export class AcceptOrganizationInvitationUseCase {
   constructor(
-    @Inject(ORGANIZATION_INVITATION_REPOSITORY)
     private readonly repo: IOrganizationInvitationRepository,
   ) {}
 

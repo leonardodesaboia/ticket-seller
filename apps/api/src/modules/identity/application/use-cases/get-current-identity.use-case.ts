@@ -1,5 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { USER_REPOSITORY, type IUserRepository } from '../../domain/ports/user.repository.port';
+import { NotFoundError } from '../../../../shared/kernel/application-errors';
+import { type IUserRepository } from '../../domain/ports/user.repository.port';
 
 export interface GetCurrentIdentityInput {
   userId: string;
@@ -14,15 +14,14 @@ export interface GetCurrentIdentityOutput {
   timezone: string;
 }
 
-@Injectable()
 export class GetCurrentIdentityUseCase {
-  constructor(@Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository) {}
+  constructor(private readonly userRepository: IUserRepository) {}
 
   async execute(input: GetCurrentIdentityInput): Promise<GetCurrentIdentityOutput> {
     const profile = await this.userRepository.findProfile(input.userId);
 
     if (!profile) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundError('User not found');
     }
 
     return profile;

@@ -16,7 +16,10 @@ import { CurrentActor } from '../../../shared/kernel/current-actor.decorator';
 import type { ICurrentActor } from '../../../shared/kernel/actor.types';
 import { CreateVenueUseCase } from '../application/use-cases/create-venue.use-case';
 import { ListOrganizationVenuesUseCase } from '../application/use-cases/list-organization-venues.use-case';
-import { InsufficientRoleError, OrganizationAccessDeniedError } from '../../events/domain/event.errors';
+import {
+  InsufficientRoleError,
+  OrganizationAccessDeniedError,
+} from '../../organizations/contracts/organization-access.errors';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { VenueResponse } from './dto/venue.response';
 

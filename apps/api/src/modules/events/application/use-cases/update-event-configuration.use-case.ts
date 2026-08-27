@@ -1,4 +1,3 @@
-import { Inject, Injectable } from '@nestjs/common';
 import type { Event } from '../../domain/event.entity';
 import {
   EventNotFoundError,
@@ -12,13 +11,12 @@ import {
   InvalidTimezoneError,
   OrganizationAccessDeniedError,
 } from '../../domain/event.errors';
-import { EVENT_REPOSITORY, type IEventRepository } from '../../domain/ports/event-repository.port';
+import { type IEventRepository } from '../../domain/ports/event-repository.port';
 import {
   EVENT_CREATOR_ROLES,
-  ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../domain/ports/organization-access.port';
-import { VENUE_ACCESS_PORT, type IVenueAccessPort } from '../ports/venue-access.port';
+import { type IVenueAccessPort } from '../../../venues/contracts/venue-access.contract';
 
 export interface UpdateEventConfigurationCommand {
   organizationId: string;
@@ -44,12 +42,11 @@ function isValidIANATimezone(tz: string): boolean {
   }
 }
 
-@Injectable()
 export class UpdateEventConfigurationUseCase {
   constructor(
-    @Inject(EVENT_REPOSITORY) private readonly eventRepository: IEventRepository,
-    @Inject(ORGANIZATION_ACCESS_PORT) private readonly orgAccess: IOrganizationAccessPort,
-    @Inject(VENUE_ACCESS_PORT) private readonly venueAccess: IVenueAccessPort,
+    private readonly eventRepository: IEventRepository,
+    private readonly orgAccess: IOrganizationAccessPort,
+    private readonly venueAccess: IVenueAccessPort,
   ) {}
 
   async execute(command: UpdateEventConfigurationCommand): Promise<Event> {

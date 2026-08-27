@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ValidationError } from '../../../../shared/kernel/application-errors';
 import { ResetPasswordUseCase } from './reset-password.use-case';
 import type { IPasswordHasher } from '../../domain/ports/password-hasher.port';
 import type { IPasswordResetRepository, PasswordResetTokenRecord } from '../../domain/ports/password-reset.repository.port';
@@ -60,17 +60,17 @@ describe('ResetPasswordUseCase', () => {
     expect(mockSessionRepository.revokeAllByUserId).toHaveBeenCalledWith('user-123');
   });
 
-  it('throws BadRequestException when token not found', async () => {
+  it('throws ValidationError when token not found', async () => {
     (mockPasswordResetRepository.findByTokenHash as jest.Mock).mockResolvedValue(null);
     const useCase = makeUseCase();
 
     await expect(useCase.execute({ token: 'invalid', newPassword: 'newpass123' })).rejects.toThrow(
-      BadRequestException,
+      ValidationError,
     );
     expect(mockSessionRepository.revokeAllByUserId).not.toHaveBeenCalled();
   });
 
-  it('throws BadRequestException when token is already used', async () => {
+  it('throws ValidationError when token is already used', async () => {
     (mockPasswordResetRepository.findByTokenHash as jest.Mock).mockResolvedValue({
       ...VALID_TOKEN_RECORD,
       usedAt: new Date(),
@@ -79,10 +79,10 @@ describe('ResetPasswordUseCase', () => {
 
     await expect(
       useCase.execute({ token: 'used-token', newPassword: 'newpass123' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
-  it('throws BadRequestException when token is expired', async () => {
+  it('throws ValidationError when token is expired', async () => {
     (mockPasswordResetRepository.findByTokenHash as jest.Mock).mockResolvedValue({
       ...VALID_TOKEN_RECORD,
       expiresAt: new Date(Date.now() - 1000),
@@ -91,6 +91,6 @@ describe('ResetPasswordUseCase', () => {
 
     await expect(
       useCase.execute({ token: 'expired-token', newPassword: 'newpass123' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 });

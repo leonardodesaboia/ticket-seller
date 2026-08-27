@@ -1,21 +1,18 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { NotFoundError } from '../../../../shared/kernel/application-errors';
+import { ILogger } from '../../../../shared/kernel/logger.port';
 import {
-  PAYOUT_REPOSITORY,
   IPayoutRepository,
 } from '../../domain/ports/payout.repository.port';
 import {
-  SELLER_BALANCE_REPOSITORY,
   ISellerBalanceRepository,
 } from '../../domain/ports/seller-balance.repository.port';
 import {
-  LEDGER_REPOSITORY,
   ILedgerRepository,
 } from '../../domain/ports/ledger.repository.port';
 import {
-  PAYOUT_GATEWAY_PORT,
   IPayoutGatewayPort,
 } from '../../domain/ports/payout-gateway.port';
+import { IFinanceTransactionRunner } from '../ports/finance-transaction-runner.port';
 
 export interface ProcessPayoutWebhookInput {
   rawBody: Buffer;
@@ -29,20 +26,14 @@ interface PayoutWebhookEventData {
   rawPayload: unknown;
 }
 
-@Injectable()
 export class ProcessPayoutWebhookUseCase {
-  private readonly logger = new Logger(ProcessPayoutWebhookUseCase.name);
-
   constructor(
-    private readonly prisma: PrismaService,
-    @Inject(PAYOUT_REPOSITORY)
+    private readonly transactionRunner: IFinanceTransactionRunner,
     private readonly payoutRepo: IPayoutRepository,
-    @Inject(SELLER_BALANCE_REPOSITORY)
     private readonly balanceRepo: ISellerBalanceRepository,
-    @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepo: ILedgerRepository,
-    @Inject(PAYOUT_GATEWAY_PORT)
     private readonly gateway: IPayoutGatewayPort,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(input: ProcessPayoutWebhookInput): Promise<void> {
@@ -59,10 +50,7 @@ export class ProcessPayoutWebhookUseCase {
       this.logger.warn(
         `Payout webhook received for unknown externalPayoutId (redacted) — event ${providerEventId}`,
       );
-      throw new NotFoundException({
-        message: 'Payout not found for webhook event',
-        code: 'PAYOUT_NOT_FOUND',
-      });
+      throw new NotFoundError('Payout not found for webhook event');
     }
 
     // Step 3: Guard — if already terminal, idempotent return
@@ -100,10 +88,13 @@ export class ProcessPayoutWebhookUseCase {
     currency: string,
     webhookEvent: PayoutWebhookEventData,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.transactionRunner.run(async (tx) => {
+      type TxRaw = { $executeRaw: (...args: unknown[]) => Promise<number>; $queryRaw: (...args: unknown[]) => Promise<Array<{ status: string }>> };
+      const txRaw = tx as TxRaw;
+
       // Dedup inside transaction: if another concurrent request already processed this event,
       // the INSERT returns 0 rows and we exit, rolling back the transaction cleanly.
-      const rowsAffected = await tx.$executeRaw`
+      const rowsAffected = await txRaw.$executeRaw`
         INSERT INTO payout_webhook_events (provider, provider_event_id, payout_id, raw_payload)
         VALUES (
           ${webhookEvent.provider},
@@ -119,7 +110,7 @@ export class ProcessPayoutWebhookUseCase {
       }
 
       // Re-check status under lock: concurrent FAILED webhook may have already terminated this payout.
-      const payoutRows = await tx.$queryRaw<Array<{ status: string }>>`
+      const payoutRows = await txRaw.$queryRaw`
         SELECT status FROM payouts WHERE id = ${payoutId}::uuid FOR UPDATE
       `;
       const currentStatus = payoutRows[0]?.status;
@@ -193,8 +184,11 @@ export class ProcessPayoutWebhookUseCase {
     failureReason: string,
     webhookEvent: PayoutWebhookEventData,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const rowsAffected = await tx.$executeRaw`
+    await this.transactionRunner.run(async (tx) => {
+      type TxRaw = { $executeRaw: (...args: unknown[]) => Promise<number>; $queryRaw: (...args: unknown[]) => Promise<Array<{ status: string }>> };
+      const txRaw = tx as TxRaw;
+
+      const rowsAffected = await txRaw.$executeRaw`
         INSERT INTO payout_webhook_events (provider, provider_event_id, payout_id, raw_payload)
         VALUES (
           ${webhookEvent.provider},
@@ -210,7 +204,7 @@ export class ProcessPayoutWebhookUseCase {
       }
 
       // Re-check status under lock: concurrent SUCCEEDED webhook may have already terminated this payout.
-      const payoutRows = await tx.$queryRaw<Array<{ status: string }>>`
+      const payoutRows = await txRaw.$queryRaw`
         SELECT status FROM payouts WHERE id = ${payoutId}::uuid FOR UPDATE
       `;
       const currentStatus = payoutRows[0]?.status;
@@ -229,7 +223,7 @@ export class ProcessPayoutWebhookUseCase {
 
       // seller_balances.reserved -= amount, available += amount (restore)
       await this.balanceRepo.decrementReserved(organizationId, amount, tx);
-      await tx.$executeRaw`
+      await txRaw.$executeRaw`
         UPDATE seller_balances
         SET available_amount = available_amount + ${amount},
             version          = version + 1,

@@ -1,6 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  SELLER_BALANCE_REPOSITORY,
   ISellerBalanceRepository,
 } from '../../domain/ports/seller-balance.repository.port';
 
@@ -11,10 +9,8 @@ export interface OrganizationBalanceResult {
   currency: string;
 }
 
-@Injectable()
 export class GetOrganizationBalanceUseCase {
   constructor(
-    @Inject(SELLER_BALANCE_REPOSITORY)
     private readonly sellerBalanceRepo: ISellerBalanceRepository,
   ) {}
 

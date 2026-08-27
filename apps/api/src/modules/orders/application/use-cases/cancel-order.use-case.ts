@@ -1,4 +1,3 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { evaluateCancellationEligibility } from '../../domain/cancellation-policy';
 import {
   OrderNotFoundForCancellationError,
@@ -7,7 +6,6 @@ import {
 } from '../../domain/cancellation.errors';
 import {
   IOrderCancellationRepository,
-  ORDER_CANCELLATION_REPOSITORY,
 } from '../ports/order-cancellation-repository.port';
 
 export interface CancelOrderByTokenInput {
@@ -33,10 +31,8 @@ export interface CancelOrderResult {
   requiresRefund: boolean;
 }
 
-@Injectable()
 export class CancelOrderUseCase {
   constructor(
-    @Inject(ORDER_CANCELLATION_REPOSITORY)
     private readonly repo: IOrderCancellationRepository,
   ) {}
 

@@ -1,11 +1,8 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { Organization } from '../../domain/organization.entity';
 import { SlugAlreadyInUseError } from '../../domain/organization.errors';
-import {
-  ORGANIZATION_REPOSITORY,
-  type IOrganizationRepository,
-} from '../../domain/ports/organization-repository.port';
+import type { IOrganizationRepository } from '../../domain/ports/organization-repository.port';
+import { ValidationError } from '../../../../shared/kernel/application-errors';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -15,16 +12,14 @@ export interface CreateOrganizationCommand {
   actorId: string;
 }
 
-@Injectable()
 export class CreateOrganizationUseCase {
   constructor(
-    @Inject(ORGANIZATION_REPOSITORY)
     private readonly repository: IOrganizationRepository,
   ) {}
 
   async execute(command: CreateOrganizationCommand): Promise<Organization> {
     if (!SLUG_PATTERN.test(command.slug)) {
-      throw new BadRequestException(
+      throw new ValidationError(
         'Slug must contain only lowercase letters, numbers, and hyphens',
       );
     }

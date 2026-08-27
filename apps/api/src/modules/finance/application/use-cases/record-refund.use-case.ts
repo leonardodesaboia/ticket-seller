@@ -1,17 +1,14 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   IOrderPricingSnapshotRepository,
-  ORDER_PRICING_SNAPSHOT_REPOSITORY,
 } from '../../domain/ports/order-pricing-snapshot.repository.port';
 import {
   ILedgerRepository,
-  LEDGER_REPOSITORY,
 } from '../../domain/ports/ledger.repository.port';
 import {
-  SELLER_BALANCE_REPOSITORY,
   ISellerBalanceRepository,
 } from '../../domain/ports/seller-balance.repository.port';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { ILogger } from '../../../../shared/kernel/logger.port';
+import { IOrderSettlementQueryPort } from '../ports/order-settlement-query.port';
 
 export interface RecordRefundInput {
   orderId: string;
@@ -21,18 +18,13 @@ export interface RecordRefundInput {
   tx?: unknown;
 }
 
-@Injectable()
 export class RecordRefundUseCase {
-  private readonly logger = new Logger(RecordRefundUseCase.name);
-
   constructor(
-    @Inject(ORDER_PRICING_SNAPSHOT_REPOSITORY)
     private readonly snapshotRepository: IOrderPricingSnapshotRepository,
-    @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepository: ILedgerRepository,
-    @Inject(SELLER_BALANCE_REPOSITORY)
     private readonly sellerBalanceRepo: ISellerBalanceRepository,
-    private readonly prisma: PrismaService,
+    private readonly orderSettlementQuery: IOrderSettlementQueryPort,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(input: RecordRefundInput): Promise<void> {
@@ -223,14 +215,7 @@ export class RecordRefundUseCase {
       return;
     }
 
-    type TxClient = { $queryRaw: PrismaService['$queryRaw'] };
-    const client: TxClient = (tx as TxClient | undefined) ?? this.prisma;
-    const rows = await client.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*)::bigint AS count
-      FROM balance_settlements
-      WHERE order_id = ${orderId}::uuid
-    `;
-    const isSettled = Number(rows[0]?.count ?? 0n) > 0;
+    const isSettled = await this.orderSettlementQuery.isOrderSettled(orderId, tx);
 
     if (isSettled) {
       await this.sellerBalanceRepo.decrementAvailable(organizationId, sellerNetAmount, tx);

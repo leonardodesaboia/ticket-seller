@@ -1,6 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  PUBLIC_EVENT_QUERY_PORT,
   type IPublicEventQueryPort,
   type PublicEventListResult,
 } from '../ports/public-event-query.port';
@@ -11,10 +9,8 @@ export interface ListPublicEventsQuery {
   cursor?: string;
 }
 
-@Injectable()
 export class ListPublicEventsUseCase {
   constructor(
-    @Inject(PUBLIC_EVENT_QUERY_PORT)
     private readonly queryPort: IPublicEventQueryPort,
   ) {}
 

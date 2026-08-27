@@ -1,8 +1,8 @@
 import { ListOrganizationVenuesUseCase } from './list-organization-venues.use-case';
 import { Venue } from '../../domain/venue.entity';
 import type { IVenueRepository } from '../../domain/ports/venue-repository.port';
-import type { IOrganizationAccessPort } from '../../../events/domain/ports/organization-access.port';
-import { OrganizationAccessDeniedError } from '../../../events/domain/event.errors';
+import type { IOrganizationAccessPort } from '../../../organizations/contracts/organization-access.contract';
+import { OrganizationAccessDeniedError } from '../../../organizations/contracts/organization-access.errors';
 
 function makeVenue(id: string): Venue {
   return new Venue(id, 'org-1', `Venue ${id}`, 'Rua A', 'Fortaleza', 'CE', 'BR', null, new Date(), new Date());

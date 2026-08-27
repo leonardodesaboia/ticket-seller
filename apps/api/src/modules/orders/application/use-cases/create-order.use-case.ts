@@ -1,15 +1,12 @@
 import { createHash } from 'crypto';
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  RESERVATION_ACCESS,
   type CreateOrderFromReservationInput,
   type IReservationAccess,
 } from '../ports/reservation-access.port';
 import type { OrderView } from '../../domain/ports/order-repository.port';
 
-@Injectable()
 export class CreateOrderUseCase {
-  constructor(@Inject(RESERVATION_ACCESS) private readonly reservationAccess: IReservationAccess) {}
+  constructor(private readonly reservationAccess: IReservationAccess) {}
 
   execute(input: { reservationId: string; reservationToken: string; idempotencyKey: string; buyerEmail: string }): Promise<OrderView> {
     const operation: CreateOrderFromReservationInput = {

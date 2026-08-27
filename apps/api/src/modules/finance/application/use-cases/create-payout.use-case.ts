@@ -1,32 +1,25 @@
 import {
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+  UnprocessableError,
+  NotFoundError,
+} from '../../../../shared/kernel/application-errors';
+import { ILogger } from '../../../../shared/kernel/logger.port';
 import {
-  PAYOUT_REPOSITORY,
   IPayoutRepository,
 } from '../../domain/ports/payout.repository.port';
 import {
-  PAYOUT_RECIPIENT_REPOSITORY,
   IPayoutRecipientRepository,
 } from '../../domain/ports/payout-recipient.repository.port';
 import {
-  SELLER_BALANCE_REPOSITORY,
   ISellerBalanceRepository,
 } from '../../domain/ports/seller-balance.repository.port';
 import {
-  LEDGER_REPOSITORY,
   ILedgerRepository,
 } from '../../domain/ports/ledger.repository.port';
 import {
-  PAYOUT_GATEWAY_PORT,
   IPayoutGatewayPort,
 } from '../../domain/ports/payout-gateway.port';
 import { Payout } from '../../domain/entities/payout.entity';
+import { IFinanceTransactionRunner } from '../ports/finance-transaction-runner.port';
 
 export interface CreatePayoutInput {
   organizationId: string;
@@ -35,31 +28,21 @@ export interface CreatePayoutInput {
   idempotencyKey: string;
 }
 
-export class InsufficientBalanceException extends UnprocessableEntityException {
+export class InsufficientBalanceError extends UnprocessableError {
   constructor() {
-    super({
-      message: 'Insufficient available balance for payout',
-      code: 'INSUFFICIENT_BALANCE',
-    });
+    super('Insufficient available balance for payout', 'INSUFFICIENT_BALANCE');
   }
 }
 
-@Injectable()
 export class CreatePayoutUseCase {
-  private readonly logger = new Logger(CreatePayoutUseCase.name);
-
   constructor(
-    private readonly prisma: PrismaService,
-    @Inject(PAYOUT_REPOSITORY)
+    private readonly transactionRunner: IFinanceTransactionRunner,
     private readonly payoutRepo: IPayoutRepository,
-    @Inject(PAYOUT_RECIPIENT_REPOSITORY)
     private readonly recipientRepo: IPayoutRecipientRepository,
-    @Inject(SELLER_BALANCE_REPOSITORY)
     private readonly balanceRepo: ISellerBalanceRepository,
-    @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepo: ILedgerRepository,
-    @Inject(PAYOUT_GATEWAY_PORT)
     private readonly gateway: IPayoutGatewayPort,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(input: CreatePayoutInput): Promise<Payout> {
@@ -68,21 +51,18 @@ export class CreatePayoutUseCase {
     // Step 1: Verify recipient exists and is VERIFIED (outside transaction — read-only)
     const recipient = await this.recipientRepo.findByOrg(organizationId);
     if (!recipient || recipient.status !== 'VERIFIED' || !recipient.externalRecipientId) {
-      throw new UnprocessableEntityException({
-        message: 'No verified payout recipient found for organization',
-        code: 'RECIPIENT_NOT_VERIFIED',
-      });
+      throw new UnprocessableError(
+        'No verified payout recipient found for organization',
+        'RECIPIENT_NOT_VERIFIED',
+      );
     }
 
     // Steps 2–8: Atomic transaction
-    const { payout, isNew } = await this.prisma.$transaction(async (tx) => {
+    const { payout, isNew } = await this.transactionRunner.run(async (tx) => {
       // Step 3: SELECT FOR UPDATE on seller_balances — serializes concurrent payouts
       const balance = await this.balanceRepo.findByOrgForUpdate(organizationId, tx);
       if (!balance) {
-        throw new NotFoundException({
-          message: 'Seller balance not found for organization',
-          code: 'BALANCE_NOT_FOUND',
-        });
+        throw new NotFoundError('Seller balance not found for organization');
       }
 
       // Step 5: INSERT payout (ON CONFLICT idempotency_key → returns existing + inserted flag)
@@ -114,11 +94,12 @@ export class CreatePayoutUseCase {
 
       // Step 4: Verify available_amount >= amount (checked AFTER lock to prevent TOCTOU)
       if (balance.availableAmount < amount) {
-        throw new InsufficientBalanceException();
+        throw new InsufficientBalanceError();
       }
 
       // Step 6: UPDATE seller_balances: available -= amount, reserved += amount
-      await tx.$executeRaw`
+      const txWithRaw = tx as { $executeRaw: (...args: unknown[]) => Promise<unknown> };
+      await txWithRaw.$executeRaw`
         UPDATE seller_balances
         SET available_amount = available_amount - ${amount},
             reserved_amount  = reserved_amount  + ${amount},

@@ -1,16 +1,13 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
 import type { OrganizationInvitation } from '../../domain/entities/organization-invitation.entity';
-import {
-  ORGANIZATION_INVITATION_REPOSITORY,
-  type IOrganizationInvitationRepository,
-} from '../../domain/ports/organization-invitation-repository.port';
+import type { IOrganizationInvitationRepository } from '../../domain/ports/organization-invitation-repository.port';
 import {
   VALID_ORGANIZATION_ROLES,
   ROLE_CAPABILITIES,
   OrganizationCapability,
 } from '../../../../shared/kernel/organization-capability';
 import { InsufficientRoleToAssignError } from '../../domain/organization.errors';
+import type { ILogger } from '../../../../shared/kernel/logger.port';
 const INVITATION_TTL_DAYS = 7;
 
 export { InsufficientRoleToAssignError };
@@ -38,13 +35,10 @@ export class InvalidRoleError extends Error {
   }
 }
 
-@Injectable()
 export class InviteOrganizationMemberUseCase {
-  private readonly logger = new Logger(InviteOrganizationMemberUseCase.name);
-
   constructor(
-    @Inject(ORGANIZATION_INVITATION_REPOSITORY)
     private readonly repo: IOrganizationInvitationRepository,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(command: InviteOrganizationMemberCommand): Promise<InviteOrganizationMemberResult> {
@@ -83,7 +77,7 @@ export class InviteOrganizationMemberUseCase {
       const existing = await this.repo.findPendingInvitationByEmail(command.organizationId, normalizedEmail);
       if (existing) {
         await this.repo.revokeInvitation(existing.id);
-        this.logger.debug(
+        this.logger.log(
           `Revoked previous pending invitation ${existing.id} for email ${normalizedEmail} in org ${command.organizationId}`,
         );
       }
@@ -99,7 +93,7 @@ export class InviteOrganizationMemberUseCase {
       });
     } else {
       // Return synthetic result without creating DB record
-      this.logger.debug(
+      this.logger.log(
         `Invitation skipped — email is already an active member of org ${command.organizationId}`,
       );
       return {

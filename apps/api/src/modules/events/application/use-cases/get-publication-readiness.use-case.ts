@@ -1,11 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  PUBLICATION_READINESS_QUERY_PORT,
   type IPublicationReadinessQueryPort,
 } from '../ports/publication-readiness-query.port';
 import {
   EVENT_CREATOR_ROLES,
-  ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../domain/ports/organization-access.port';
 import {
@@ -24,14 +21,10 @@ export interface GetPublicationReadinessQuery {
   actorId: string;
 }
 
-@Injectable()
 export class GetPublicationReadinessUseCase {
   constructor(
-    @Inject(PUBLICATION_READINESS_QUERY_PORT)
     private readonly queryPort: IPublicationReadinessQueryPort,
-    @Inject(ORGANIZATION_ACCESS_PORT)
     private readonly organizationAccess: IOrganizationAccessPort,
-    @Inject(PublicationReadinessPolicy)
     private readonly policy: PublicationReadinessPolicy,
   ) {}
 

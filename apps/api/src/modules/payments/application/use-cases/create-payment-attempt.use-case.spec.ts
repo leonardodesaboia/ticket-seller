@@ -20,7 +20,7 @@ import {
   PaymentWebhookInput,
 } from '../../domain/ports/payment-gateway.port';
 import { IOrderAccessPort, OrderForPayment } from '../ports/order-access.port';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { IPaymentAttemptOperationPort } from '../ports/payment-attempt-operation.port';
 
 function makeAttempt(overrides: Partial<PaymentAttemptProps> = {}): PaymentAttempt {
   return new PaymentAttempt({
@@ -95,12 +95,11 @@ describe('CreatePaymentAttemptUseCase', () => {
     findOrderWithToken: jest.fn().mockResolvedValue(validOrder),
   };
 
-  const prisma = {
-    $queryRaw: jest.fn().mockResolvedValue([{ exists: false }]),
-    $executeRaw: jest.fn().mockResolvedValue(1),
-  } as unknown as PrismaService;
+  const operation: jest.Mocked<IPaymentAttemptOperationPort> = {
+    persistAttemptWithCreatedEvent: jest.fn((data: CreatePaymentAttemptData) => attemptRepo.save(data)),
+  };
 
-  const useCase = new CreatePaymentAttemptUseCase(gateway, attemptRepo, orderAccess, prisma);
+  const useCase = new CreatePaymentAttemptUseCase(gateway, attemptRepo, orderAccess, operation);
 
   const baseInput = {
     orderId: 'order-1',

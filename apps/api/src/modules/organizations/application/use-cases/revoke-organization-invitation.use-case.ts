@@ -1,8 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
-import {
-  ORGANIZATION_INVITATION_REPOSITORY,
-  type IOrganizationInvitationRepository,
-} from '../../domain/ports/organization-invitation-repository.port';
+import type { IOrganizationInvitationRepository } from '../../domain/ports/organization-invitation-repository.port';
 
 export interface RevokeOrganizationInvitationCommand {
   organizationId: string;
@@ -16,10 +12,8 @@ export class InvitationNotFoundError extends Error {
   }
 }
 
-@Injectable()
 export class RevokeOrganizationInvitationUseCase {
   constructor(
-    @Inject(ORGANIZATION_INVITATION_REPOSITORY)
     private readonly repo: IOrganizationInvitationRepository,
   ) {}
 

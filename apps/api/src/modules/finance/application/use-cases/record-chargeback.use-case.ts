@@ -1,13 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   ILedgerRepository,
-  LEDGER_REPOSITORY,
 } from '../../domain/ports/ledger.repository.port';
 import {
-  SELLER_BALANCE_REPOSITORY,
   ISellerBalanceRepository,
 } from '../../domain/ports/seller-balance.repository.port';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { ILogger } from '../../../../shared/kernel/logger.port';
+import { IOrderSettlementQueryPort } from '../ports/order-settlement-query.port';
 
 export interface RecordChargebackInput {
   orderId: string;
@@ -17,16 +15,12 @@ export interface RecordChargebackInput {
   tx?: unknown;
 }
 
-@Injectable()
 export class RecordChargebackUseCase {
-  private readonly logger = new Logger(RecordChargebackUseCase.name);
-
   constructor(
-    @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepository: ILedgerRepository,
-    @Inject(SELLER_BALANCE_REPOSITORY)
     private readonly sellerBalanceRepo: ISellerBalanceRepository,
-    private readonly prisma: PrismaService,
+    private readonly orderSettlementQuery: IOrderSettlementQueryPort,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(input: RecordChargebackInput): Promise<void> {
@@ -105,14 +99,7 @@ export class RecordChargebackUseCase {
     chargebackAmount: bigint,
     tx?: unknown,
   ): Promise<void> {
-    type TxClient = { $queryRaw: PrismaService['$queryRaw'] };
-    const client: TxClient = (tx as TxClient | undefined) ?? this.prisma;
-    const rows = await client.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*)::bigint AS count
-      FROM balance_settlements
-      WHERE order_id = ${orderId}::uuid
-    `;
-    const isSettled = Number(rows[0]?.count ?? 0n) > 0;
+    const isSettled = await this.orderSettlementQuery.isOrderSettled(orderId, tx);
 
     if (isSettled) {
       await this.sellerBalanceRepo.decrementAvailable(organizationId, chargebackAmount, tx);

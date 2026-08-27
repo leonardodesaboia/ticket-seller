@@ -1,14 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { EventNotCancellableError, EventNotFoundError } from '../../domain/event-cancellation.errors';
 import { InsufficientRoleError, OrganizationAccessDeniedError } from '../../domain/event.errors';
 import {
-  EVENT_CANCELLATION_REPOSITORY,
   IEventCancellationRepository,
   CancelEventResult,
 } from '../ports/event-cancellation-repository.port';
 import {
   EVENT_CREATOR_ROLES,
-  ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../domain/ports/organization-access.port';
 
@@ -19,12 +16,9 @@ export interface CancelEventInput {
   actorId?: string | undefined;
 }
 
-@Injectable()
 export class CancelEventUseCase {
   constructor(
-    @Inject(EVENT_CANCELLATION_REPOSITORY)
     private readonly repo: IEventCancellationRepository,
-    @Inject(ORGANIZATION_ACCESS_PORT)
     private readonly orgAccess: IOrganizationAccessPort,
   ) {}
 

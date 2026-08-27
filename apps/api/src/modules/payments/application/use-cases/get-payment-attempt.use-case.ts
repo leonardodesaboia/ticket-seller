@@ -1,21 +1,16 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  PAYMENT_ATTEMPT_REPOSITORY,
   IPaymentAttemptRepository,
 } from '../../domain/ports/payment-attempt-repository.port';
-import { ORDER_ACCESS_PORT, IOrderAccessPort } from '../ports/order-access.port';
+import { IOrderAccessPort } from '../ports/order-access.port';
 import { PaymentAttempt } from '../../domain/payment-attempt.entity';
 import {
   InvalidReservationTokenForPaymentError,
   PaymentAttemptNotFoundError,
 } from '../../domain/payment-attempt.errors';
 
-@Injectable()
 export class GetPaymentAttemptUseCase {
   constructor(
-    @Inject(PAYMENT_ATTEMPT_REPOSITORY)
     private readonly attemptRepo: IPaymentAttemptRepository,
-    @Inject(ORDER_ACCESS_PORT)
     private readonly orderAccess: IOrderAccessPort,
   ) {}
 

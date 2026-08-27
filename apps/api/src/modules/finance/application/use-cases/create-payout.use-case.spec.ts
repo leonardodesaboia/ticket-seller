@@ -1,5 +1,5 @@
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { CreatePayoutUseCase, InsufficientBalanceException } from './create-payout.use-case';
+import { UnprocessableError, NotFoundError } from '../../../../shared/kernel/application-errors';
+import { CreatePayoutUseCase, InsufficientBalanceError } from './create-payout.use-case';
 import { IPayoutRepository } from '../../domain/ports/payout.repository.port';
 import { IPayoutRecipientRepository } from '../../domain/ports/payout-recipient.repository.port';
 import { ISellerBalanceRepository } from '../../domain/ports/seller-balance.repository.port';
@@ -10,7 +10,8 @@ import { PayoutRecipient } from '../../domain/entities/payout-recipient.entity';
 import { SellerBalance } from '../../domain/entities/seller-balance.entity';
 import { LedgerAccount } from '../../domain/entities/ledger-account.entity';
 import { LedgerTransaction } from '../../domain/entities/ledger-transaction.entity';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { IFinanceTransactionRunner } from '../ports/finance-transaction-runner.port';
+import { ILogger } from '../../../../shared/kernel/logger.port';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -132,18 +133,22 @@ function makeMocks() {
     parseWebhookEvent: jest.fn(),
   };
 
-  // The Prisma mock: $transaction receives a callback, passes a tx proxy with $executeRaw
+  const logger: jest.Mocked<ILogger> = {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  };
+
+  // The transaction runner mock: run receives a callback, passes a tx proxy with $executeRaw
   const txProxy = {
     $executeRaw: jest.fn().mockResolvedValue(1),
   };
 
-  const prismaMock = {
-    $transaction: jest.fn((callback: (tx: unknown) => Promise<unknown>) =>
-      callback(txProxy),
-    ),
-  } as unknown as PrismaService;
+  const transactionRunner: jest.Mocked<IFinanceTransactionRunner> = {
+    run: jest.fn((callback: (tx: unknown) => Promise<unknown>) => callback(txProxy)),
+  } as unknown as jest.Mocked<IFinanceTransactionRunner>;
 
-  return { payoutRepo, recipientRepo, balanceRepo, ledgerRepo, gateway, prismaMock, txProxy };
+  return { payoutRepo, recipientRepo, balanceRepo, ledgerRepo, gateway, transactionRunner, txProxy, logger };
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -161,15 +166,16 @@ describe('CreatePayoutUseCase', () => {
 
   beforeEach(() => {
     mocks = makeMocks();
-    const { payoutRepo, recipientRepo, balanceRepo, ledgerRepo, gateway, prismaMock } = mocks;
+    const { payoutRepo, recipientRepo, balanceRepo, ledgerRepo, gateway, transactionRunner, logger } = mocks;
 
     useCase = new CreatePayoutUseCase(
-      prismaMock,
+      transactionRunner,
       payoutRepo,
       recipientRepo,
       balanceRepo,
       ledgerRepo,
       gateway,
+      logger,
     );
 
     // Default happy-path stubs
@@ -239,64 +245,64 @@ describe('CreatePayoutUseCase', () => {
   });
 
   describe('insufficient balance', () => {
-    it('throws InsufficientBalanceException (422) when available < amount', async () => {
+    it('throws InsufficientBalanceError (422) when available < amount', async () => {
       mocks.balanceRepo.findByOrgForUpdate.mockResolvedValue(
         makeBalance({ availableAmount: 100n }),
       );
 
       await expect(
         useCase.execute({ ...defaultInput, amount: 5000n }),
-      ).rejects.toBeInstanceOf(InsufficientBalanceException);
+      ).rejects.toBeInstanceOf(InsufficientBalanceError);
 
       // Gateway must NOT be called
       expect(mocks.gateway.createPayout).not.toHaveBeenCalled();
     });
 
-    it('InsufficientBalanceException is a 422 UnprocessableEntityException', () => {
-      const err = new InsufficientBalanceException();
-      expect(err).toBeInstanceOf(UnprocessableEntityException);
-      expect(err.getStatus()).toBe(422);
+    it('InsufficientBalanceError has statusHint 422', () => {
+      const err = new InsufficientBalanceError();
+      expect(err).toBeInstanceOf(UnprocessableError);
+      expect(err.statusHint).toBe(422);
     });
   });
 
   describe('recipient not verified', () => {
-    it('throws UnprocessableEntityException when recipient is PENDING_VERIFICATION', async () => {
+    it('throws UnprocessableError when recipient is PENDING_VERIFICATION', async () => {
       mocks.recipientRepo.findByOrg.mockResolvedValue(
         makeRecipient({ status: 'PENDING_VERIFICATION' }),
       );
 
       await expect(useCase.execute(defaultInput)).rejects.toBeInstanceOf(
-        UnprocessableEntityException,
+        UnprocessableError,
       );
 
       // Transaction must not be started
-      expect(mocks.prismaMock.$transaction).not.toHaveBeenCalled();
+      expect(mocks.transactionRunner.run).not.toHaveBeenCalled();
     });
 
-    it('throws UnprocessableEntityException when no recipient exists', async () => {
+    it('throws UnprocessableError when no recipient exists', async () => {
       mocks.recipientRepo.findByOrg.mockResolvedValue(null);
 
       await expect(useCase.execute(defaultInput)).rejects.toBeInstanceOf(
-        UnprocessableEntityException,
+        UnprocessableError,
       );
     });
 
-    it('throws UnprocessableEntityException when recipient has no externalRecipientId', async () => {
+    it('throws UnprocessableError when recipient has no externalRecipientId', async () => {
       mocks.recipientRepo.findByOrg.mockResolvedValue(
         makeRecipient({ status: 'VERIFIED', externalRecipientId: null }),
       );
 
       await expect(useCase.execute(defaultInput)).rejects.toBeInstanceOf(
-        UnprocessableEntityException,
+        UnprocessableError,
       );
     });
   });
 
   describe('balance not found', () => {
-    it('throws NotFoundException when no seller balance exists for org', async () => {
+    it('throws NotFoundError when no seller balance exists for org', async () => {
       mocks.balanceRepo.findByOrgForUpdate.mockResolvedValue(null);
 
-      await expect(useCase.execute(defaultInput)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(useCase.execute(defaultInput)).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 

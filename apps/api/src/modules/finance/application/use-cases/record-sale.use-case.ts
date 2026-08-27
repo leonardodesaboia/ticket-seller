@@ -1,4 +1,3 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   FEE_POLICY_REPOSITORY,
   IFeePolicyRepository,
@@ -17,6 +16,7 @@ import {
 } from '../../domain/ports/seller-balance.repository.port';
 import { OrderPricingSnapshot } from '../../domain/entities/order-pricing-snapshot.entity';
 import { CalculateOrderPricingUseCase } from './calculate-order-pricing.use-case';
+import { LOGGER, ILogger } from '../../../../shared/kernel/logger.port';
 
 export interface RecordSaleInput {
   orderId: string;
@@ -26,20 +26,14 @@ export interface RecordSaleInput {
   tx?: unknown;
 }
 
-@Injectable()
 export class RecordSaleUseCase {
-  private readonly logger = new Logger(RecordSaleUseCase.name);
-
   constructor(
-    @Inject(FEE_POLICY_REPOSITORY)
     private readonly feePolicyRepository: IFeePolicyRepository,
-    @Inject(ORDER_PRICING_SNAPSHOT_REPOSITORY)
     private readonly snapshotRepository: IOrderPricingSnapshotRepository,
-    @Inject(LEDGER_REPOSITORY)
     private readonly ledgerRepository: ILedgerRepository,
-    @Inject(SELLER_BALANCE_REPOSITORY)
     private readonly sellerBalanceRepo: ISellerBalanceRepository,
     private readonly calculateOrderPricing: CalculateOrderPricingUseCase,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(input: RecordSaleInput): Promise<void> {

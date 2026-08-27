@@ -1,13 +1,7 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  OBJECT_STORAGE_PORT,
-  type IObjectStoragePort,
-} from '../../../../shared/ports/object-storage.port';
-import {
-  EVENT_COVER_REPOSITORY,
-  type IEventCoverRepository,
-} from '../../domain/ports/event-cover-repository.port';
+import type { IObjectStoragePort } from '../../../../shared/ports/object-storage.port';
+import type { IEventCoverRepository } from '../../domain/ports/event-cover-repository.port';
 import { DOWNLOAD_URL_EXPIRES_IN_SECONDS } from '../../domain/media.constants';
+import { NotFoundError } from '../../../../shared/kernel/application-errors';
 
 export interface GetEventCoverUrlCommand {
   organizationId: string;
@@ -18,12 +12,9 @@ export interface GetEventCoverUrlResult {
   url: string;
 }
 
-@Injectable()
 export class GetEventCoverUrlUseCase {
   constructor(
-    @Inject(OBJECT_STORAGE_PORT)
     private readonly storage: IObjectStoragePort,
-    @Inject(EVENT_COVER_REPOSITORY)
     private readonly eventCoverRepo: IEventCoverRepository,
   ) {}
 
@@ -33,7 +24,7 @@ export class GetEventCoverUrlUseCase {
     const event = await this.eventCoverRepo.findByOrganization(eventId, organizationId);
 
     if (!event || !event.coverImageKey) {
-      throw new NotFoundException('Event cover image not found');
+      throw new NotFoundError('Event cover image not found');
     }
 
     const url = await this.storage.generateDownloadUrl({

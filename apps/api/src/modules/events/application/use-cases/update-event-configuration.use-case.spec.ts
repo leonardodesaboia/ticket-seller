@@ -12,7 +12,7 @@ import {
 } from '../../domain/event.errors';
 import type { IEventRepository } from '../../domain/ports/event-repository.port';
 import type { IOrganizationAccessPort } from '../../domain/ports/organization-access.port';
-import type { IVenueAccessPort } from '../ports/venue-access.port';
+import type { IVenueAccessPort } from '../../../venues/contracts/venue-access.contract';
 import type { Event } from '../../domain/event.entity';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({

@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
-import { SESSION_REPOSITORY, type ISessionRepository } from '../../domain/ports/session.repository.port';
-import { TOKEN_ISSUER, type ITokenIssuer } from '../../domain/ports/token-issuer.port';
+import { ServiceUnavailableError, UnauthorizedError } from '../../../../shared/kernel/application-errors';
+import { type ILogger } from '../../../../shared/kernel/logger.port';
+import { type ISessionRepository } from '../../domain/ports/session.repository.port';
+import { type ITokenIssuer } from '../../domain/ports/token-issuer.port';
 
 export interface RefreshSessionInput {
   refreshToken: string;
@@ -14,13 +15,11 @@ export interface RefreshSessionOutput {
   refreshToken: string;
 }
 
-@Injectable()
 export class RefreshSessionUseCase {
-  private readonly logger = new Logger(RefreshSessionUseCase.name);
-
   constructor(
-    @Inject(SESSION_REPOSITORY) private readonly sessionRepository: ISessionRepository,
-    @Inject(TOKEN_ISSUER) private readonly tokenIssuer: ITokenIssuer,
+    private readonly sessionRepository: ISessionRepository,
+    private readonly tokenIssuer: ITokenIssuer,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(input: RefreshSessionInput): Promise<RefreshSessionOutput> {
@@ -31,7 +30,7 @@ export class RefreshSessionUseCase {
     const rotated = await this.sessionRepository.rotateByTokenHash(tokenHash);
 
     if (!rotated) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedError('Invalid or expired refresh token');
     }
 
     // Create replacement session. If this fails after the rotation succeeded, the
@@ -51,11 +50,11 @@ export class RefreshSessionUseCase {
         userAgent: input.userAgent,
       });
     } catch (err) {
-      this.logger.error(
-        `Session rotation succeeded for userId=${rotated.userId} but new session creation failed — user locked out`,
-        err,
-      );
-      throw new ServiceUnavailableException('Session refresh temporarily unavailable. Please try again.');
+      this.logger.error({
+        message: `Session rotation succeeded for userId=${rotated.userId} but new session creation failed — user locked out`,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw new ServiceUnavailableError('Session refresh temporarily unavailable. Please try again.');
     }
 
     const accessToken = this.tokenIssuer.issueAccessToken({

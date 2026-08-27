@@ -1,12 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { OrganizationAccessDeniedError } from '../../domain/event.errors';
 import {
-  EVENT_REPOSITORY,
   type IEventRepository,
   type ListEventsResult,
 } from '../../domain/ports/event-repository.port';
 import {
-  ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../domain/ports/organization-access.port';
 
@@ -17,11 +14,10 @@ export interface ListOrganizationEventsQuery {
   limit: number;
 }
 
-@Injectable()
 export class ListOrganizationEventsUseCase {
   constructor(
-    @Inject(EVENT_REPOSITORY) private readonly eventRepository: IEventRepository,
-    @Inject(ORGANIZATION_ACCESS_PORT) private readonly orgAccess: IOrganizationAccessPort,
+    private readonly eventRepository: IEventRepository,
+    private readonly orgAccess: IOrganizationAccessPort,
   ) {}
 
   async execute(query: ListOrganizationEventsQuery): Promise<ListEventsResult> {

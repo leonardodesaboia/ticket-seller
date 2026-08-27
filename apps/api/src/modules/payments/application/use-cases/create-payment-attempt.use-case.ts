@@ -1,21 +1,17 @@
 import * as crypto from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
 import {
-  PAYMENT_GATEWAY_PORT,
   PaymentGatewayPort,
   PaymentMethod,
 } from '../../domain/ports/payment-gateway.port';
 import {
-  PAYMENT_ATTEMPT_REPOSITORY,
   IPaymentAttemptRepository,
 } from '../../domain/ports/payment-attempt-repository.port';
-import { ORDER_ACCESS_PORT, IOrderAccessPort } from '../ports/order-access.port';
+import { IOrderAccessPort } from '../ports/order-access.port';
+import { IPaymentAttemptOperationPort } from '../ports/payment-attempt-operation.port';
 import { PaymentAttempt } from '../../domain/payment-attempt.entity';
 import {
   InvalidReservationTokenForPaymentError,
   OrderExpiredForPaymentError,
-  OrderNotFoundForPaymentError,
   OrderNotPendingPaymentError,
   PaymentAlreadyActiveError,
   PaymentIdempotencyConflictError,
@@ -29,16 +25,12 @@ export interface CreatePaymentAttemptInput {
   paymentMethod: string;
 }
 
-@Injectable()
 export class CreatePaymentAttemptUseCase {
   constructor(
-    @Inject(PAYMENT_GATEWAY_PORT)
     private readonly gateway: PaymentGatewayPort,
-    @Inject(PAYMENT_ATTEMPT_REPOSITORY)
     private readonly attemptRepo: IPaymentAttemptRepository,
-    @Inject(ORDER_ACCESS_PORT)
     private readonly orderAccess: IOrderAccessPort,
-    private readonly prisma: PrismaService,
+    private readonly operation: IPaymentAttemptOperationPort,
   ) {}
 
   async execute(input: CreatePaymentAttemptInput): Promise<PaymentAttempt> {
@@ -60,13 +52,6 @@ export class CreatePaymentAttemptUseCase {
     // Validate token and fetch order
     const order = await this.orderAccess.findOrderWithToken(input.orderId, input.reservationToken);
     if (!order) {
-      // Distinguish between not found and invalid token by checking order existence
-      const orderExists = await this.prisma.$queryRaw<Array<{ exists: boolean }>>`
-        SELECT EXISTS(SELECT 1 FROM orders WHERE id = ${input.orderId}::uuid) AS exists
-      `;
-      if (!orderExists[0]?.exists) {
-        throw new OrderNotFoundForPaymentError(input.orderId);
-      }
       throw new InvalidReservationTokenForPaymentError();
     }
 
@@ -103,7 +88,7 @@ export class CreatePaymentAttemptUseCase {
     const id = crypto.randomUUID();
     let attempt: PaymentAttempt;
     try {
-      attempt = await this.attemptRepo.save({
+      attempt = await this.operation.persistAttemptWithCreatedEvent({
         id,
         organizationId: order.organizationId,
         orderId: input.orderId,
@@ -123,14 +108,6 @@ export class CreatePaymentAttemptUseCase {
       }
       throw err;
     }
-
-    // Outbox: payment.created.v1
-    await this.prisma.$executeRaw`
-      INSERT INTO outbox_events (aggregate_type, aggregate_id, type, version, payload, organization_id)
-      VALUES ('payment_attempt', ${id}, 'payment.created.v1', '1',
-              ${JSON.stringify({ paymentAttemptId: id, orderId: input.orderId, provider: this.gateway.provider })}::jsonb,
-              ${order.organizationId}::uuid)
-    `;
 
     return attempt;
   }

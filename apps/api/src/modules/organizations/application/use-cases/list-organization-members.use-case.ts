@@ -1,8 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
-import {
-  ORGANIZATION_INVITATION_REPOSITORY,
-  type IOrganizationInvitationRepository,
-  type OrganizationMemberRecord,
+import type {
+  IOrganizationInvitationRepository,
+  OrganizationMemberRecord,
 } from '../../domain/ports/organization-invitation-repository.port';
 
 export interface ListOrganizationMembersCommand {
@@ -11,10 +9,8 @@ export interface ListOrganizationMembersCommand {
 
 export type ListOrganizationMembersResult = OrganizationMemberRecord[];
 
-@Injectable()
 export class ListOrganizationMembersUseCase {
   constructor(
-    @Inject(ORGANIZATION_INVITATION_REPOSITORY)
     private readonly repo: IOrganizationInvitationRepository,
   ) {}
 

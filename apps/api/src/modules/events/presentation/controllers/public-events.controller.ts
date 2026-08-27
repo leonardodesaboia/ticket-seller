@@ -10,10 +10,8 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { ListPublicEventsUseCase } from '../../application/use-cases/list-public-events.use-case';
 import { GetPublicEventUseCase } from '../../application/use-cases/get-public-event.use-case';
-import {
-  InvalidCursorError,
-  PublicEventNotFoundError,
-} from '../../application/errors/public-catalog.errors';
+import { PublicEventNotFoundError } from '../../application/errors/public-catalog.errors';
+import { InvalidCursorError } from '../../domain/event.errors';
 import { PublicEventDetailResponse, PublicEventListResponse } from '../dto/public-event.response';
 
 const DEFAULT_LIMIT = 20;

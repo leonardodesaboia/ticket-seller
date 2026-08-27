@@ -1,6 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
-import { CREATE_TICKET_TYPE_OPERATION_PORT } from '../../ports/create-ticket-type-operation.port';
 import type {
   CreateTicketTypeOperationResult,
   ICreateTicketTypeOperationPort,
@@ -11,12 +9,10 @@ import {
   OrganizationAccessDeniedError,
 } from '../../../domain/event.errors';
 import {
-  EVENT_REPOSITORY,
   type IEventRepository,
 } from '../../../domain/ports/event-repository.port';
 import {
   EVENT_CREATOR_ROLES,
-  ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../../domain/ports/organization-access.port';
 
@@ -44,13 +40,11 @@ function hashRequest(command: CreateTicketTypeCommand): string {
   return createHash('sha256').update(payload).digest('hex');
 }
 
-@Injectable()
 export class CreateTicketTypeUseCase {
   constructor(
-    @Inject(CREATE_TICKET_TYPE_OPERATION_PORT)
     private readonly createOperation: ICreateTicketTypeOperationPort,
-    @Inject(EVENT_REPOSITORY) private readonly eventRepository: IEventRepository,
-    @Inject(ORGANIZATION_ACCESS_PORT) private readonly orgAccess: IOrganizationAccessPort,
+    private readonly eventRepository: IEventRepository,
+    private readonly orgAccess: IOrganizationAccessPort,
   ) {}
 
   async execute(command: CreateTicketTypeCommand): Promise<CreateTicketTypeOperationResult> {

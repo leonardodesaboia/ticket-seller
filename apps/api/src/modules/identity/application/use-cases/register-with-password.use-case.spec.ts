@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictError } from '../../../../shared/kernel/application-errors';
 import { RegisterWithPasswordUseCase } from './register-with-password.use-case';
 import type { IPasswordHasher } from '../../domain/ports/password-hasher.port';
 import type { IUserRepository } from '../../domain/ports/user.repository.port';
@@ -62,7 +62,7 @@ describe('RegisterWithPasswordUseCase', () => {
 
     await expect(
       useCase.execute({ email: 'existing@example.com', password: 'password123' }),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toThrow(ConflictError);
 
     expect(mockUserRepository.register).not.toHaveBeenCalled();
   });

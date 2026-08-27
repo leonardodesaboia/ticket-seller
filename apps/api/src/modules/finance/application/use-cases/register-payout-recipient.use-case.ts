@@ -1,20 +1,14 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  PAYOUT_GATEWAY_PORT,
   IPayoutGatewayPort,
 } from '../../domain/ports/payout-gateway.port';
 import {
-  PAYOUT_RECIPIENT_REPOSITORY,
   IPayoutRecipientRepository,
 } from '../../domain/ports/payout-recipient.repository.port';
 import { PayoutRecipient } from '../../domain/entities/payout-recipient.entity';
 
-@Injectable()
 export class RegisterPayoutRecipientUseCase {
   constructor(
-    @Inject(PAYOUT_GATEWAY_PORT)
     private readonly payoutGateway: IPayoutGatewayPort,
-    @Inject(PAYOUT_RECIPIENT_REPOSITORY)
     private readonly payoutRecipientRepo: IPayoutRecipientRepository,
   ) {}
 

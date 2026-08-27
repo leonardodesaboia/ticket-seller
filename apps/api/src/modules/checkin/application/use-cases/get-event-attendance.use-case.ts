@@ -1,6 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  CHECK_IN_REPOSITORY,
   ICheckInRepository,
 } from '../../domain/ports/check-in-repository.port';
 import { EventNotFoundError } from '../../domain/checkin.errors';
@@ -27,10 +25,8 @@ export interface GetEventAttendanceOutput {
   recentCheckIns: RecentCheckIn[];
 }
 
-@Injectable()
 export class GetEventAttendanceUseCase {
   constructor(
-    @Inject(CHECK_IN_REPOSITORY)
     private readonly checkInRepo: ICheckInRepository,
   ) {}
 

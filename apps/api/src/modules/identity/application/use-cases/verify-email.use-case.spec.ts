@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ValidationError } from '../../../../shared/kernel/application-errors';
 import { VerifyEmailUseCase } from './verify-email.use-case';
 import type { IEmailVerificationRepository, EmailVerificationTokenRecord } from '../../domain/ports/email-verification.repository.port';
 
@@ -43,22 +43,22 @@ describe('VerifyEmailUseCase', () => {
     );
   });
 
-  it('throws BadRequestException when token not found', async () => {
+  it('throws ValidationError when token not found', async () => {
     (mockEmailVerificationRepository.findByTokenHash as jest.Mock).mockResolvedValue(null);
     const useCase = makeUseCase();
 
-    await expect(useCase.execute({ token: 'invalid' })).rejects.toThrow(BadRequestException);
+    await expect(useCase.execute({ token: 'invalid' })).rejects.toThrow(ValidationError);
     expect(mockEmailVerificationRepository.markIdentityEmailVerified).not.toHaveBeenCalled();
   });
 
-  it('throws BadRequestException when token is expired', async () => {
+  it('throws ValidationError when token is expired', async () => {
     (mockEmailVerificationRepository.findByTokenHash as jest.Mock).mockResolvedValue({
       ...VALID_TOKEN_RECORD,
       expiresAt: new Date(Date.now() - 1000),
     });
     const useCase = makeUseCase();
 
-    await expect(useCase.execute({ token: 'expired-token' })).rejects.toThrow(BadRequestException);
+    await expect(useCase.execute({ token: 'expired-token' })).rejects.toThrow(ValidationError);
   });
 
   it('succeeds idempotently when token was already used', async () => {

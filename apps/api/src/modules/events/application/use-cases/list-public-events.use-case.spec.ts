@@ -2,7 +2,7 @@ import type {
   IPublicEventQueryPort,
   PublicEventListResult,
 } from '../ports/public-event-query.port';
-import { InvalidCursorError } from '../errors/public-catalog.errors';
+import { InvalidCursorError } from '../../domain/event.errors';
 import { encodePublicCursor } from '../../domain/publication/public-cursor';
 import { ListPublicEventsUseCase } from './list-public-events.use-case';
 

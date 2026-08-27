@@ -1,8 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
-import {
-  ORGANIZATION_INVITATION_REPOSITORY,
-  type IOrganizationInvitationRepository,
-} from '../../domain/ports/organization-invitation-repository.port';
+import type { IOrganizationInvitationRepository } from '../../domain/ports/organization-invitation-repository.port';
 import {
   MemberNotFoundError,
   LastOwnerProtectionError,
@@ -17,10 +13,8 @@ export interface RemoveOrganizationMemberCommand {
   actorUserId: string;
 }
 
-@Injectable()
 export class RemoveOrganizationMemberUseCase {
   constructor(
-    @Inject(ORGANIZATION_INVITATION_REPOSITORY)
     private readonly repo: IOrganizationInvitationRepository,
   ) {}
 

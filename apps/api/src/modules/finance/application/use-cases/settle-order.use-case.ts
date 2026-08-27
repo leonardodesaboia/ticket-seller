@@ -1,9 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../../platform/database/prisma.service';
 import {
-  SELLER_BALANCE_REPOSITORY,
   ISellerBalanceRepository,
 } from '../../domain/ports/seller-balance.repository.port';
+import { ILogger } from '../../../../shared/kernel/logger.port';
+import { IFinanceTransactionRunner } from '../ports/finance-transaction-runner.port';
 
 export interface SettleOrderInput {
   orderId: string;
@@ -12,14 +11,11 @@ export interface SettleOrderInput {
   currency: string;
 }
 
-@Injectable()
 export class SettleOrderUseCase {
-  private readonly logger = new Logger(SettleOrderUseCase.name);
-
   constructor(
-    private readonly prisma: PrismaService,
-    @Inject(SELLER_BALANCE_REPOSITORY)
+    private readonly transactionRunner: IFinanceTransactionRunner,
     private readonly sellerBalanceRepo: ISellerBalanceRepository,
+    private readonly logger: ILogger,
   ) {}
 
   /**
@@ -33,12 +29,14 @@ export class SettleOrderUseCase {
   async execute(input: SettleOrderInput): Promise<boolean> {
     const { orderId, organizationId, sellerNetAmount, currency } = input;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.transactionRunner.run(async (tx) => {
+      const txRaw = tx as { $executeRaw: (...args: unknown[]) => Promise<number> };
+
       // 1. Lock the seller_balance row — prevents concurrent settlement updates for same org
       await this.sellerBalanceRepo.findByOrgForUpdate(organizationId, tx);
 
       // 2. Insert settlement record (idempotent via UNIQUE(order_id))
-      const rowsAffected = await tx.$executeRaw`
+      const rowsAffected = await txRaw.$executeRaw`
         INSERT INTO balance_settlements (order_id, organization_id, seller_net_amount, currency)
         VALUES (${orderId}::uuid, ${organizationId}::uuid, ${sellerNetAmount}, ${currency})
         ON CONFLICT (order_id) DO NOTHING
@@ -54,7 +52,7 @@ export class SettleOrderUseCase {
       // 3. Atomically move pending → available.
       // Guard pending_amount >= sellerNetAmount: if a refund already decremented pending before
       // settlement ran, the balance is already correct and we should not over-decrement.
-      const balanceRows = await tx.$executeRaw`
+      const balanceRows = await txRaw.$executeRaw`
         UPDATE seller_balances
         SET pending_amount   = pending_amount   - ${sellerNetAmount},
             available_amount = available_amount + ${sellerNetAmount},

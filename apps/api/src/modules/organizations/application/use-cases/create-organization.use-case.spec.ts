@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ValidationError } from '../../../../shared/kernel/application-errors';
 import { CreateOrganizationUseCase } from './create-organization.use-case';
 import { SlugAlreadyInUseError } from '../../domain/organization.errors';
 import type { IOrganizationRepository } from '../../domain/ports/organization-repository.port';
@@ -49,22 +49,22 @@ describe('CreateOrganizationUseCase', () => {
     expect(repository.create).not.toHaveBeenCalled();
   });
 
-  it('throws BadRequestException when slug has uppercase letters', async () => {
+  it('throws ValidationError when slug has uppercase letters', async () => {
     await expect(
       useCase.execute({ name: 'Acme', slug: 'ACME', actorId: 'user-1' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
-  it('throws BadRequestException when slug contains spaces', async () => {
+  it('throws ValidationError when slug contains spaces', async () => {
     await expect(
       useCase.execute({ name: 'Acme', slug: 'my org', actorId: 'user-1' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
-  it('throws BadRequestException when slug has leading hyphen', async () => {
+  it('throws ValidationError when slug has leading hyphen', async () => {
     await expect(
       useCase.execute({ name: 'Acme', slug: '-acme', actorId: 'user-1' }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ValidationError);
   });
 
   it('accepts valid slug with hyphens and numbers', async () => {

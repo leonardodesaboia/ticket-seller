@@ -1,13 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  INVENTORY_REPOSITORY,
   type AvailabilityResult,
   type IInventoryRepository,
 } from '../../domain/ports/inventory-repository.port';
 import {
-  PUBLIC_EVENT_QUERY_PORT,
   type IPublicEventQueryPort,
-} from '../../../events/application/ports/public-event-query.port';
+} from '../../../events/contracts/public-event-query.contract';
 
 export interface GetAvailabilityQuery {
   eventSlug: string;
@@ -18,12 +15,9 @@ export interface GetAvailabilityResult {
   items: AvailabilityResult[];
 }
 
-@Injectable()
 export class GetAvailabilityUseCase {
   constructor(
-    @Inject(INVENTORY_REPOSITORY)
     private readonly inventoryRepository: IInventoryRepository,
-    @Inject(PUBLIC_EVENT_QUERY_PORT)
     private readonly publicEventQuery: IPublicEventQueryPort,
   ) {}
 

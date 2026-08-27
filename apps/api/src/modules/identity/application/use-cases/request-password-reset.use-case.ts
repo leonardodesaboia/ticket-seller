@@ -1,18 +1,15 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
-import { PASSWORD_RESET_REPOSITORY, type IPasswordResetRepository } from '../../domain/ports/password-reset.repository.port';
-import { USER_REPOSITORY, type IUserRepository } from '../../domain/ports/user.repository.port';
-import { env } from '../../../../platform/config/env';
+import { type IPasswordResetRepository } from '../../domain/ports/password-reset.repository.port';
+import { type IUserRepository } from '../../domain/ports/user.repository.port';
 
 export interface RequestPasswordResetInput {
   email: string;
 }
 
-@Injectable()
 export class RequestPasswordResetUseCase {
   constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
-    @Inject(PASSWORD_RESET_REPOSITORY) private readonly passwordResetRepository: IPasswordResetRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly passwordResetRepository: IPasswordResetRepository,
   ) {}
 
   async execute(input: RequestPasswordResetInput): Promise<void> {
@@ -31,11 +28,5 @@ export class RequestPasswordResetUseCase {
 
     await this.passwordResetRepository.create({ userId, tokenHash, expiresAt });
 
-    if (env.RESEND_API_KEY) {
-      // Email sending would be handled by a notification worker via outbox
-    } else if (env.NODE_ENV !== 'production') {
-      const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
-      process.stdout.write(`[DEV] Password reset URL for ${normalizedEmail}: ${resetUrl}\n`);
-    }
   }
 }

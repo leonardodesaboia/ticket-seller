@@ -1,27 +1,13 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  OBJECT_STORAGE_PORT,
-  type IObjectStoragePort,
-} from '../../../../shared/ports/object-storage.port';
-import {
-  MEDIA_UPLOAD_REPOSITORY,
-  type IMediaUploadRepository,
-} from '../../domain/ports/media-upload-repository.port';
-import {
-  EVENT_COVER_REPOSITORY,
-  type IEventCoverRepository,
-} from '../../domain/ports/event-cover-repository.port';
+import type { IObjectStoragePort } from '../../../../shared/ports/object-storage.port';
+import type { IMediaUploadRepository } from '../../domain/ports/media-upload-repository.port';
+import type { IEventCoverRepository } from '../../domain/ports/event-cover-repository.port';
 import {
   ALLOWED_CONTENT_TYPES,
   DOWNLOAD_URL_EXPIRES_IN_SECONDS,
   MAX_UPLOAD_SIZE_BYTES,
 } from '../../domain/media.constants';
+import { NotFoundError, ValidationError } from '../../../../shared/kernel/application-errors';
+import type { ILogger } from '../../../../shared/kernel/logger.port';
 
 export interface ConfirmEventCoverUploadCommand {
   organizationId: string;
@@ -34,17 +20,12 @@ export interface ConfirmEventCoverUploadResult {
   url: string;
 }
 
-@Injectable()
 export class ConfirmEventCoverUploadUseCase {
-  private readonly logger = new Logger(ConfirmEventCoverUploadUseCase.name);
-
   constructor(
-    @Inject(OBJECT_STORAGE_PORT)
     private readonly storage: IObjectStoragePort,
-    @Inject(MEDIA_UPLOAD_REPOSITORY)
     private readonly mediaUploadRepo: IMediaUploadRepository,
-    @Inject(EVENT_COVER_REPOSITORY)
     private readonly eventCoverRepo: IEventCoverRepository,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(
@@ -60,17 +41,17 @@ export class ConfirmEventCoverUploadUseCase {
       upload.organizationId !== organizationId ||
       upload.entityId !== eventId
     ) {
-      throw new NotFoundException('Media upload not found or already processed');
+      throw new NotFoundError('Media upload not found or already processed');
     }
 
     const metadata = await this.storage.headObject(key);
     if (!metadata) {
-      throw new BadRequestException('Object not found in storage — upload may have failed');
+      throw new ValidationError('Object not found in storage — upload may have failed');
     }
 
     const normalizedContentType = (metadata.contentType.split(';')[0] ?? '').trim().toLowerCase();
     if (!ALLOWED_CONTENT_TYPES.includes(normalizedContentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
-      throw new BadRequestException(
+      throw new ValidationError(
         `Uploaded file content-type must be one of: ${ALLOWED_CONTENT_TYPES.join(', ')}`,
       );
     }
@@ -81,7 +62,7 @@ export class ConfirmEventCoverUploadUseCase {
       } catch (deleteErr) {
         this.logger.warn(`Failed to delete oversized object key=${key}: ${String(deleteErr)}`);
       }
-      throw new BadRequestException(
+      throw new ValidationError(
         `File size ${metadata.sizeBytes} bytes exceeds maximum of ${MAX_UPLOAD_SIZE_BYTES / 1024 / 1024} MB`,
       );
     }

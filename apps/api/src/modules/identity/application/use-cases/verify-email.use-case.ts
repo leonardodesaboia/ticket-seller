@@ -1,15 +1,13 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { EMAIL_VERIFICATION_REPOSITORY, type IEmailVerificationRepository } from '../../domain/ports/email-verification.repository.port';
+import { ValidationError } from '../../../../shared/kernel/application-errors';
+import { type IEmailVerificationRepository } from '../../domain/ports/email-verification.repository.port';
 
 export interface VerifyEmailInput {
   token: string;
 }
 
-@Injectable()
 export class VerifyEmailUseCase {
   constructor(
-    @Inject(EMAIL_VERIFICATION_REPOSITORY)
     private readonly emailVerificationRepository: IEmailVerificationRepository,
   ) {}
 
@@ -19,7 +17,7 @@ export class VerifyEmailUseCase {
     const record = await this.emailVerificationRepository.findByTokenHash(tokenHash);
 
     if (!record) {
-      throw new BadRequestException('Invalid or expired verification token');
+      throw new ValidationError('Invalid or expired verification token');
     }
 
     if (record.usedAt !== null) {
@@ -28,7 +26,7 @@ export class VerifyEmailUseCase {
     }
 
     if (record.expiresAt <= new Date()) {
-      throw new BadRequestException('Invalid or expired verification token');
+      throw new ValidationError('Invalid or expired verification token');
     }
 
     await this.emailVerificationRepository.markUsed(record.id);

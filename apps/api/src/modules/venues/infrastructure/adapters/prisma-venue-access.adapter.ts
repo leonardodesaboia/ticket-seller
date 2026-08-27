@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   IVenueAccessPort,
   VenueInfo,
-} from '../../../events/application/ports/venue-access.port';
+} from '../../contracts/venue-access.contract';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 
 @Injectable()

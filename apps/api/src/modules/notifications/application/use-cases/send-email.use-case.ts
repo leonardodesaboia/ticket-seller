@@ -1,10 +1,9 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import { EMAIL_PROVIDER, IEmailProvider } from "../../domain/ports/email-provider.port";
+import { IEmailProvider } from "../../domain/ports/email-provider.port";
 import {
   INotificationLogRepository,
-  NOTIFICATION_LOG_REPOSITORY,
   NotificationLogEntry,
 } from "../../domain/ports/notification-log-repository.port";
+import { ILogger } from "../../../../shared/kernel/logger.port";
 
 export interface SendEmailInput {
   organizationId?: string | undefined;
@@ -16,14 +15,11 @@ export interface SendEmailInput {
   outboxEventId?: string | undefined;
 }
 
-@Injectable()
 export class SendEmailUseCase {
-  private readonly logger = new Logger(SendEmailUseCase.name);
-
   constructor(
-    @Inject(EMAIL_PROVIDER) private readonly emailProvider: IEmailProvider,
-    @Inject(NOTIFICATION_LOG_REPOSITORY)
+    private readonly emailProvider: IEmailProvider,
     private readonly notificationLog: INotificationLogRepository,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(input: SendEmailInput): Promise<void> {

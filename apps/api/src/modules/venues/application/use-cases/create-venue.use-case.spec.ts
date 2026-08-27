@@ -1,10 +1,10 @@
 import { CreateVenueUseCase } from './create-venue.use-case';
 import type { IVenueRepository } from '../../domain/ports/venue-repository.port';
-import type { IOrganizationAccessPort } from '../../../events/domain/ports/organization-access.port';
+import type { IOrganizationAccessPort } from '../../../organizations/contracts/organization-access.contract';
 import {
   InsufficientRoleError,
   OrganizationAccessDeniedError,
-} from '../../../events/domain/event.errors';
+} from '../../../organizations/contracts/organization-access.errors';
 import { Venue } from '../../domain/venue.entity';
 
 function makeVenue(overrides: Partial<ConstructorParameters<typeof Venue>[0] extends never ? Record<string, unknown> : object> = {}): Venue {

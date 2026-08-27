@@ -1,18 +1,14 @@
 import * as crypto from 'node:crypto';
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { AdmissionPolicy } from '../../../tickets/domain/admission';
+import { AdmissionPolicy } from '../../../tickets/contracts/admission.contract';
 import {
-  CHECK_IN_REPOSITORY,
   ICheckInRepository,
 } from '../../domain/ports/check-in-repository.port';
 import { CheckInResult } from '../../domain/check-in.entity';
 import {
-  EVENT_ACCESS_FOR_CHECKIN_PORT,
   IEventAccessForCheckInPort,
 } from '../ports/event-access.port';
 import {
-  TICKET_ACCESS_FOR_CHECKIN_PORT,
   ITicketAccessForCheckInPort,
 } from '../ports/ticket-access.port';
 
@@ -31,16 +27,12 @@ export interface PerformCheckInOutput {
   checkedInAt: string | null;
 }
 
-@Injectable()
 export class PerformCheckInUseCase {
   private readonly policy = new AdmissionPolicy();
 
   constructor(
-    @Inject(CHECK_IN_REPOSITORY)
     private readonly checkInRepo: ICheckInRepository,
-    @Inject(EVENT_ACCESS_FOR_CHECKIN_PORT)
     private readonly eventAccess: IEventAccessForCheckInPort,
-    @Inject(TICKET_ACCESS_FOR_CHECKIN_PORT)
     private readonly ticketAccess: ITicketAccessForCheckInPort,
   ) {}
 

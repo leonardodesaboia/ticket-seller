@@ -1,22 +1,19 @@
-import { Inject, Injectable } from '@nestjs/common';
 import type { Venue } from '../../domain/venue.entity';
-import { IVenueRepository, VENUE_REPOSITORY } from '../../domain/ports/venue-repository.port';
+import { IVenueRepository } from '../../domain/ports/venue-repository.port';
 import {
   IOrganizationAccessPort,
-  ORGANIZATION_ACCESS_PORT,
-} from '../../../events/domain/ports/organization-access.port';
-import { OrganizationAccessDeniedError } from '../../../events/domain/event.errors';
+} from '../../../organizations/contracts/organization-access.contract';
+import { OrganizationAccessDeniedError } from '../../../organizations/contracts/organization-access.errors';
 
 export interface ListOrganizationVenuesCommand {
   organizationId: string;
   actorId: string;
 }
 
-@Injectable()
 export class ListOrganizationVenuesUseCase {
   constructor(
-    @Inject(VENUE_REPOSITORY) private readonly venueRepository: IVenueRepository,
-    @Inject(ORGANIZATION_ACCESS_PORT) private readonly orgAccess: IOrganizationAccessPort,
+    private readonly venueRepository: IVenueRepository,
+    private readonly orgAccess: IOrganizationAccessPort,
   ) {}
 
   async execute(command: ListOrganizationVenuesCommand): Promise<Venue[]> {

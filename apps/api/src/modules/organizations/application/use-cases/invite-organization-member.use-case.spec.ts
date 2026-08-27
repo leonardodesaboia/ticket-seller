@@ -1,6 +1,13 @@
 import { InviteOrganizationMemberUseCase, InvalidRoleError, InsufficientRoleToAssignError } from './invite-organization-member.use-case';
 import type { IOrganizationInvitationRepository } from '../../domain/ports/organization-invitation-repository.port';
+import type { ILogger } from '../../../../shared/kernel/logger.port';
 import { OrganizationInvitation } from '../../domain/entities/organization-invitation.entity';
+
+const makeLogger = (): ILogger => ({
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+});
 
 const makeRepo = (): jest.Mocked<IOrganizationInvitationRepository> => ({
   createInvitation: jest.fn(),
@@ -44,7 +51,7 @@ describe('InviteOrganizationMemberUseCase', () => {
 
   beforeEach(() => {
     repo = makeRepo();
-    useCase = new InviteOrganizationMemberUseCase(repo);
+    useCase = new InviteOrganizationMemberUseCase(repo, makeLogger());
   });
 
   it('should create invitation for a non-member email', async () => {

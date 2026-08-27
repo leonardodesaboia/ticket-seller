@@ -1,7 +1,8 @@
-import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { ServiceUnavailableError, UnauthorizedError } from '../../../../shared/kernel/application-errors';
 import { RefreshSessionUseCase } from './refresh-session.use-case';
 import type { ISessionRepository } from '../../domain/ports/session.repository.port';
 import type { ITokenIssuer } from '../../domain/ports/token-issuer.port';
+import type { ILogger } from '../../../../shared/kernel/logger.port';
 
 const mockSessionRepository: ISessionRepository = {
   create: jest.fn().mockResolvedValue({ id: 'session-new' }),
@@ -17,8 +18,14 @@ const mockTokenIssuer: ITokenIssuer = {
   verifyAccessToken: jest.fn(),
 };
 
+const mockLogger: ILogger = {
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+};
+
 function makeUseCase(): RefreshSessionUseCase {
-  return new RefreshSessionUseCase(mockSessionRepository, mockTokenIssuer);
+  return new RefreshSessionUseCase(mockSessionRepository, mockTokenIssuer, mockLogger);
 }
 
 describe('RefreshSessionUseCase', () => {
@@ -47,7 +54,7 @@ describe('RefreshSessionUseCase', () => {
     const useCase = makeUseCase();
 
     await expect(useCase.execute({ refreshToken: 'invalid-token' })).rejects.toThrow(
-      UnauthorizedException,
+      UnauthorizedError,
     );
     expect(mockSessionRepository.create).not.toHaveBeenCalled();
   });
@@ -66,7 +73,7 @@ describe('RefreshSessionUseCase', () => {
     const useCase = makeUseCase();
 
     await expect(useCase.execute({ refreshToken: 'valid-token' })).rejects.toThrow(
-      ServiceUnavailableException,
+      ServiceUnavailableError,
     );
   });
 });

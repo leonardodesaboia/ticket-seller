@@ -1,4 +1,4 @@
-import { HttpException, UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedError, RateLimitError } from '../../../../shared/kernel/application-errors';
 import { AuthenticateWithPasswordUseCase } from './authenticate-with-password.use-case';
 import type { IPasswordHasher } from '../../domain/ports/password-hasher.port';
 import type { ISessionRepository } from '../../domain/ports/session.repository.port';
@@ -112,7 +112,7 @@ describe('AuthenticateWithPasswordUseCase', () => {
 
     await expect(
       useCase.execute({ email: 'unknown@example.com', password: 'wrong', ip: '127.0.0.1' }),
-    ).rejects.toThrow(UnauthorizedException);
+    ).rejects.toThrow(UnauthorizedError);
 
     expect(mockAuthAttemptRepository.record).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'FAILURE' }),
@@ -127,7 +127,7 @@ describe('AuthenticateWithPasswordUseCase', () => {
       .execute({ email: 'user@example.com', password: 'wrong', ip: '127.0.0.1' })
       .catch((e) => e);
 
-    expect(err).toBeInstanceOf(UnauthorizedException);
+    expect(err).toBeInstanceOf(UnauthorizedError);
     expect(err.message).toBe('Invalid credentials');
   });
 
@@ -137,7 +137,7 @@ describe('AuthenticateWithPasswordUseCase', () => {
 
     await expect(
       useCase.execute({ email: 'user@example.com', password: 'any', ip: '127.0.0.1' }),
-    ).rejects.toThrow(HttpException);
+    ).rejects.toThrow(RateLimitError);
   });
 
   it('normalizes email before lookup', async () => {

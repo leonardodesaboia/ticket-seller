@@ -1,10 +1,10 @@
-import { HttpStatus, Inject, Injectable, HttpException, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
-import { PASSWORD_HASHER, type IPasswordHasher } from '../../domain/ports/password-hasher.port';
-import { SESSION_REPOSITORY, type ISessionRepository } from '../../domain/ports/session.repository.port';
-import { TOKEN_ISSUER, type ITokenIssuer } from '../../domain/ports/token-issuer.port';
-import { AUTH_ATTEMPT_REPOSITORY, type IAuthAttemptRepository } from '../../domain/ports/auth-attempt.repository.port';
-import { USER_REPOSITORY, type IUserRepository } from '../../domain/ports/user.repository.port';
+import { RateLimitError, UnauthorizedError } from '../../../../shared/kernel/application-errors';
+import { type IPasswordHasher } from '../../domain/ports/password-hasher.port';
+import { type ISessionRepository } from '../../domain/ports/session.repository.port';
+import { type ITokenIssuer } from '../../domain/ports/token-issuer.port';
+import { type IAuthAttemptRepository } from '../../domain/ports/auth-attempt.repository.port';
+import { type IUserRepository } from '../../domain/ports/user.repository.port';
 
 export interface AuthenticateWithPasswordInput {
   email: string;
@@ -28,14 +28,13 @@ const MAX_FAILURES = 5;
 const WINDOW_MINUTES = 15;
 const GENERIC_ERROR = 'Invalid credentials';
 
-@Injectable()
 export class AuthenticateWithPasswordUseCase {
   constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepository: IUserRepository,
-    @Inject(PASSWORD_HASHER) private readonly hasher: IPasswordHasher,
-    @Inject(SESSION_REPOSITORY) private readonly sessionRepository: ISessionRepository,
-    @Inject(TOKEN_ISSUER) private readonly tokenIssuer: ITokenIssuer,
-    @Inject(AUTH_ATTEMPT_REPOSITORY) private readonly authAttemptRepository: IAuthAttemptRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly hasher: IPasswordHasher,
+    private readonly sessionRepository: ISessionRepository,
+    private readonly tokenIssuer: ITokenIssuer,
+    private readonly authAttemptRepository: IAuthAttemptRepository,
   ) {}
 
   async execute(input: AuthenticateWithPasswordInput): Promise<AuthenticateWithPasswordOutput> {
@@ -54,7 +53,7 @@ export class AuthenticateWithPasswordUseCase {
         ip: input.ip,
         outcome: 'LOCKED',
       });
-      throw new HttpException('Too many failed attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
+      throw new RateLimitError('Too many failed attempts. Try again later.');
     }
 
     const identityWithCredential = await this.userRepository.findIdentityWithCredential(normalizedEmail);
@@ -63,13 +62,13 @@ export class AuthenticateWithPasswordUseCase {
       // Dummy hash to equalize timing and prevent email enumeration via side-channel
       await this.hasher.verify('$argon2id$v=19$m=65536,t=3,p=4$dummy$dummydummydummy', input.password);
       await this.authAttemptRepository.record({ email: normalizedEmail, ip: input.ip, outcome: 'FAILURE' });
-      throw new UnauthorizedException(GENERIC_ERROR);
+      throw new UnauthorizedError(GENERIC_ERROR);
     }
 
     const valid = await this.hasher.verify(identityWithCredential.credentialHash, input.password);
     if (!valid) {
       await this.authAttemptRepository.record({ email: normalizedEmail, ip: input.ip, outcome: 'FAILURE' });
-      throw new UnauthorizedException(GENERIC_ERROR);
+      throw new UnauthorizedError(GENERIC_ERROR);
     }
 
     // Create session

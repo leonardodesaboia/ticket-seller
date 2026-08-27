@@ -1,7 +1,7 @@
 import { GetFinancialSummaryUseCase } from './get-financial-summary.use-case';
 import { ISellerBalanceRepository } from '../../domain/ports/seller-balance.repository.port';
 import { SellerBalance } from '../../domain/entities/seller-balance.entity';
-import { PrismaService } from '../../../../platform/database/prisma.service';
+import { IFinancialSummaryQueryPort, RawFinancialSummary } from '../ports/financial-summary-query.port';
 
 function makeBalance(overrides: Partial<SellerBalance> = {}): SellerBalance {
   return {
@@ -18,21 +18,10 @@ function makeBalance(overrides: Partial<SellerBalance> = {}): SellerBalance {
   };
 }
 
-interface RawSummaryRow {
-  gross_sales: bigint;
-  platform_fees: bigint;
-  refunds: bigint;
-  net_sales: bigint;
-}
-
-interface MockPrisma {
-  $queryRaw: jest.Mock;
-}
-
-function makePrismaWithQueryRaw(rows: RawSummaryRow[]): MockPrisma & PrismaService {
+function makeSummaryQuery(summary: RawFinancialSummary): jest.Mocked<IFinancialSummaryQueryPort> {
   return {
-    $queryRaw: jest.fn().mockResolvedValue(rows),
-  } as unknown as MockPrisma & PrismaService;
+    query: jest.fn().mockResolvedValue(summary),
+  };
 }
 
 function makeBalanceRepo(balance: SellerBalance | null): jest.Mocked<ISellerBalanceRepository> {
@@ -54,15 +43,18 @@ describe('GetFinancialSummaryUseCase', () => {
 
   describe('returns aggregated summary with balance', () => {
     it('aggregates gross_sales, platform_fees, refunds and net_sales from ledger_entries', async () => {
-      const prisma = makePrismaWithQueryRaw([
-        { gross_sales: 50000n, platform_fees: 5000n, refunds: 2000n, net_sales: 43000n },
-      ]);
+      const summaryQuery = makeSummaryQuery({
+        grossSales: 50000n,
+        platformFees: 5000n,
+        refunds: 2000n,
+        netSales: 43000n,
+      });
       const balanceRepo = makeBalanceRepo(makeBalance());
 
-      const useCase = new GetFinancialSummaryUseCase(prisma, balanceRepo);
+      const useCase = new GetFinancialSummaryUseCase(summaryQuery, balanceRepo);
       const result = await useCase.execute({ organizationId: 'org-id', from, to });
 
-      expect((prisma as unknown as MockPrisma).$queryRaw).toHaveBeenCalled();
+      expect(summaryQuery.query).toHaveBeenCalledWith({ organizationId: 'org-id', from, to });
       expect(result.grossSales).toBe('50000');
       expect(result.platformFees).toBe('5000');
       expect(result.refunds).toBe('2000');
@@ -76,10 +68,15 @@ describe('GetFinancialSummaryUseCase', () => {
 
   describe('returns zeroes when no ledger entries', () => {
     it('returns all zeroes when rows is empty', async () => {
-      const prisma = makePrismaWithQueryRaw([]);
+      const summaryQuery = makeSummaryQuery({
+        grossSales: 0n,
+        platformFees: 0n,
+        refunds: 0n,
+        netSales: 0n,
+      });
       const balanceRepo = makeBalanceRepo(null);
 
-      const useCase = new GetFinancialSummaryUseCase(prisma, balanceRepo);
+      const useCase = new GetFinancialSummaryUseCase(summaryQuery, balanceRepo);
       const result = await useCase.execute({ organizationId: 'org-id', from, to });
 
       expect(result.grossSales).toBe('0');

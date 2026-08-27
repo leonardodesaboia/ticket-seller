@@ -1,6 +1,9 @@
 import type { IEmailProvider } from "../../domain/ports/email-provider.port";
 import type { INotificationLogRepository } from "../../domain/ports/notification-log-repository.port";
 import { SendEmailUseCase, SendEmailInput } from "./send-email.use-case";
+import type { ILogger } from "../../../../shared/kernel/logger.port";
+
+const mockLogger: ILogger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 describe("SendEmailUseCase", () => {
   let emailProvider: jest.Mocked<IEmailProvider>;
@@ -14,7 +17,7 @@ describe("SendEmailUseCase", () => {
       hasBeenSentForOutboxEvent: jest.fn().mockResolvedValue(false),
       record: jest.fn().mockResolvedValue(undefined),
     };
-    useCase = new SendEmailUseCase(emailProvider, notificationLog);
+    useCase = new SendEmailUseCase(emailProvider, notificationLog, mockLogger);
   });
 
   const baseInput: SendEmailInput = {

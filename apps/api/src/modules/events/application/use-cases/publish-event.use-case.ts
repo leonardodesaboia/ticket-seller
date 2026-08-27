@@ -1,13 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import {
-  PUBLISH_EVENT_OPERATION_PORT,
   type IPublishEventOperationPort,
   type PublishEventOperationResult,
 } from '../ports/publish-event-operation.port';
 import {
   EVENT_CREATOR_ROLES,
-  ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../domain/ports/organization-access.port';
 import { InsufficientRoleError, OrganizationAccessDeniedError } from '../../domain/event.errors';
@@ -32,12 +29,9 @@ function hashRequest(command: PublishEventCommand): string {
   return createHash('sha256').update(payload).digest('hex');
 }
 
-@Injectable()
 export class PublishEventUseCase {
   constructor(
-    @Inject(PUBLISH_EVENT_OPERATION_PORT)
     private readonly publishOperation: IPublishEventOperationPort,
-    @Inject(ORGANIZATION_ACCESS_PORT)
     private readonly orgAccess: IOrganizationAccessPort,
   ) {}
 

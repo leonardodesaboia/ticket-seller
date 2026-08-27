@@ -4,6 +4,8 @@ import type { ILedgerRepository } from '../../domain/ports/ledger.repository.por
 import type { ISellerBalanceRepository } from '../../domain/ports/seller-balance.repository.port';
 import type { OrderPricingSnapshot } from '../../domain/entities/order-pricing-snapshot.entity';
 import type { LedgerAccount } from '../../domain/entities/ledger-account.entity';
+import type { IOrderSettlementQueryPort } from '../ports/order-settlement-query.port';
+import type { ILogger } from '../../../../shared/kernel/logger.port';
 
 function makeSnapshot(overrides: Partial<OrderPricingSnapshot> = {}): OrderPricingSnapshot {
   return {
@@ -49,8 +51,14 @@ const makeSellerBalanceRepo = (): jest.Mocked<ISellerBalanceRepository> => ({
   decrementReserved: jest.fn(),
 });
 
-function makePrisma(isSettled: boolean) {
-  return { $queryRaw: jest.fn().mockResolvedValue([{ count: isSettled ? 1n : 0n }]) } as any;
+const makeLogger = (): jest.Mocked<ILogger> => ({
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+});
+
+function makeOrderSettlementQuery(isSettled: boolean): jest.Mocked<IOrderSettlementQueryPort> {
+  return { isOrderSettled: jest.fn().mockResolvedValue(isSettled) };
 }
 
 describe('RecordRefundUseCase', () => {
@@ -63,14 +71,14 @@ describe('RecordRefundUseCase', () => {
   let sellerBalanceRepo: jest.Mocked<ISellerBalanceRepository>;
 
   function buildUseCase(isSettled = false) {
-    const prisma = makePrisma(isSettled);
+    const orderSettlementQuery = makeOrderSettlementQuery(isSettled);
     ledgerRepo.findAccountByCode.mockImplementation(async (code) => {
       if (code === 'PLATFORM_CLEARING') return clearingAccount;
       if (code === 'PLATFORM_REVENUE') return revenueAccount;
       return null;
     });
     ledgerRepo.findOrCreateOrgAccount.mockResolvedValue(payableAccount);
-    return new RecordRefundUseCase(snapshotRepo, ledgerRepo, sellerBalanceRepo, prisma);
+    return new RecordRefundUseCase(snapshotRepo, ledgerRepo, sellerBalanceRepo, orderSettlementQuery, makeLogger());
   }
 
   beforeEach(() => {

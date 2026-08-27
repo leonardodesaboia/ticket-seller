@@ -1,15 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
 import type { TicketType } from '../../../domain/ticket-types/ticket-type.entity';
 import {
   ITicketTypeRepository,
-  TICKET_TYPE_REPOSITORY,
 } from '../../../domain/ticket-types/ticket-type-repository.port';
 import {
-  EVENT_REPOSITORY,
   type IEventRepository,
 } from '../../../domain/ports/event-repository.port';
 import {
-  ORGANIZATION_ACCESS_PORT,
   type IOrganizationAccessPort,
 } from '../../../domain/ports/organization-access.port';
 import {
@@ -23,12 +19,11 @@ export interface ListEventTicketTypesCommand {
   actorId: string;
 }
 
-@Injectable()
 export class ListEventTicketTypesUseCase {
   constructor(
-    @Inject(TICKET_TYPE_REPOSITORY) private readonly ticketTypeRepository: ITicketTypeRepository,
-    @Inject(EVENT_REPOSITORY) private readonly eventRepository: IEventRepository,
-    @Inject(ORGANIZATION_ACCESS_PORT) private readonly orgAccess: IOrganizationAccessPort,
+    private readonly ticketTypeRepository: ITicketTypeRepository,
+    private readonly eventRepository: IEventRepository,
+    private readonly orgAccess: IOrganizationAccessPort,
   ) {}
 
   async execute(command: ListEventTicketTypesCommand): Promise<TicketType[]> {

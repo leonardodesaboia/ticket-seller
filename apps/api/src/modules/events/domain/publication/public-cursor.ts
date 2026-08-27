@@ -1,4 +1,4 @@
-import { InvalidCursorError } from '../../application/errors/public-catalog.errors';
+import { InvalidCursorError } from '../event.errors';
 
 export interface PublicEventCursor {
   startsAt: Date;
