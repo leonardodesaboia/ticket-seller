@@ -3,7 +3,7 @@ import { PrismaService } from '../../../../platform/database/prisma.service';
 import type {
   IOrganizationAccessPort,
   OrganizationMemberInfo,
-} from '../../domain/ports/organization-access.port';
+} from '../../contracts/organization-access.contract';
 
 @Injectable()
 export class PrismaOrganizationAccessAdapter implements IOrganizationAccessPort {
