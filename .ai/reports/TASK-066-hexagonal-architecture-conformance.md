@@ -285,9 +285,13 @@ Também foi removida a consulta global de existência de pedido no endpoint púb
 | `bash .ai/scripts/validate-architecture.sh apps/api/src` | PASS |
 | `git diff --check` | PASS |
 
+> **Corrigendum (2026-08-27, sessão 13):** a afirmação "521 testes PASS" acima foi prematura. Dois fixtures de teste em `prisma-payment-webhook-operation.adapter.spec.ts` e `prisma-payment-chargeback-operation.adapter.spec.ts` testavam skip-em-qualquer-duplicata, enquanto os adapters implementam corretamente retry-on-unfinished (skip apenas quando o evento está finalizado). Os fixtures foram corrigidos sem alterar a lógica dos adapters. 521/521 testes confirmados verdes após a correção.
+
 ## Próxima fase
 
-**Fase 4** (workers/scheduler): **Bloqueada** — aguarda ADR aprovada sobre entrypoints, locks, retry/DLQ e observabilidade.
+**Fase 4** (workers/scheduler): **Aguardando aprovação de ADR** — rascunho em `docs/decisions/ADR-010-workers-scheduler-colocation.md` (status PROPOSED). Decisões cobertas: co-localização no processo HTTP para MVP (`docker-compose.prod.yml` confirma réplica única), `FOR UPDATE SKIP LOCKED` como mecanismo de exatamente-uma-execução para `OutboxNotificationWorker` e `ReconciliationWorker`, política de retry/DLQ por logging+idempotência, observabilidade via logs estruturados.
+
+> **Correção de framing (sessão 14):** o texto anterior classificava "adicionar `FOR UPDATE SKIP LOCKED` ao `SettlementWorker.fetchEligibleOrders`" como requisito de corretude antes de escalar. Está incorreto: a corretude com múltiplas réplicas já é garantida por `ON CONFLICT (order_id) DO NOTHING` + `SELECT FOR UPDATE on seller_balance` dentro de `settle-order.use-case`. SKIP LOCKED no fetch de elegíveis é uma **otimização de eficiência** (elimina buscas duplicadas) mas não um gate de corretude — sem ele, duas réplicas desperdiçam trabalho, não corrompem dados.
 
 ---
 
