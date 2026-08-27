@@ -1,35 +1,24 @@
-import { Test } from '@nestjs/testing';
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { SuspendUserUseCase } from './suspend-user.use-case';
-import {
-  ADMIN_USER_REPOSITORY,
-  IAdminUserRepository,
-} from '../../domain/ports/admin-user-repository.port';
+import { NotFoundError, UnprocessableError } from '../../../../shared/kernel/application-errors';
+import { IAdminUserRepository } from '../../domain/ports/admin-user-repository.port';
 import { PlatformRole } from '../../../../shared/kernel/platform-role';
+import { SuspendUserUseCase } from './suspend-user.use-case';
+
+const makeLogger = () => ({ log: jest.fn(), warn: jest.fn(), error: jest.fn() });
 
 describe('SuspendUserUseCase', () => {
   let useCase: SuspendUserUseCase;
   let userRepo: jest.Mocked<IAdminUserRepository>;
 
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({
-      providers: [
-        SuspendUserUseCase,
-        {
-          provide: ADMIN_USER_REPOSITORY,
-          useValue: {
-            findById: jest.fn(),
-            findAll: jest.fn(),
-            suspend: jest.fn(),
-            unsuspend: jest.fn(),
-            revokeAllSessions: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    userRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      suspend: jest.fn(),
+      unsuspend: jest.fn(),
+      revokeAllSessions: jest.fn(),
+    } as unknown as jest.Mocked<IAdminUserRepository>;
 
-    useCase = module.get(SuspendUserUseCase);
-    userRepo = module.get(ADMIN_USER_REPOSITORY) as jest.Mocked<IAdminUserRepository>;
+    useCase = new SuspendUserUseCase(userRepo, makeLogger());
   });
 
   it('should suspend a regular user and revoke their sessions', async () => {
@@ -58,7 +47,7 @@ describe('SuspendUserUseCase', () => {
         userId: 'admin-1',
         reason: 'Self suspension',
       }),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toThrow(UnprocessableError);
 
     expect(userRepo.suspend).not.toHaveBeenCalled();
   });
@@ -68,7 +57,7 @@ describe('SuspendUserUseCase', () => {
 
     await expect(
       useCase.execute({ actorId: 'admin-1', userId: 'ghost-user', reason: 'Test' }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
 
     expect(userRepo.suspend).not.toHaveBeenCalled();
   });
@@ -82,7 +71,7 @@ describe('SuspendUserUseCase', () => {
 
     await expect(
       useCase.execute({ actorId: 'admin-1', userId: 'admin-2', reason: 'Test' }),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toThrow(UnprocessableError);
 
     expect(userRepo.suspend).not.toHaveBeenCalled();
   });
@@ -96,7 +85,7 @@ describe('SuspendUserUseCase', () => {
 
     await expect(
       useCase.execute({ actorId: 'admin-1', userId: 'support-1', reason: 'Test' }),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toThrow(UnprocessableError);
 
     expect(userRepo.suspend).not.toHaveBeenCalled();
   });

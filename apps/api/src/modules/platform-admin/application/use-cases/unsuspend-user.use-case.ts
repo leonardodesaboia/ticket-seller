@@ -1,6 +1,6 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../../shared/kernel/application-errors';
+import { ILogger } from '../../../../shared/kernel/logger.port';
 import {
-  ADMIN_USER_REPOSITORY,
   IAdminUserRepository,
 } from '../../domain/ports/admin-user-repository.port';
 
@@ -10,18 +10,15 @@ export interface UnsuspendUserCommand {
   reason: string;
 }
 
-@Injectable()
 export class UnsuspendUserUseCase {
-  private readonly logger = new Logger(UnsuspendUserUseCase.name);
-
   constructor(
-    @Inject(ADMIN_USER_REPOSITORY)
     private readonly userRepo: IAdminUserRepository,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(command: UnsuspendUserCommand): Promise<void> {
     const user = await this.userRepo.findById(command.userId);
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundError('User not found');
 
     if (user.suspendedAt === null) {
       this.logger.log({

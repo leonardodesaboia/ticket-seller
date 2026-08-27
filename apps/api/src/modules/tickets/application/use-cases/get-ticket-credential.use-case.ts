@@ -1,23 +1,16 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  TICKET_CREDENTIAL_REPOSITORY,
   ITicketCredentialRepository,
 } from '../../domain/ports/ticket-credential-repository.port';
 import {
-  TICKET_ORDER_ACCESS_PORT,
   ITicketOrderAccessPort,
 } from '../ports/ticket-order-access.port';
-import { TICKET_REPOSITORY, ITicketRepository } from '../../domain/ports/ticket-repository.port';
+import { ITicketRepository } from '../../domain/ports/ticket-repository.port';
 import { TicketInvalidTokenError } from '../../domain/ticket.errors';
 
-@Injectable()
 export class GetTicketCredentialUseCase {
   constructor(
-    @Inject(TICKET_CREDENTIAL_REPOSITORY)
     private readonly credentialRepo: ITicketCredentialRepository,
-    @Inject(TICKET_ORDER_ACCESS_PORT)
     private readonly orderAccess: ITicketOrderAccessPort,
-    @Inject(TICKET_REPOSITORY)
     private readonly ticketRepo: ITicketRepository,
   ) {}
 

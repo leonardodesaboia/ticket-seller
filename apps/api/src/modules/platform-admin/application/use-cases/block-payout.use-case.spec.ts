@@ -1,31 +1,20 @@
-import { Test } from '@nestjs/testing';
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { NotFoundError, UnprocessableError } from '../../../../shared/kernel/application-errors';
+import { IAdminPayoutRepository } from '../../domain/ports/admin-payout-repository.port';
 import { BlockPayoutUseCase } from './block-payout.use-case';
-import {
-  ADMIN_PAYOUT_REPOSITORY,
-  IAdminPayoutRepository,
-} from '../../domain/ports/admin-payout-repository.port';
+
+const makeLogger = () => ({ log: jest.fn(), warn: jest.fn(), error: jest.fn() });
 
 describe('BlockPayoutUseCase', () => {
   let useCase: BlockPayoutUseCase;
   let payoutRepo: jest.Mocked<IAdminPayoutRepository>;
 
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({
-      providers: [
-        BlockPayoutUseCase,
-        {
-          provide: ADMIN_PAYOUT_REPOSITORY,
-          useValue: {
-            findById: jest.fn(),
-            blockIfBlockable: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    payoutRepo = {
+      findById: jest.fn(),
+      blockIfBlockable: jest.fn(),
+    } as unknown as jest.Mocked<IAdminPayoutRepository>;
 
-    useCase = module.get(BlockPayoutUseCase);
-    payoutRepo = module.get(ADMIN_PAYOUT_REPOSITORY) as jest.Mocked<IAdminPayoutRepository>;
+    useCase = new BlockPayoutUseCase(payoutRepo, makeLogger());
   });
 
   it('should block a SCHEDULED payout', async () => {
@@ -63,7 +52,7 @@ describe('BlockPayoutUseCase', () => {
         payoutId: 'payout-3',
         reason: 'Too late',
       }),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toThrow(UnprocessableError);
 
     expect(payoutRepo.blockIfBlockable).not.toHaveBeenCalled();
   });
@@ -78,7 +67,7 @@ describe('BlockPayoutUseCase', () => {
         payoutId: 'payout-6',
         reason: 'Race condition',
       }),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toThrow(UnprocessableError);
   });
 
   it('should throw 404 when payout is not found', async () => {
@@ -90,7 +79,7 @@ describe('BlockPayoutUseCase', () => {
         payoutId: 'payout-404',
         reason: 'Not found',
       }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
   });
 
   it('should throw 422 when payout is BLOCKED already', async () => {
@@ -102,6 +91,6 @@ describe('BlockPayoutUseCase', () => {
         payoutId: 'payout-5',
         reason: 'Already blocked',
       }),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toThrow(UnprocessableError);
   });
 });

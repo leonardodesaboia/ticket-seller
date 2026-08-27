@@ -1,6 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  ADMIN_ORGANIZATION_REPOSITORY,
   IAdminOrganizationRepository,
 } from '../../domain/ports/admin-organization-repository.port';
 
@@ -41,10 +39,8 @@ function encodeCursor(id: string, createdAt: Date): string {
   return Buffer.from(JSON.stringify({ id, createdAt: createdAt.toISOString() })).toString('base64');
 }
 
-@Injectable()
 export class ListAdminOrganizationsUseCase {
   constructor(
-    @Inject(ADMIN_ORGANIZATION_REPOSITORY)
     private readonly orgRepo: IAdminOrganizationRepository,
   ) {}
 

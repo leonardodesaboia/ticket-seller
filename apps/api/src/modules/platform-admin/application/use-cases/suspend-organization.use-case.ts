@@ -1,6 +1,6 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../../shared/kernel/application-errors';
+import { ILogger } from '../../../../shared/kernel/logger.port';
 import {
-  ADMIN_ORGANIZATION_REPOSITORY,
   IAdminOrganizationRepository,
 } from '../../domain/ports/admin-organization-repository.port';
 
@@ -10,19 +10,16 @@ export interface SuspendOrganizationCommand {
   reason: string;
 }
 
-@Injectable()
 export class SuspendOrganizationUseCase {
-  private readonly logger = new Logger(SuspendOrganizationUseCase.name);
-
   constructor(
-    @Inject(ADMIN_ORGANIZATION_REPOSITORY)
     private readonly orgRepo: IAdminOrganizationRepository,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(command: SuspendOrganizationCommand): Promise<void> {
     const org = await this.orgRepo.findById(command.organizationId);
 
-    if (!org) throw new NotFoundException('Organization not found');
+    if (!org) throw new NotFoundError('Organization not found');
 
     // Idempotent: if already suspended, return early
     if (org.suspendedAt) {

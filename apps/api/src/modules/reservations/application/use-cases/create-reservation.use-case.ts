@@ -1,7 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  RESERVATION_REPOSITORY,
   type IReservationRepository,
   type ReservationItemInput,
   type ReservationView,
@@ -25,10 +23,9 @@ function hashPayload(command: CreateReservationCommand): string {
   return createHash('sha256').update(JSON.stringify({ eventSlug: command.eventSlug, items })).digest('hex');
 }
 
-@Injectable()
 export class CreateReservationUseCase {
   constructor(
-    @Inject(RESERVATION_REPOSITORY) private readonly repository: IReservationRepository,
+    private readonly repository: IReservationRepository,
   ) {}
 
   async execute(command: CreateReservationCommand): Promise<CreateReservationResult> {

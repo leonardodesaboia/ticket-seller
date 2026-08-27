@@ -1,14 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  TICKET_TRANSFER_REPOSITORY,
   ITicketTransferRepository,
 } from '../../domain/ports/ticket-transfer-repository.port';
 import {
-  TICKET_ORDER_ACCESS_PORT,
   ITicketOrderAccessPort,
 } from '../ports/ticket-order-access.port';
 import {
-  TICKET_REPOSITORY,
   ITicketRepository,
 } from '../../domain/ports/ticket-repository.port';
 import { TicketInvalidTokenError } from '../../domain/ticket.errors';
@@ -20,14 +16,10 @@ export interface CancelTransferInput {
   reservationToken: string;
 }
 
-@Injectable()
 export class CancelTransferUseCase {
   constructor(
-    @Inject(TICKET_TRANSFER_REPOSITORY)
     private readonly transferRepo: ITicketTransferRepository,
-    @Inject(TICKET_ORDER_ACCESS_PORT)
     private readonly orderAccess: ITicketOrderAccessPort,
-    @Inject(TICKET_REPOSITORY)
     private readonly ticketRepo: ITicketRepository,
   ) {}
 

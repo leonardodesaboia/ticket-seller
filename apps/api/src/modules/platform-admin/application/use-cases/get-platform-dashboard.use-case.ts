@@ -1,6 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  ADMIN_DASHBOARD_REPOSITORY,
   IAdminDashboardRepository,
 } from '../../domain/ports/admin-dashboard-repository.port';
 
@@ -14,10 +12,8 @@ export interface PlatformDashboard {
   suspendedOrganizations: number;
 }
 
-@Injectable()
 export class GetPlatformDashboardUseCase {
   constructor(
-    @Inject(ADMIN_DASHBOARD_REPOSITORY)
     private readonly dashboardRepo: IAdminDashboardRepository,
   ) {}
 

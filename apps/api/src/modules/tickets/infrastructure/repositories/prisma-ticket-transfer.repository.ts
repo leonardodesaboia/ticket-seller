@@ -6,7 +6,6 @@ import {
   AcceptAtomicParams,
   CreateTransferData,
   ITicketTransferRepository,
-  PrismaTransactionClient,
 } from '../../domain/ports/ticket-transfer-repository.port';
 import { TransferAlreadyAcceptedError, TicketAlreadyAdmittedError, TransferExpiredError } from '../../domain/ticket-transfer.errors';
 
@@ -90,9 +89,8 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
     }
   }
 
-  async accept(id: string, tx?: PrismaTransactionClient): Promise<void> {
-    const client = tx ?? this.prisma;
-    await client.$executeRaw`
+  async accept(id: string): Promise<void> {
+    await this.prisma.$executeRaw`
       UPDATE ticket_transfers
       SET status = 'ACCEPTED', accepted_at = NOW(), updated_at = NOW()
       WHERE id = ${id}::uuid

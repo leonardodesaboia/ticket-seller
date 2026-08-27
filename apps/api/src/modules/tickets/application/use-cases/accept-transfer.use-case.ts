@@ -1,7 +1,5 @@
 import * as crypto from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
 import {
-  TICKET_TRANSFER_REPOSITORY,
   ITicketTransferRepository,
   AcceptAtomicParams,
 } from '../../domain/ports/ticket-transfer-repository.port';
@@ -19,10 +17,8 @@ export interface AcceptTransferResult {
   newCredentialToken: string;
 }
 
-@Injectable()
 export class AcceptTransferUseCase {
   constructor(
-    @Inject(TICKET_TRANSFER_REPOSITORY)
     private readonly transferRepo: ITicketTransferRepository,
   ) {}
 

@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '../../platform/http/http.module';
 import { PlatformRoleGuard } from '../../platform/http/guards/platform-role.guard';
+import { NestLoggerAdapter } from '../../platform/observability/nest-logger.adapter';
 import { AdminController } from './presentation/controllers/admin.controller';
 
 // Domain ports
-import { ADMIN_USER_REPOSITORY } from './domain/ports/admin-user-repository.port';
-import { ADMIN_ORGANIZATION_REPOSITORY } from './domain/ports/admin-organization-repository.port';
-import { ADMIN_PAYOUT_REPOSITORY } from './domain/ports/admin-payout-repository.port';
-import { ADMIN_DASHBOARD_REPOSITORY } from './domain/ports/admin-dashboard-repository.port';
+import { ADMIN_USER_REPOSITORY, IAdminUserRepository } from './domain/ports/admin-user-repository.port';
+import { ADMIN_ORGANIZATION_REPOSITORY, IAdminOrganizationRepository } from './domain/ports/admin-organization-repository.port';
+import { ADMIN_PAYOUT_REPOSITORY, IAdminPayoutRepository } from './domain/ports/admin-payout-repository.port';
+import { ADMIN_DASHBOARD_REPOSITORY, IAdminDashboardRepository } from './domain/ports/admin-dashboard-repository.port';
 
 // Infrastructure repositories (adapters)
 import { PrismaAdminUserRepository } from './infrastructure/repositories/prisma-admin-user.repository';
@@ -43,15 +44,55 @@ import { BlockPayoutUseCase } from './application/use-cases/block-payout.use-cas
     { provide: ADMIN_PAYOUT_REPOSITORY, useExisting: PrismaAdminPayoutRepository },
     { provide: ADMIN_DASHBOARD_REPOSITORY, useExisting: PrismaAdminDashboardRepository },
 
-    // Application use cases
-    GetPlatformDashboardUseCase,
-    ListAdminOrganizationsUseCase,
-    ListAdminUsersUseCase,
-    SuspendOrganizationUseCase,
-    UnsuspendOrganizationUseCase,
-    SuspendUserUseCase,
-    UnsuspendUserUseCase,
-    BlockPayoutUseCase,
+    // Application use cases — plain factories (no NestJS DI decorators in use cases)
+    {
+      provide: GetPlatformDashboardUseCase,
+      useFactory: (dashboardRepo: IAdminDashboardRepository) =>
+        new GetPlatformDashboardUseCase(dashboardRepo),
+      inject: [ADMIN_DASHBOARD_REPOSITORY],
+    },
+    {
+      provide: ListAdminOrganizationsUseCase,
+      useFactory: (orgRepo: IAdminOrganizationRepository) =>
+        new ListAdminOrganizationsUseCase(orgRepo),
+      inject: [ADMIN_ORGANIZATION_REPOSITORY],
+    },
+    {
+      provide: ListAdminUsersUseCase,
+      useFactory: (userRepo: IAdminUserRepository) =>
+        new ListAdminUsersUseCase(userRepo),
+      inject: [ADMIN_USER_REPOSITORY],
+    },
+    {
+      provide: SuspendOrganizationUseCase,
+      useFactory: (orgRepo: IAdminOrganizationRepository) =>
+        new SuspendOrganizationUseCase(orgRepo, new NestLoggerAdapter('SuspendOrganizationUseCase')),
+      inject: [ADMIN_ORGANIZATION_REPOSITORY],
+    },
+    {
+      provide: UnsuspendOrganizationUseCase,
+      useFactory: (orgRepo: IAdminOrganizationRepository) =>
+        new UnsuspendOrganizationUseCase(orgRepo, new NestLoggerAdapter('UnsuspendOrganizationUseCase')),
+      inject: [ADMIN_ORGANIZATION_REPOSITORY],
+    },
+    {
+      provide: SuspendUserUseCase,
+      useFactory: (userRepo: IAdminUserRepository) =>
+        new SuspendUserUseCase(userRepo, new NestLoggerAdapter('SuspendUserUseCase')),
+      inject: [ADMIN_USER_REPOSITORY],
+    },
+    {
+      provide: UnsuspendUserUseCase,
+      useFactory: (userRepo: IAdminUserRepository) =>
+        new UnsuspendUserUseCase(userRepo, new NestLoggerAdapter('UnsuspendUserUseCase')),
+      inject: [ADMIN_USER_REPOSITORY],
+    },
+    {
+      provide: BlockPayoutUseCase,
+      useFactory: (payoutRepo: IAdminPayoutRepository) =>
+        new BlockPayoutUseCase(payoutRepo, new NestLoggerAdapter('BlockPayoutUseCase')),
+      inject: [ADMIN_PAYOUT_REPOSITORY],
+    },
   ],
 })
 export class PlatformAdminModule {}

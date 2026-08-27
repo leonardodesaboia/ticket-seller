@@ -1,6 +1,6 @@
-import { Inject, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { NotFoundError, UnprocessableError } from '../../../../shared/kernel/application-errors';
+import { ILogger } from '../../../../shared/kernel/logger.port';
 import {
-  ADMIN_USER_REPOSITORY,
   IAdminUserRepository,
 } from '../../domain/ports/admin-user-repository.port';
 
@@ -10,28 +10,25 @@ export interface SuspendUserCommand {
   reason: string;
 }
 
-@Injectable()
 export class SuspendUserUseCase {
-  private readonly logger = new Logger(SuspendUserUseCase.name);
-
   constructor(
-    @Inject(ADMIN_USER_REPOSITORY)
     private readonly userRepo: IAdminUserRepository,
+    private readonly logger: ILogger,
   ) {}
 
   async execute(command: SuspendUserCommand): Promise<void> {
     if (command.actorId === command.userId) {
-      throw new UnprocessableEntityException('Cannot suspend your own account');
+      throw new UnprocessableError('Cannot suspend your own account');
     }
 
     const target = await this.userRepo.findById(command.userId);
 
     if (!target) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundError('User not found');
     }
 
     if (target.platformRole !== null) {
-      throw new UnprocessableEntityException('Cannot suspend a platform admin account');
+      throw new UnprocessableError('Cannot suspend a platform admin account');
     }
 
     // Idempotent: already suspended

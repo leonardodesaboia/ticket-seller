@@ -1,10 +1,8 @@
-import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../../shared/kernel/application-errors';
+import { IAdminOrganizationRepository } from '../../domain/ports/admin-organization-repository.port';
 import { SuspendOrganizationUseCase } from './suspend-organization.use-case';
-import {
-  ADMIN_ORGANIZATION_REPOSITORY,
-  IAdminOrganizationRepository,
-} from '../../domain/ports/admin-organization-repository.port';
+
+const makeLogger = () => ({ log: jest.fn(), warn: jest.fn(), error: jest.fn() });
 
 describe('SuspendOrganizationUseCase', () => {
   let useCase: SuspendOrganizationUseCase;
@@ -12,25 +10,16 @@ describe('SuspendOrganizationUseCase', () => {
 
   const mockOrg = { id: 'org-1', suspendedAt: null };
 
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({
-      providers: [
-        SuspendOrganizationUseCase,
-        {
-          provide: ADMIN_ORGANIZATION_REPOSITORY,
-          useValue: {
-            findById: jest.fn(),
-            findAll: jest.fn(),
-            suspend: jest.fn(),
-            unsuspend: jest.fn(),
-            revokeMemberSessions: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    orgRepo = {
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      suspend: jest.fn(),
+      unsuspend: jest.fn(),
+      revokeMemberSessions: jest.fn(),
+    } as unknown as jest.Mocked<IAdminOrganizationRepository>;
 
-    useCase = module.get(SuspendOrganizationUseCase);
-    orgRepo = module.get(ADMIN_ORGANIZATION_REPOSITORY) as jest.Mocked<IAdminOrganizationRepository>;
+    useCase = new SuspendOrganizationUseCase(orgRepo, makeLogger());
   });
 
   it('should suspend an active organization and revoke member sessions', async () => {
@@ -66,6 +55,6 @@ describe('SuspendOrganizationUseCase', () => {
 
     await expect(
       useCase.execute({ actorId: 'admin-1', organizationId: 'missing-org', reason: 'Test' }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
   });
 });

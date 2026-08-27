@@ -1,7 +1,6 @@
 import * as crypto from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { TICKET_REPOSITORY, ITicketRepository } from '../../domain/ports/ticket-repository.port';
-import { ORDER_ITEMS_ACCESS_PORT, IOrderItemsAccessPort } from '../ports/order-items-access.port';
+import { ITicketRepository } from '../../domain/ports/ticket-repository.port';
+import { IOrderItemsAccessPort } from '../ports/order-items-access.port';
 import { Ticket } from '../../domain/ticket.entity';
 
 export interface IssueTicketsInput {
@@ -11,12 +10,9 @@ export interface IssueTicketsInput {
   items: Array<{ orderItemId: string; ticketTypeId: string; quantity: number }>;
 }
 
-@Injectable()
 export class IssueTicketsUseCase {
   constructor(
-    @Inject(TICKET_REPOSITORY)
     private readonly ticketRepo: ITicketRepository,
-    @Inject(ORDER_ITEMS_ACCESS_PORT)
     private readonly orderItemsAccess: IOrderItemsAccessPort,
   ) {}
 
