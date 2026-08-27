@@ -83,7 +83,16 @@ describe('ProcessPaymentWebhookUseCase', () => {
 
   it('does not process when webhook was already inserted (ON CONFLICT returns 0)', async () => {
     (gateway.parseWebhook as jest.Mock).mockResolvedValueOnce(parsed);
-    const prisma = makePrisma({ $executeRaw: jest.fn().mockResolvedValue(0) });
+    // The adapter retries only unfinished webhooks; a finalized event (processed_at set)
+    // causes early return. The $queryRaw sequence here is:
+    //   1st call → attempt lookup (found)
+    //   2nd call → SELECT processed_at,failed_at FROM payment_webhook_events (finalized)
+    const prisma = makePrisma({
+      $executeRaw: jest.fn().mockResolvedValue(0),
+      $queryRaw: jest.fn()
+        .mockResolvedValueOnce([makeAttemptRow()])
+        .mockResolvedValueOnce([{ processed_at: new Date(), failed_at: null }]),
+    });
     const uc = new PrismaPaymentWebhookOperationAdapter(gateway, prisma, mockChargeback, mockFinancialRecord, mockLogger);
 
     await uc.execute({ provider: 'FAKE', rawBody: Buffer.from('{}'), signature: 'sig' });

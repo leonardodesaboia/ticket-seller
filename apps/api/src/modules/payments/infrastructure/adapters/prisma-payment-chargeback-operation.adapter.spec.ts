@@ -48,17 +48,25 @@ function makePrisma(overrides: {
   cancelledTicketRows?: unknown[];
   transactionFn?: jest.Mock;
   executeRawResults?: number[];
+  disputeStatusRows?: Array<{ status: string }>;
 } = {}): PrismaService {
   const attemptRows = overrides.attemptRows ?? [ATTEMPT_ROW];
   const orderRows = overrides.orderRows ?? [ORDER_TICKETS_ISSUED];
   const disputeInsertResult = overrides.disputeInsertResult ?? 1;
   const cancelledTicketRows = overrides.cancelledTicketRows ?? [{ id: 'ticket-1' }];
 
-  // Sequence: 1st $queryRaw → attempts, 2nd $queryRaw → orders
-  const $queryRaw = jest
-    .fn()
-    .mockResolvedValueOnce(attemptRows)   // attempt lookup
-    .mockResolvedValueOnce(orderRows);     // order lookup
+  // When disputeInsertResult=0 the adapter queries payment_disputes.status (2nd call)
+  // before querying orders (would be 3rd). Provide disputeStatusRows to simulate
+  // that path; omit it for the normal insert=1 path where 2nd call is orders.
+  const $queryRaw = overrides.disputeStatusRows
+    ? jest
+        .fn()
+        .mockResolvedValueOnce(attemptRows)                  // attempt lookup
+        .mockResolvedValueOnce(overrides.disputeStatusRows)  // dispute status check
+    : jest
+        .fn()
+        .mockResolvedValueOnce(attemptRows)  // attempt lookup
+        .mockResolvedValueOnce(orderRows);   // order lookup
 
   // Sequence: 1st $executeRaw → INSERT dispute, 2nd → UPDATE dispute updated_at (processed)
   const executeRawResults = overrides.executeRawResults ?? [disputeInsertResult, 1];
@@ -103,7 +111,13 @@ describe('ProcessChargebackUseCase', () => {
   });
 
   it('PAYMENT_DISPUTED duplicated → idempotent (ON CONFLICT returns 0 rows, no transaction)', async () => {
-    const prisma = makePrisma({ disputeInsertResult: 0, executeRawResults: [0] });
+    // disputeStatusRows simulates a PROCESSED dispute found during the idempotency check.
+    // The adapter only skips processing when the dispute is finalized (status=PROCESSED).
+    const prisma = makePrisma({
+      disputeInsertResult: 0,
+      executeRawResults: [0],
+      disputeStatusRows: [{ status: 'PROCESSED' }],
+    });
     const uc = new ProcessChargebackUseCase(prisma, makeFinancialRecord(), mockLogger);
 
     await uc.execute(BASE_INPUT);
