@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './platform/http/filters/http-exception.filter';
+import { ApplicationErrorFilter } from './platform/http/filters/application-error.filter';
 import { setupOtel } from './platform/observability/otel.setup';
 import { env } from './platform/config/env';
 
@@ -54,7 +55,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new ApplicationErrorFilter(), new HttpExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Ticket Seller API')
