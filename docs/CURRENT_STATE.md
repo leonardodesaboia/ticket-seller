@@ -120,6 +120,17 @@ E2E manual em staging com auth real, load test, e configuração de cloud target
 - TASK-065 concluída: `PAYMENT_PROVIDER=fake` explícito, `FAKE_GATEWAY_SECRET` validado em produção e provider selecionado somente na infraestrutura.
 - TASK-065: teste de wiring Nest cobre a resolução de `PAYMENT_GATEWAY_PORT` para `FakePaymentGateway`; rotas, DTOs, port, schema e migrations não foram alterados.
 
+**Sessão 11 — 2026-08-26:**
+- Auditoria transversal ADR-004 registrada em `.ai/reports/ARCHITECTURE-CONFORMANCE-AUDIT-2026-08-26.md`.
+- TASK-066 em revisão: guardrails e fronteiras entre módulos avançados; ports específicos para quatro fluxos transacionais de payments permanecem antes da conclusão. Worker/scheduler exige ADR antes de execução.
+
+**Sessão 12 — 2026-08-27:**
+- TASK-066 concluída e documentada em `.ai/reports/TASK-066-hexagonal-architecture-conformance.md`.
+- Guardrails arquiteturais aprovados: 15/15 testes e nenhuma violação no código da API.
+- Payments: quatro ports de operação extraíram Prisma da application; tentativa + outbox tornaram-se atômicos; webhooks, chargebacks e refunds possuem recuperação idempotente.
+- PaymentsModule passou a compor dependências por factories e tokens explícitos, sem reflexão de interfaces TypeScript.
+- Próxima dependência arquitetural: ADR de workers/scheduler para locks, retry/DLQ e observabilidade.
+
 Pendências abertas (não bloqueantes para commit)
 Ver relatórios individuais em .ai/reports/module-review-2026/ para lista completa por módulo.
 Issues remanescentes após sessão 9:

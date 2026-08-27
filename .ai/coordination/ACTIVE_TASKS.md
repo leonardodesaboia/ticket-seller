@@ -4,7 +4,7 @@ Tarefas ativas
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
-| TASK-063 | READY | — |
+| TASK-066A | READY_TO_MERGE | Orquestrador |
 
 Estados
 BLOCKED: dependências ainda não integradas;
