@@ -26,6 +26,10 @@
   --color-warning-foreground: hsl(var(--warning-foreground));
   --color-info: hsl(var(--info));
   --color-info-foreground: hsl(var(--info-foreground));
+  --color-success-muted: hsl(var(--success-muted));
+  --color-warning-muted: hsl(var(--warning-muted));
+  --color-info-muted: hsl(var(--info-muted));
+  --color-destructive-muted: hsl(var(--destructive-muted));
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
@@ -33,6 +37,17 @@
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
+  --spacing-page-gutter: var(--space-page-gutter);
+  --spacing-content: var(--space-content);
+  --spacing-section: var(--space-section);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --text-body: var(--text-body);
+  --text-body--line-height: var(--text-body-line-height);
+  --text-label: var(--text-label);
+  --text-label--line-height: var(--text-label-line-height);
+  --text-title: var(--text-title);
+  --text-title--line-height: var(--text-title-line-height);
 }
 
 @layer base {

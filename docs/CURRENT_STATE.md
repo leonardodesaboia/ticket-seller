@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-27 (sessão 15 — verificação empírica de deploy e correção de Dockerfiles)
+Última atualização: 2026-08-27 (sessão 16 — guardrails de design tokens no frontend)
 
 Fase
 
@@ -313,3 +313,10 @@ IObjectStoragePort com MinIO (dev) e S3 (prod); ResendEmailAdapter para email em
 Dockerfiles multi-stage portáveis sem acoplamento a cloud provider (ADR-009);
 MFA (TOTP) adiado para pós-MVP;
 cloud target de produção não definido — Dockerfiles portáveis garantem flexibilidade.
+
+**Sessão 16 — 2026-08-27:**
+- TASK-067 concluída: design tokens de feedback, spacing e tipografia expostos para as duas aplicações Next.js.
+- ESLint CLI substitui o comando legado `next lint` nos frontends.
+- Guardrail local bloqueia cores Tailwind primitivas, inclusive variantes, opacidade arbitrária e propriedades CSS de cor arbitrárias.
+- Valores Tailwind arbitrários para cor, spacing e tipografia são bloqueados; a escala nomeada do Tailwind permanece permitida nesta etapa.
+- Marketplace: lint, typecheck, 72 testes e build aprovados. Backoffice: lint, typecheck e 96 testes aprovados; build falha em artefato `.next/server/pages-manifest.json` após compilação e requer investigação isolada.

@@ -98,18 +98,15 @@ export function CameraScanner({ onScan, onCameraError, disabled = false }: Camer
   }, []);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg bg-black" aria-label="Scanner de QR code">
-      <video
-        ref={videoRef}
-        muted
-        playsInline
-        className="w-full"
-        aria-hidden="true"
-      />
+    <div
+      className="relative w-full overflow-hidden rounded-lg bg-foreground"
+      aria-label="Scanner de QR code"
+    >
+      <video ref={videoRef} muted playsInline className="w-full" aria-hidden="true" />
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
       {disabled && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <p className="text-sm font-medium text-white" aria-live="polite">
+        <div className="absolute inset-0 flex items-center justify-center bg-foreground/50">
+          <p className="text-sm font-medium text-background" aria-live="polite">
             Validando...
           </p>
         </div>

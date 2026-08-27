@@ -20,18 +20,17 @@ const STATUS_LABELS: Record<PayoutStatus, string> = {
 
 const STATUS_CLASSES: Record<PayoutStatus, string> = {
   SCHEDULED: 'bg-secondary text-secondary-foreground',
-  HELD: 'bg-yellow-100 text-yellow-700',
-  PROCESSING: 'bg-blue-100 text-blue-700',
-  PAID: 'bg-green-100 text-green-700',
+  HELD: 'bg-warning-muted text-warning',
+  PROCESSING: 'bg-info-muted text-info',
+  PAID: 'bg-success-muted text-success',
   FAILED: 'bg-destructive text-destructive-foreground',
   CANCELLED: 'bg-muted text-muted-foreground',
-  REVERSED: 'bg-orange-100 text-orange-700',
+  REVERSED: 'bg-warning-muted text-warning',
 };
 
 export function PayoutHistoryTable({ organizationId }: PayoutHistoryTableProps) {
-  const { payouts, nextCursor, isLoading, isFetching, error, loadMore } = usePayouts(
-    organizationId,
-  );
+  const { payouts, nextCursor, isLoading, isFetching, error, loadMore } =
+    usePayouts(organizationId);
 
   if (isLoading) {
     return <p className="text-muted-foreground text-sm">Carregando saques...</p>;

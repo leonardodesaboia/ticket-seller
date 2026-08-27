@@ -17,9 +17,8 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
 };
 
 export function TransactionHistoryTable({ organizationId }: TransactionHistoryTableProps) {
-  const { transactions, nextCursor, isLoading, isFetching, error, loadMore } = useTransactions(
-    organizationId,
-  );
+  const { transactions, nextCursor, isLoading, isFetching, error, loadMore } =
+    useTransactions(organizationId);
 
   if (isLoading) {
     return <p className="text-muted-foreground text-sm">Carregando transações...</p>;
@@ -55,9 +54,7 @@ export function TransactionHistoryTable({ organizationId }: TransactionHistoryTa
                 <td className="px-4 py-3 font-medium text-foreground">
                   {SOURCE_TYPE_LABELS[tx.sourceType] ?? tx.sourceType}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {tx.description ?? '—'}
-                </td>
+                <td className="px-4 py-3 text-muted-foreground">{tx.description ?? '—'}</td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {new Date(tx.occurredAt).toLocaleString('pt-BR')}
                 </td>
@@ -68,8 +65,8 @@ export function TransactionHistoryTable({ organizationId }: TransactionHistoryTa
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       tx.entryType === 'CREDIT'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-success-muted text-success'
+                        : 'bg-destructive-muted text-destructive'
                     }`}
                   >
                     {tx.entryType === 'CREDIT' ? 'Crédito' : 'Débito'}

@@ -14,7 +14,12 @@ export interface InitiateTransferModalProps {
   onClose: () => void;
 }
 
-export function InitiateTransferModal({ ticket, orderId, token, onClose }: InitiateTransferModalProps) {
+export function InitiateTransferModal({
+  ticket,
+  orderId,
+  token,
+  onClose,
+}: InitiateTransferModalProps) {
   const [state, setState] = useState<ModalState>('CONFIRMING');
   const [claimToken, setClaimToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -61,7 +66,7 @@ export function InitiateTransferModal({ ticket, orderId, token, onClose }: Initi
       role="dialog"
       aria-modal="true"
       aria-labelledby="transfer-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4"
     >
       <div className="w-full max-w-md rounded-lg border border-input bg-background p-6 shadow-lg">
         <h2 id="transfer-modal-title" className="mb-4 text-lg font-semibold text-foreground">
@@ -71,8 +76,8 @@ export function InitiateTransferModal({ ticket, orderId, token, onClose }: Initi
         {(state === 'CONFIRMING' || state === 'LOADING') && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">
-              Ao aceitar a transferência, seu QR Code atual será invalidado. Um novo QR Code será gerado
-              para o destinatário.
+              Ao aceitar a transferência, seu QR Code atual será invalidado. Um novo QR Code será
+              gerado para o destinatário.
             </p>
             <p className="text-sm font-medium text-foreground">
               Ingresso: <span className="font-mono">{ticket.publicCode}</span>

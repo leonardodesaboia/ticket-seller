@@ -66,11 +66,13 @@ export function PayoutRequestModal({ organizationId, onClose }: PayoutRequestMod
       role="dialog"
       aria-modal="true"
       aria-labelledby="payout-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50"
     >
       <div className="w-full max-w-md rounded-lg border border-input bg-background p-6 shadow-lg">
         <div className="flex items-center justify-between mb-4">
-          <h2 id="payout-modal-title" className="text-lg font-semibold text-foreground">Solicitar Saque</h2>
+          <h2 id="payout-modal-title" className="text-lg font-semibold text-foreground">
+            Solicitar Saque
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -83,10 +85,7 @@ export function PayoutRequestModal({ organizationId, onClose }: PayoutRequestMod
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <label
-              htmlFor="payout-amount"
-              className="text-sm font-medium text-foreground"
-            >
+            <label htmlFor="payout-amount" className="text-sm font-medium text-foreground">
               Valor (R$)
             </label>
             <input
@@ -104,9 +103,7 @@ export function PayoutRequestModal({ organizationId, onClose }: PayoutRequestMod
             </span>
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
           {mutation.isSuccess && (
             <p className="text-sm text-primary">Saque solicitado com sucesso!</p>

@@ -8,10 +8,7 @@ import { cn } from '@/shared/lib/utils';
 import { VenueSelect } from '@/features/venues/components/VenueSelect';
 import { ApiError } from '../api/events.api';
 import { useUpdateEventConfiguration } from '../hooks/use-update-event-configuration';
-import {
-  updateEventConfigurationSchema,
-  type UpdateEventConfigurationFormData,
-} from '../schemas';
+import { updateEventConfigurationSchema, type UpdateEventConfigurationFormData } from '../schemas';
 import type { Event } from '../types';
 
 interface EventConfigurationFormProps {
@@ -106,11 +103,7 @@ export function EventConfigurationForm({
         <label htmlFor="cfg-format" className="text-sm font-medium text-foreground">
           Formato
         </label>
-        <select
-          id="cfg-format"
-          {...register('format')}
-          className={inputClass(!!errors.format)}
-        >
+        <select id="cfg-format" {...register('format')} className={inputClass(!!errors.format)}>
           <option value="">Selecione um formato</option>
           {Object.entries(FORMAT_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -118,9 +111,7 @@ export function EventConfigurationForm({
             </option>
           ))}
         </select>
-        {errors.format && (
-          <span className="text-xs text-destructive">{errors.format.message}</span>
-        )}
+        {errors.format && <span className="text-xs text-destructive">{errors.format.message}</span>}
       </div>
 
       {/* Schedule */}
@@ -283,7 +274,7 @@ export function EventConfigurationForm({
       )}
 
       {mutation.isSuccess && (
-        <p className="text-sm text-green-600">Configuração salva com sucesso.</p>
+        <p className="text-sm text-success">Configuração salva com sucesso.</p>
       )}
 
       <Button type="submit" disabled={isSubmitting || mutation.isPending}>

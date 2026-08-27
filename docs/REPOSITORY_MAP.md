@@ -82,6 +82,13 @@ packages/
 └── testing/               — PREVISTO
 ```
 
+Tooling
+
+```text
+tools/
+└── eslint-rules/          — guardrails locais de design tokens, com testes Node.js
+```
+
 Entidades do domínio do backend não devem ser compartilhadas com o frontend.
 
 Documentação

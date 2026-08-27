@@ -64,16 +64,14 @@ export function UsersAdminTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      {actionError && (
-        <p className="text-sm text-destructive">{actionError}</p>
-      )}
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
 
       {dialog && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label={dialog.type === 'suspend' ? 'Suspender usuário' : 'Reativar usuário'}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4"
         >
           <div className="w-full max-w-sm rounded-lg border border-input bg-background p-6 shadow-lg">
             <h2 className="mb-1 text-base font-semibold text-foreground">
@@ -146,7 +144,7 @@ export function UsersAdminTable() {
                       Suspenso
                     </span>
                   ) : (
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                    <span className="rounded-full bg-success-muted px-2 py-0.5 text-xs font-medium text-success">
                       Ativo
                     </span>
                   )}
