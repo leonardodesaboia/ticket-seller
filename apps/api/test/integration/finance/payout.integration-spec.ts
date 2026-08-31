@@ -385,6 +385,44 @@ describe('POST /organizations/:orgId/finance/payouts', () => {
     expect(res1.body.id).toBe(res2.body.id);
   });
 
+  it('isolates the same idempotency key between organizations', async () => {
+    const idempotencyKey = randomUUID();
+    const first = await setupWithAvailableBalance();
+    const second = await setupWithAvailableBalance();
+
+    const firstResponse = await supertest(app.getHttpServer())
+      .post(`/api/v1/organizations/${first.organizationId}/finance/payouts`)
+      .set('X-Dev-User-Id', first.ownerId)
+      .send({ amount: first.availableAmount, currency: 'BRL', idempotencyKey })
+      .expect(201);
+
+    const secondResponse = await supertest(app.getHttpServer())
+      .post(`/api/v1/organizations/${second.organizationId}/finance/payouts`)
+      .set('X-Dev-User-Id', second.ownerId)
+      .send({ amount: second.availableAmount, currency: 'BRL', idempotencyKey })
+      .expect(201);
+
+    expect(secondResponse.body.id).not.toBe(firstResponse.body.id);
+    expect(secondResponse.body.organizationId).toBe(second.organizationId);
+    expect((await getBalance(first.organizationId))!.reserved).toBe(BigInt(first.availableAmount));
+    expect((await getBalance(second.organizationId))!.reserved).toBe(BigInt(second.availableAmount));
+  });
+
+  it('rejects a payout request for another organization without reserving its balance', async () => {
+    const first = await setupWithAvailableBalance();
+    const second = await setupWithAvailableBalance();
+
+    await supertest(app.getHttpServer())
+      .post(`/api/v1/organizations/${second.organizationId}/finance/payouts`)
+      .set('X-Dev-User-Id', first.ownerId)
+      .send({ amount: second.availableAmount, currency: 'BRL', idempotencyKey: randomUUID() })
+      .expect(403);
+
+    const balance = await getBalance(second.organizationId);
+    expect(balance!.available).toBe(BigInt(second.availableAmount));
+    expect(balance!.reserved).toBe(0n);
+  });
+
   it('requires authentication (no X-Dev-User-Id → 401)', async () => {
     const fixture = await setupWithAvailableBalance();
 

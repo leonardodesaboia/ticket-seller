@@ -54,7 +54,7 @@ export class PrismaPayoutRepository implements IPayoutRepository {
   }
 
   /**
-   * Creates a payout using INSERT ON CONFLICT (idempotency_key) DO NOTHING.
+   * Creates a payout using INSERT ON CONFLICT (organization_id, idempotency_key) DO NOTHING.
    * Returns { payout, inserted: true } if newly created, or { payout, inserted: false } if already existed.
    */
   async create(
@@ -83,10 +83,14 @@ export class PrismaPayoutRepository implements IPayoutRepository {
         ${data.succeededAt ?? null},
         ${data.failedAt ?? null}
       )
-      ON CONFLICT (idempotency_key) DO NOTHING
+      ON CONFLICT (organization_id, idempotency_key) DO NOTHING
     `;
 
-    const existing = await this.findByIdempotencyKey(data.idempotencyKey, tx);
+    const existing = await this.findByIdempotencyKey(
+      data.organizationId,
+      data.idempotencyKey,
+      tx,
+    );
     if (!existing) {
       throw new Error(
         `Failed to create or find payout with idempotency_key=${data.idempotencyKey}`,
@@ -95,14 +99,19 @@ export class PrismaPayoutRepository implements IPayoutRepository {
     return { payout: existing, inserted: rowsAffected === 1 };
   }
 
-  async findByIdempotencyKey(key: string, tx?: unknown): Promise<Payout | null> {
+  async findByIdempotencyKey(
+    organizationId: string,
+    key: string,
+    tx?: unknown,
+  ): Promise<Payout | null> {
     const client = this.client(tx);
     const rows = await client.$queryRaw<RawPayout[]>`
       SELECT id, organization_id, recipient_id, amount, currency, status, provider,
              external_payout_id, idempotency_key, failure_reason,
              requested_at, succeeded_at, failed_at, created_at, updated_at
       FROM payouts
-      WHERE idempotency_key = ${key}
+      WHERE organization_id = ${organizationId}::uuid
+        AND idempotency_key = ${key}
       LIMIT 1
     `;
     return rows[0] ? mapToEntity(rows[0]) : null;

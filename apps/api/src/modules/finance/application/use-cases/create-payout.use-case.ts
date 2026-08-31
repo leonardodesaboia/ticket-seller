@@ -58,7 +58,7 @@ export class CreatePayoutUseCase {
     }
 
     // Steps 2–8: Atomic transaction
-    const { payout, isNew } = await this.transactionRunner.run(async (tx) => {
+    const { payout } = await this.transactionRunner.run(async (tx) => {
       // Step 3: SELECT FOR UPDATE on seller_balances — serializes concurrent payouts
       const balance = await this.balanceRepo.findByOrgForUpdate(organizationId, tx);
       if (!balance) {
@@ -159,14 +159,14 @@ export class CreatePayoutUseCase {
 
     // Step 9: OUTSIDE transaction — call gateway.createPayout
     // CRITICAL: Never hold the DB transaction open during HTTP calls
-    if (isNew && payout.externalPayoutId === null) {
+    if (payout.externalPayoutId === null) {
       try {
         const gatewayResult = await this.gateway.createPayout({
           organizationId,
           externalRecipientId: recipient.externalRecipientId,
           amount,
           currency,
-          idempotencyKey,
+          idempotencyKey: payout.id,
         });
 
         await this.payoutRepo.updateExternalId(

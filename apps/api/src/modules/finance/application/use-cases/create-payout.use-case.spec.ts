@@ -227,7 +227,7 @@ describe('CreatePayoutUseCase', () => {
           organizationId: 'org-id',
           amount: 5000n,
           currency: 'BRL',
-          idempotencyKey: 'idem-key-1',
+          idempotencyKey: 'payout-id',
         }),
       );
 
@@ -325,6 +325,23 @@ describe('CreatePayoutUseCase', () => {
 
       expect(result.id).toBe(existingPayout.id);
       expect(result.status).toBe('PROCESSING');
+    });
+
+    it('retries provider dispatch when the existing payout has no external ID', async () => {
+      const existingPayout = makePayout({ status: 'SCHEDULED', externalPayoutId: null });
+      mocks.payoutRepo.create.mockResolvedValue({ payout: existingPayout, inserted: false });
+
+      await useCase.execute(defaultInput);
+
+      expect(mocks.gateway.createPayout).toHaveBeenCalledWith(
+        expect.objectContaining({ idempotencyKey: existingPayout.id }),
+      );
+      expect(mocks.payoutRepo.updateExternalId).toHaveBeenCalledWith(
+        existingPayout.id,
+        'fake_payout_xyz',
+        'PROCESSING',
+      );
+      expect(mocks.ledgerRepo.recordTransaction).not.toHaveBeenCalled();
     });
   });
 });
