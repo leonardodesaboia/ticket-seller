@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Inject } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
+import PgBoss from 'pg-boss';
 import { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../../platform/database/prisma.service';
 import {
@@ -18,16 +19,15 @@ import {
   IPayoutGatewayPort,
 } from '../../domain/ports/payout-gateway.port';
 import { Payout } from '../../domain/entities/payout.entity';
+import { PG_BOSS } from '../../../../platform/scheduling/pgboss.module';
 
 type PrismaTransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
 
 @Injectable()
-export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
+export class ReconciliationWorker implements OnModuleInit {
   private readonly logger = new Logger(ReconciliationWorker.name);
-  private intervalHandle: NodeJS.Timeout | null = null;
-  private isRunning = false;
-  private readonly pollIntervalMs = 15 * 60 * 1000; // 15 minutes
   private readonly stuckMinutes = 30;
+  static readonly JOB_NAME = 'reconciliation-poll';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -39,35 +39,21 @@ export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
     private readonly ledgerRepo: ILedgerRepository,
     @Inject(PAYOUT_GATEWAY_PORT)
     private readonly gateway: IPayoutGatewayPort,
+    @Inject(PG_BOSS) private readonly boss: PgBoss,
   ) {}
 
-  onModuleInit(): void {
-    this.logger.log('ReconciliationWorker started — polling every 15min');
-    this.intervalHandle = setInterval(() => {
-      void this.poll();
-    }, this.pollIntervalMs);
-  }
-
-  onModuleDestroy(): void {
-    if (this.intervalHandle) {
-      clearInterval(this.intervalHandle);
-      this.intervalHandle = null;
-      this.logger.log('ReconciliationWorker stopped');
-    }
+  async onModuleInit(): Promise<void> {
+    await this.boss.createQueue(ReconciliationWorker.JOB_NAME);
+    await this.boss.schedule(ReconciliationWorker.JOB_NAME, '*/15 * * * *', {}, { tz: 'UTC' });
+    await this.boss.work(ReconciliationWorker.JOB_NAME, () => this.poll());
+    this.logger.log('ReconciliationWorker registered — cron */15 * * * * UTC (15min)');
   }
 
   private async poll(): Promise<void> {
-    if (this.isRunning) {
-      this.logger.warn('ReconciliationWorker poll already in progress — skipping overlap');
-      return;
-    }
-    this.isRunning = true;
     this.logger.log('ReconciliationWorker poll started');
     try {
       const payouts = await this.fetchStuckPayouts();
-      if (payouts.length === 0) {
-        return;
-      }
+      if (payouts.length === 0) return;
 
       this.logger.log(`ReconciliationWorker: found ${payouts.length} stuck payout(s)`);
       for (const payout of payouts) {
@@ -75,16 +61,11 @@ export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
       }
     } catch (err) {
       this.logger.error('ReconciliationWorker poll error', err);
-    } finally {
-      this.isRunning = false;
+      throw err;
     }
   }
 
   private async fetchStuckPayouts(): Promise<Payout[]> {
-    /**
-     * FOR UPDATE SKIP LOCKED ensures concurrent workers don't double-process the same payout.
-     * Only fetches payouts stuck in PROCESSING for more than stuckMinutes.
-     */
     interface RawRow {
       id: string;
       organization_id: string;
@@ -103,8 +84,6 @@ export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
       updated_at: Date;
     }
 
-    // FOR UPDATE SKIP LOCKED: concurrent worker instances skip rows already being processed.
-    // The transaction commits immediately after the SELECT, releasing the lock.
     const client = this.prisma as unknown as PrismaClient;
     const rows = await client.$transaction((tx) =>
       tx.$queryRaw<RawRow[]>`
@@ -150,19 +129,14 @@ export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
     try {
       const gatewayStatus = await this.gateway.getPayoutStatus(payout.externalPayoutId);
 
-      if (gatewayStatus.status === 'PROCESSING') {
-        // Still in progress — nothing to do
-        return;
-      }
+      if (gatewayStatus.status === 'PROCESSING') return;
 
-      // Check for amount/currency mismatch BEFORE mutating any state
       const hasMismatch =
         gatewayStatus.amount !== undefined &&
         (gatewayStatus.amount !== payout.amount ||
           (gatewayStatus.currency !== undefined && gatewayStatus.currency !== payout.currency));
 
       if (hasMismatch) {
-        // Write reconciliation-mismatch event to outbox_events — NEVER alter existing ledger_entries
         const client = this.prisma as unknown as PrismaClient;
         await client.$executeRaw`
           INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload, organization_id)
@@ -209,13 +183,14 @@ export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
     const prismaClient = this.prisma as unknown as PrismaClient;
 
     await prismaClient.$transaction(async (tx: PrismaTransactionClient) => {
-      // Re-check status under lock: another worker may have already reconciled this payout.
       const rows = await tx.$queryRaw<Array<{ status: string }>>`
         SELECT status FROM payouts WHERE id = ${payoutId}::uuid FOR UPDATE
       `;
       const currentStatus = rows[0]?.status;
       if (currentStatus === 'PAID' || currentStatus === 'FAILED') {
-        this.logger.warn(`ReconciliationWorker: payout ${payoutId} already terminal (${currentStatus}) — skipping SUCCEEDED handler`);
+        this.logger.warn(
+          `ReconciliationWorker: payout ${payoutId} already terminal (${currentStatus}) — skipping SUCCEEDED handler`,
+        );
         return;
       }
 
@@ -270,13 +245,14 @@ export class ReconciliationWorker implements OnModuleInit, OnModuleDestroy {
     const prismaClient = this.prisma as unknown as PrismaClient;
 
     await prismaClient.$transaction(async (tx: PrismaTransactionClient) => {
-      // Re-check status under lock: another worker may have already reconciled this payout.
       const rows = await tx.$queryRaw<Array<{ status: string }>>`
         SELECT status FROM payouts WHERE id = ${payoutId}::uuid FOR UPDATE
       `;
       const currentStatus = rows[0]?.status;
       if (currentStatus === 'PAID' || currentStatus === 'FAILED') {
-        this.logger.warn(`ReconciliationWorker: payout ${payoutId} already terminal (${currentStatus}) — skipping FAILED handler`);
+        this.logger.warn(
+          `ReconciliationWorker: payout ${payoutId} already terminal (${currentStatus}) — skipping FAILED handler`,
+        );
         return;
       }
 

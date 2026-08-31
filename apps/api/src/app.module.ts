@@ -11,6 +11,7 @@ import { ObservabilityModule } from './platform/observability/observability.modu
 import { requestContextStorage } from './platform/observability/request-context';
 import { DatabaseModule } from './platform/database/prisma.module';
 import { HealthModule } from './platform/health/health.module';
+import { PgBossModule } from './platform/scheduling/pgboss.module';
 import { HttpModule } from './platform/http/http.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -71,6 +72,7 @@ import { MediaModule } from './modules/media/media.module';
     }),
     ObservabilityModule,
     DatabaseModule,
+    PgBossModule,
     HealthModule,
     HttpModule,
     IdentityModule,
