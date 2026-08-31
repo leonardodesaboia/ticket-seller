@@ -7,6 +7,8 @@ export interface OrderPricingSnapshot {
   platformFeeAmount: bigint;
   processingFeeBps: number | null;
   processingFeeAmount: bigint;
+  buyerFeeBps: number;
+  buyerFeeAmount: bigint;
   refundFeePolicy: 'RETAIN' | 'REFUND' | 'PROPORTIONAL' | 'TBD';
   sellerNetAmount: bigint;
   createdAt: Date;

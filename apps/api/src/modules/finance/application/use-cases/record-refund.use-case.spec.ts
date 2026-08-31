@@ -17,6 +17,8 @@ function makeSnapshot(overrides: Partial<OrderPricingSnapshot> = {}): OrderPrici
     platformFeeAmount: 500n,
     processingFeeBps: 100,
     processingFeeAmount: 100n,
+    buyerFeeBps: 0,
+    buyerFeeAmount: 0n,
     refundFeePolicy: 'RETAIN',
     sellerNetAmount: 9400n,
     createdAt: new Date(),
@@ -256,6 +258,60 @@ describe('RecordRefundUseCase', () => {
 
       expect(ledgerRepo.recordTransaction).not.toHaveBeenCalled();
       expect(sellerBalanceRepo.decrementPending).not.toHaveBeenCalled();
+    });
+  });
+
+  // Buyer fee is always retained on refund regardless of refundFeePolicy (ADR-012).
+  // The sale debited PLATFORM_CLEARING by gross + buyerFee; refund only reverses
+  // the seller-side (sellerNet and producer fees). The buyerFee stays in PLATFORM_REVENUE.
+  describe('buyerFeeAmount > 0 — buyer fee retained in all refund policies', () => {
+    const snapshotWithBuyerFee = makeSnapshot({
+      grossAmount: 10000n,
+      platformFeeAmount: 500n,
+      processingFeeAmount: 100n,
+      buyerFeeBps: 200,
+      buyerFeeAmount: 200n,
+      sellerNetAmount: 9400n,
+    });
+
+    it('RETAIN — does not include buyerFeeAmount in any ledger entry', async () => {
+      snapshotRepo.findByOrderId.mockResolvedValue({ ...snapshotWithBuyerFee, refundFeePolicy: 'RETAIN' });
+      const useCase = buildUseCase();
+
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', refundAmount: 9400n, currency: 'BRL' });
+
+      const call = ledgerRepo.recordTransaction.mock.calls[0]![0];
+      const allAmounts = call.entries.map((e: { amount: bigint }) => e.amount);
+      expect(allAmounts).not.toContain(200n);
+      // Only sellerNetAmount is reversed
+      expect(call.entries).toHaveLength(2);
+    });
+
+    it('REFUND — gross reversal uses grossAmount (not gross + buyerFee), buyer fee stays retained', async () => {
+      snapshotRepo.findByOrderId.mockResolvedValue({ ...snapshotWithBuyerFee, refundFeePolicy: 'REFUND' });
+      const useCase = buildUseCase();
+
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', refundAmount: 10000n, currency: 'BRL' });
+
+      const call = ledgerRepo.recordTransaction.mock.calls[0]![0];
+      const debit = call.entries.find((e: { entryType: string }) => e.entryType === 'DEBIT');
+      // Debit is grossAmount (10000), NOT grossAmount + buyerFee (10200)
+      expect(debit?.amount).toBe(10000n);
+      const allAmounts = call.entries.map((e: { amount: bigint }) => e.amount);
+      expect(allAmounts).not.toContain(200n);
+    });
+
+    it('PROPORTIONAL — scaled amounts do not include buyerFee component', async () => {
+      snapshotRepo.findByOrderId.mockResolvedValue({ ...snapshotWithBuyerFee, refundFeePolicy: 'PROPORTIONAL' });
+      const useCase = buildUseCase();
+      // Refund half the gross
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', refundAmount: 5000n, currency: 'BRL' });
+
+      const call = ledgerRepo.recordTransaction.mock.calls[0]![0];
+      const allAmounts = call.entries.map((e: { amount: bigint }) => e.amount);
+      // buyerFeeAmount=200 — neither half (100) nor full (200) should appear
+      expect(allAmounts).not.toContain(200n);
+      expect(allAmounts).not.toContain(100n);
     });
   });
 });

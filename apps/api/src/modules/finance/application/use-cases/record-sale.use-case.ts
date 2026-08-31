@@ -65,6 +65,8 @@ export class RecordSaleUseCase {
       platformFeeAmount: feeCalculation.platformFeeAmount,
       processingFeeBps: feeCalculation.processingFeeBps,
       processingFeeAmount: feeCalculation.processingFeeAmount,
+      buyerFeeBps: feeCalculation.buyerFeeBps,
+      buyerFeeAmount: feeCalculation.buyerFeeAmount,
       refundFeePolicy: policy.refundFeePolicy,
       sellerNetAmount: feeCalculation.sellerNetAmount,
       createdAt: new Date(),
@@ -80,6 +82,7 @@ export class RecordSaleUseCase {
       sellerNetAmount: feeCalculation.sellerNetAmount,
       platformFeeAmount: feeCalculation.platformFeeAmount,
       processingFeeAmount: feeCalculation.processingFeeAmount,
+      buyerFeeAmount: feeCalculation.buyerFeeAmount,
       currency,
       tx,
     });
@@ -96,6 +99,7 @@ export class RecordSaleUseCase {
       `Pricing snapshot created for orderId=${orderId}: ` +
         `gross=${grossAmount} ${currency}, ` +
         `platformFee=${feeCalculation.platformFeeAmount} (${feeCalculation.platformFeeBps} bps), ` +
+        `buyerFee=${feeCalculation.buyerFeeAmount} (${feeCalculation.buyerFeeBps} bps), ` +
         `sellerNet=${feeCalculation.sellerNetAmount}`,
     );
   }
@@ -107,6 +111,7 @@ export class RecordSaleUseCase {
     sellerNetAmount: bigint;
     platformFeeAmount: bigint;
     processingFeeAmount: bigint;
+    buyerFeeAmount: bigint;
     currency: string;
     tx?: unknown;
   }): Promise<void> {
@@ -117,6 +122,7 @@ export class RecordSaleUseCase {
       sellerNetAmount,
       platformFeeAmount,
       processingFeeAmount,
+      buyerFeeAmount,
       currency,
       tx,
     } = params;
@@ -153,9 +159,11 @@ export class RecordSaleUseCase {
       {
         accountId: platformClearing.id,
         entryType: 'DEBIT',
-        amount: grossAmount,
+        // Debit the full amount received from the payment gateway: subtotal + buyer convenience fee.
+        // buyerFeeAmount is 0 until the checkout side charges it (activation precondition).
+        amount: grossAmount + buyerFeeAmount,
         currency,
-        description: `ORDER_PAID: gross amount for order ${orderId}`,
+        description: `ORDER_PAID: gross + buyer fee for order ${orderId}`,
       },
       {
         accountId: sellerPayable.id,
@@ -166,8 +174,8 @@ export class RecordSaleUseCase {
       },
     ];
 
-    // Add PLATFORM_REVENUE credits for non-zero platform fee and/or processing fee
-    const totalPlatformCredit = platformFeeAmount + processingFeeAmount;
+    // Add PLATFORM_REVENUE credits for non-zero platform fee, processing fee, and/or buyer fee
+    const totalPlatformCredit = platformFeeAmount + processingFeeAmount + buyerFeeAmount;
     if (totalPlatformCredit > 0n) {
       const platformRevenue = await this.ledgerRepository.findAccountByCode(
         'PLATFORM_REVENUE',
@@ -181,7 +189,7 @@ export class RecordSaleUseCase {
         entryType: 'CREDIT',
         amount: totalPlatformCredit,
         currency,
-        description: `ORDER_PAID: platform + processing fees for order ${orderId}`,
+        description: `ORDER_PAID: platform + processing + buyer fees for order ${orderId}`,
       });
     }
 

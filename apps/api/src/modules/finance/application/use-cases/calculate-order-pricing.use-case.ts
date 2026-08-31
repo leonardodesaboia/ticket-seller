@@ -37,11 +37,16 @@ export class CalculateOrderPricingUseCase {
 
     assertPricingInvariant(grossAmount, platformFeeAmount, processingFeeAmount, sellerNetAmount);
 
+    const buyerFeeBps = policy.buyerFeeBps;
+    const buyerFeeAmount = calculateFeeAmount(grossAmount, buyerFeeBps);
+
     const feeCalculation: FeeCalculation = {
       platformFeeBps: policy.platformFeeBps,
       platformFeeAmount,
       processingFeeBps,
       processingFeeAmount,
+      buyerFeeBps,
+      buyerFeeAmount,
       sellerNetAmount,
     };
 

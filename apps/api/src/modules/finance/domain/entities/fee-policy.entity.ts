@@ -3,6 +3,7 @@ export interface FeePolicy {
   organizationId: string | null;
   platformFeeBps: number;
   processingFeeBps: number | null;
+  buyerFeeBps: number;
   refundFeePolicy: 'RETAIN' | 'REFUND' | 'PROPORTIONAL' | 'TBD';
   settlementDelayDays: number;
   isActive: boolean;

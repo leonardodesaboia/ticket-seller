@@ -7,5 +7,7 @@ export interface FeeCalculation {
   platformFeeAmount: bigint;
   processingFeeBps: number | null;
   processingFeeAmount: bigint;
+  buyerFeeBps: number;
+  buyerFeeAmount: bigint;
   sellerNetAmount: bigint;
 }

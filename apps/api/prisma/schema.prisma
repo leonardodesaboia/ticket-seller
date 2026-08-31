@@ -527,6 +527,7 @@ model FeePolicy {
   organizationId      String?   @map("organization_id") @db.Uuid
   platformFeeBps      Int       @default(0) @map("platform_fee_bps")
   processingFeeBps    Int?      @map("processing_fee_bps")
+  buyerFeeBps         Int       @default(0) @map("buyer_fee_bps")
   refundFeePolicy     String    @default("TBD") @map("refund_fee_policy")
   settlementDelayDays Int       @default(7) @map("settlement_delay_days")
   isActive            Boolean   @default(true) @map("is_active")
@@ -549,6 +550,8 @@ model OrderPricingSnapshot {
   platformFeeAmount    BigInt   @default(0) @map("platform_fee_amount")
   processingFeeBps     Int?     @map("processing_fee_bps")
   processingFeeAmount  BigInt   @default(0) @map("processing_fee_amount")
+  buyerFeeBps          Int      @default(0) @map("buyer_fee_bps")
+  buyerFeeAmount       BigInt   @default(0) @map("buyer_fee_amount")
   refundFeePolicy      String   @map("refund_fee_policy")
   sellerNetAmount      BigInt   @map("seller_net_amount")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
@@ -792,4 +795,3 @@ model MediaUpload {
   @@index([organizationId, entityId])
   @@map("media_uploads")
 }
-

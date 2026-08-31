@@ -47,6 +47,7 @@ export class PrismaFeePolicyRepository implements IFeePolicyRepository {
     organizationId: string | null;
     platformFeeBps: number;
     processingFeeBps: number | null;
+    buyerFeeBps: number;
     refundFeePolicy: string;
     settlementDelayDays: number;
     isActive: boolean;
@@ -58,6 +59,7 @@ export class PrismaFeePolicyRepository implements IFeePolicyRepository {
       organizationId: record.organizationId,
       platformFeeBps: record.platformFeeBps,
       processingFeeBps: record.processingFeeBps,
+      buyerFeeBps: record.buyerFeeBps,
       refundFeePolicy: toRefundFeePolicy(record.refundFeePolicy),
       settlementDelayDays: record.settlementDelayDays,
       isActive: record.isActive,

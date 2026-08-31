@@ -14,6 +14,7 @@ function makePolicy(overrides: Partial<FeePolicy> = {}): FeePolicy {
     organizationId: null,
     platformFeeBps: 500,
     processingFeeBps: 100,
+    buyerFeeBps: 0,
     refundFeePolicy: 'RETAIN',
     settlementDelayDays: 7,
     isActive: true,
@@ -211,6 +212,86 @@ describe('RecordSaleUseCase', () => {
       expect(snapshotRepo.create).toHaveBeenCalledWith(expect.anything(), tx);
       expect(sellerBalanceRepo.upsertIncrementPending).toHaveBeenCalledWith('org-1', 'BRL', expect.any(BigInt), tx);
       expect(ledgerRepo.recordTransaction).toHaveBeenCalledWith(expect.anything(), tx);
+    });
+  });
+
+  describe('buyer fee (buyerFeeBps > 0)', () => {
+    beforeEach(() => {
+      feePolicyRepo.findActive.mockResolvedValue(
+        makePolicy({ platformFeeBps: 500, processingFeeBps: 100, buyerFeeBps: 200 }),
+      );
+    });
+
+    it('persists buyerFeeBps and buyerFeeAmount in the pricing snapshot', async () => {
+      // gross=10000, buyerFee=200 bps → 200
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', grossAmount: 10000n, currency: 'BRL' });
+
+      expect(snapshotRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buyerFeeBps: 200,
+          buyerFeeAmount: 200n,
+        }),
+        undefined,
+      );
+    });
+
+    it('debits PLATFORM_CLEARING by gross + buyerFee', async () => {
+      // gross=10000, buyerFee=200 → DEBIT=10200
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', grossAmount: 10000n, currency: 'BRL' });
+
+      expect(ledgerRepo.recordTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entries: expect.arrayContaining([
+            expect.objectContaining({ accountId: clearingAccount.id, entryType: 'DEBIT', amount: 10200n }),
+          ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('credits PLATFORM_REVENUE with platformFee + processingFee + buyerFee', async () => {
+      // platformFee=500, processingFee=100, buyerFee=200 → CREDIT REVENUE=800
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', grossAmount: 10000n, currency: 'BRL' });
+
+      expect(ledgerRepo.recordTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entries: expect.arrayContaining([
+            expect.objectContaining({ accountId: revenueAccount.id, entryType: 'CREDIT', amount: 800n }),
+          ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('credits SELLER_PAYABLE only by sellerNet (buyer fee does not inflate seller revenue)', async () => {
+      // sellerNet = 10000 - 500 - 100 = 9400 (buyerFee excluded)
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', grossAmount: 10000n, currency: 'BRL' });
+
+      expect(ledgerRepo.recordTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entries: expect.arrayContaining([
+            expect.objectContaining({ accountId: payableAccount.id, entryType: 'CREDIT', amount: 9400n }),
+          ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('ledger is double-entry balanced: DEBIT clearing == CREDIT payable + CREDIT revenue', async () => {
+      // DEBIT = gross + buyerFee = 10200
+      // CREDIT = sellerNet + platformFee + processingFee + buyerFee = 9400 + 800 = 10200
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', grossAmount: 10000n, currency: 'BRL' });
+      const lastCall = ledgerRepo.recordTransaction.mock.calls.at(-1)![0];
+      const entries: Array<{ entryType: string; amount: bigint }> = lastCall.entries;
+      const totalDebit = entries.filter(e => e.entryType === 'DEBIT').reduce((s, e) => s + e.amount, 0n);
+      const totalCredit = entries.filter(e => e.entryType === 'CREDIT').reduce((s, e) => s + e.amount, 0n);
+      expect(totalDebit).toBe(totalCredit);
+    });
+
+    it('seller pending balance incremented by sellerNet only (buyer fee excluded)', async () => {
+      await useCase.execute({ orderId: 'order-1', organizationId: 'org-1', grossAmount: 10000n, currency: 'BRL' });
+
+      expect(sellerBalanceRepo.upsertIncrementPending).toHaveBeenCalledWith('org-1', 'BRL', 9400n, undefined);
     });
   });
 });

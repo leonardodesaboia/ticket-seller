@@ -7,6 +7,7 @@ function makePolicy(overrides: Partial<FeePolicy> = {}): FeePolicy {
     organizationId: null,
     platformFeeBps: 0,
     processingFeeBps: null,
+    buyerFeeBps: 0,
     refundFeePolicy: 'TBD',
     settlementDelayDays: 7,
     isActive: true,
@@ -125,6 +126,56 @@ describe('CalculateOrderPricingUseCase', () => {
 
       expect(result.feeCalculation.platformFeeBps).toBe(200);
       expect(result.feeCalculation.processingFeeBps).toBe(50);
+    });
+  });
+
+  describe('buyer fee (buyerFeeBps)', () => {
+    it('returns buyerFeeAmount=0 and buyerFeeBps=0 when policy has no buyer fee', () => {
+      const result = useCase.execute({
+        grossAmount: 10000n,
+        currency: 'BRL',
+        policy: makePolicy({ platformFeeBps: 500, buyerFeeBps: 0 }),
+      });
+
+      expect(result.feeCalculation.buyerFeeBps).toBe(0);
+      expect(result.feeCalculation.buyerFeeAmount).toBe(0n);
+    });
+
+    it('calculates buyer fee as floor(gross * bps / 10000), independent of seller net', () => {
+      // gross=10000, buyerFee=500 bps → 500; sellerNet unchanged (platform=0)
+      const result = useCase.execute({
+        grossAmount: 10000n,
+        currency: 'BRL',
+        policy: makePolicy({ platformFeeBps: 0, buyerFeeBps: 500 }),
+      });
+
+      expect(result.feeCalculation.buyerFeeBps).toBe(500);
+      expect(result.feeCalculation.buyerFeeAmount).toBe(500n);
+      expect(result.feeCalculation.sellerNetAmount).toBe(10000n);
+    });
+
+    it('buyer fee does not affect sellerNetAmount', () => {
+      // gross=10000, platform=500 bps (500), buyerFee=200 bps (200)
+      // sellerNet = 10000 - 500 = 9500 (buyerFee excluded)
+      const result = useCase.execute({
+        grossAmount: 10000n,
+        currency: 'BRL',
+        policy: makePolicy({ platformFeeBps: 500, buyerFeeBps: 200 }),
+      });
+
+      expect(result.feeCalculation.sellerNetAmount).toBe(9500n);
+      expect(result.feeCalculation.buyerFeeAmount).toBe(200n);
+    });
+
+    it('floors fractional buyer fee: 333 bps on 10001 = 333', () => {
+      // 10001 * 333 / 10000 = 333.033 → floor → 333
+      const result = useCase.execute({
+        grossAmount: 10001n,
+        currency: 'BRL',
+        policy: makePolicy({ platformFeeBps: 0, buyerFeeBps: 333 }),
+      });
+
+      expect(result.feeCalculation.buyerFeeAmount).toBe(333n);
     });
   });
 });

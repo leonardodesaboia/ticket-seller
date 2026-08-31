@@ -466,3 +466,137 @@ describe('Financial Ledger — CHARGEBACK', () => {
     expect(BigInt(creditEntry!.amount)).toBe(BigInt(fixture.attemptAmount));
   });
 });
+
+// TASK-070: Buyer fee integration tests.
+// These tests require Docker/Testcontainers (unavailable in dev). Run in CI or an
+// environment with Docker to validate buyer fee persistence and ledger accounting.
+describe('Financial Ledger — ORDER_PAID with buyer fee (TASK-070)', () => {
+  it('persists buyer_fee_bps and buyer_fee_amount in order_pricing_snapshots', async () => {
+    const fixture = await createFixture();
+
+    // Seed an org-specific fee policy with buyer_fee_bps=500 (5%) for this org.
+    // RecordSaleUseCase resolves org-specific policy first, so this overrides the global.
+    await prisma.feePolicy.create({
+      data: {
+        organizationId: fixture.organizationId,
+        platformFeeBps: 0,
+        buyerFeeBps: 500,
+        refundFeePolicy: 'RETAIN',
+        isActive: true,
+      },
+    });
+
+    await triggerApproval(fixture);
+
+    const snapshots = await prisma.$queryRaw<
+      Array<{ buyer_fee_bps: number; buyer_fee_amount: bigint }>
+    >`
+      SELECT buyer_fee_bps, buyer_fee_amount
+      FROM order_pricing_snapshots
+      WHERE order_id = ${fixture.orderId}::uuid
+    `;
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]!.buyer_fee_bps).toBe(500);
+
+    const expectedBuyerFee = BigInt(Math.floor(fixture.attemptAmount * 500 / 10000));
+    expect(BigInt(snapshots[0]!.buyer_fee_amount)).toBe(expectedBuyerFee);
+  });
+
+  it('PLATFORM_CLEARING debit equals grossAmount + buyerFeeAmount', async () => {
+    const fixture = await createFixture();
+    const buyerFeeBps = 500;
+
+    await prisma.feePolicy.create({
+      data: {
+        organizationId: fixture.organizationId,
+        platformFeeBps: 0,
+        buyerFeeBps,
+        refundFeePolicy: 'RETAIN',
+        isActive: true,
+      },
+    });
+
+    await triggerApproval(fixture);
+
+    const txRows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM ledger_transactions
+      WHERE source_type = 'ORDER_PAID' AND source_id = ${fixture.orderId}
+    `;
+    const ledgerTxId = txRows[0]!.id;
+
+    const entries = await prisma.$queryRaw<
+      Array<{ entry_type: string; amount: bigint; account_code: string }>
+    >`
+      SELECT le.entry_type, le.amount, la.code AS account_code
+      FROM ledger_entries le
+      JOIN ledger_accounts la ON la.id = le.account_id
+      WHERE le.ledger_transaction_id = ${ledgerTxId}::uuid
+    `;
+
+    const buyerFeeAmount = BigInt(Math.floor(fixture.attemptAmount * buyerFeeBps / 10000));
+    const expectedDebit = BigInt(fixture.attemptAmount) + buyerFeeAmount;
+
+    const clearingDebit = entries.find(
+      (e) => e.account_code === 'PLATFORM_CLEARING' && e.entry_type === 'DEBIT',
+    );
+    expect(clearingDebit).toBeDefined();
+    expect(BigInt(clearingDebit!.amount)).toBe(expectedDebit);
+
+    // Double-entry balance: sum(DEBIT) == sum(CREDIT)
+    const debitSum = entries.filter(e => e.entry_type === 'DEBIT').reduce((s, e) => s + BigInt(e.amount), 0n);
+    const creditSum = entries.filter(e => e.entry_type === 'CREDIT').reduce((s, e) => s + BigInt(e.amount), 0n);
+    expect(debitSum).toBe(creditSum);
+  });
+
+  it('PLATFORM_REVENUE credit includes buyerFeeAmount when platform fee is also set', async () => {
+    const fixture = await createFixture();
+    const platformFeeBps = 300;  // 3%
+    const buyerFeeBps = 200;     // 2%
+
+    await prisma.feePolicy.create({
+      data: {
+        organizationId: fixture.organizationId,
+        platformFeeBps,
+        buyerFeeBps,
+        refundFeePolicy: 'RETAIN',
+        isActive: true,
+      },
+    });
+
+    await triggerApproval(fixture);
+
+    const txRows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM ledger_transactions
+      WHERE source_type = 'ORDER_PAID' AND source_id = ${fixture.orderId}
+    `;
+    const ledgerTxId = txRows[0]!.id;
+
+    const entries = await prisma.$queryRaw<
+      Array<{ entry_type: string; amount: bigint; account_code: string }>
+    >`
+      SELECT le.entry_type, le.amount, la.code AS account_code
+      FROM ledger_entries le
+      JOIN ledger_accounts la ON la.id = le.account_id
+      WHERE le.ledger_transaction_id = ${ledgerTxId}::uuid
+    `;
+
+    const gross = BigInt(fixture.attemptAmount);
+    const platformFee = gross * BigInt(platformFeeBps) / 10000n;
+    const buyerFee = gross * BigInt(buyerFeeBps) / 10000n;
+    const expectedRevenue = platformFee + buyerFee; // processingFee=0
+
+    const revenueCredit = entries.find(
+      (e) => e.account_code === 'PLATFORM_REVENUE' && e.entry_type === 'CREDIT',
+    );
+    expect(revenueCredit).toBeDefined();
+    expect(BigInt(revenueCredit!.amount)).toBe(expectedRevenue);
+
+    // sellerNet credit does NOT include buyer fee
+    const sellerNetExpected = gross - platformFee;
+    const sellerCredit = entries.find(
+      (e) => e.account_code.startsWith('SELLER_PAYABLE:') && e.entry_type === 'CREDIT',
+    );
+    expect(sellerCredit).toBeDefined();
+    expect(BigInt(sellerCredit!.amount)).toBe(sellerNetExpected);
+  });
+});
