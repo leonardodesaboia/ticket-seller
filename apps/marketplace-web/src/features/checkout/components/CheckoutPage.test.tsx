@@ -12,7 +12,7 @@ const orderId = '9b0bfd6d-a8f4-4088-a6e3-cd82f2cf6048';
 const reservation = { reservationId, status: 'ACTIVE', expiresAt: '2027-08-11T12:15:00.000Z', currency: 'BRL', subtotalAmount: 5000, items: [] };
 const order = {
   orderId, reservationId, status: 'PENDING_PAYMENT', currency: 'BRL', subtotalAmount: 5000,
-  totalAmount: 5500, expiresAt: '2027-08-11T12:15:00.000Z',
+  totalAmount: 5000, expiresAt: '2027-08-11T12:15:00.000Z',
   items: [{ ticketTypeId: '4d3ce4d5-b7c3-4806-a290-31d6ac8690d4', name: 'Inteira', quantity: 1, unitPriceAmount: 5000, subtotalAmount: 5000 }],
 };
 
@@ -45,7 +45,8 @@ describe('CheckoutPage', () => {
     expect(await screen.findByRole('heading', { name: 'Checkout' })).toBeInTheDocument();
     expect(screen.getByText('1× Inteira')).toBeInTheDocument();
     expect(screen.getByText('R$ 50,00 cada')).toBeInTheDocument();
-    expect(screen.getByText('R$ 55,00')).toBeInTheDocument();
+    expect(screen.queryByText('Taxa de serviço')).not.toBeInTheDocument();
+    expect(screen.getAllByText('R$ 50,00')).toHaveLength(3);
     // Payment method selection should be shown
     expect(screen.getByRole('button', { name: 'Pagar com PIX' })).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledTimes(3);

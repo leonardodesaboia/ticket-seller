@@ -1,6 +1,6 @@
 Fila de integração
 
-Última atualização: 2026-08-18
+Última atualização: 2026-08-31
 
 | Ordem | Tarefa | Status |
 | --- | --- | --- |
@@ -15,6 +15,8 @@ Fila de integração
 | 61 | TASK-061 | WAITING |
 | 62 | TASK-062 | WAITING |
 | 65 | TASK-065 | MERGED |
+| 63 | TASK-063 | READY |
+| 66A | TASK-066A | READY |
 
 Histórico recente
 Ordem	Tarefa	Status	Data

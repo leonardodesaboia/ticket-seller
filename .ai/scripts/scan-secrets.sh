@@ -25,10 +25,12 @@ if [[ -n "${GITHUB_EVENT_NAME:-}" ]]; then
     FILES=$(git ls-files)
   fi
 else
-  FILES=$(git diff --name-only --cached)
-  if [[ -z "$FILES" ]]; then
-    FILES=$(git diff --name-only)
-  fi
+  FILES=$(
+    {
+      git diff --name-only HEAD
+      git ls-files --others --exclude-standard
+    } | sort -u
+  )
   if [[ -z "$FILES" ]]; then
     FILES=$(git ls-files)
   fi

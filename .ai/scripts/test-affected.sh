@@ -2,7 +2,12 @@
 
 set -euo pipefail
 
-FILES=$(git diff --name-only HEAD)
+FILES=$(
+  {
+    git diff --name-only HEAD
+    git ls-files --others --exclude-standard
+  } | sort -u
+)
 
 if [[ -z "$FILES" ]]; then
 echo "Nenhum arquivo alterado."

@@ -1,6 +1,6 @@
 Estado atual
 
-Última atualização: 2026-08-27 (sessão 16 — guardrails de design tokens no frontend)
+Última atualização: 2026-08-28 (sessão 17 — pg-boss como scheduler durável para workers de finance)
 
 Fase
 
@@ -215,7 +215,7 @@ Issues remanescentes após sessão 9:
 - Orders/A3: total_amount = subtotal_amount — taxas nunca repassadas ao comprador (decisão de produto pendente)
 - Tickets/A3: getAvailability vs tryReserve — duas fontes de verdade (decisão de design pendente)
 - Tickets/A6 (parcial): prisma-ticket-credential, prisma-inventory, PrismaCheckInRepository ainda sem testes
-- Tickets/M1: POST /public/transfers/:token/accept sem rate-limit
+- ~~Tickets/M1: POST /public/transfers/:token/accept sem rate-limit~~ **FECHADO** — `TransferAcceptThrottle` (10 req/h) já implementado em `throttle.decorator.ts` e aplicado no controller
 - Finance/M8: findOrCreateOrgAccount — padrão ON CONFLICT DO NOTHING + SELECT já é correto; falso positivo confirmado
 - Notifications/A3: contrato de NotificationAlreadySentError (lançar vs retornar silenciosamente)
 - Notifications/M3-M5: testes de adapters de email; campo html ausente no port
@@ -320,3 +320,38 @@ cloud target de produção não definido — Dockerfiles portáveis garantem fle
 - Guardrail local bloqueia cores Tailwind primitivas, inclusive variantes, opacidade arbitrária e propriedades CSS de cor arbitrárias.
 - Valores Tailwind arbitrários para cor, spacing e tipografia são bloqueados; a escala nomeada do Tailwind permanece permitida nesta etapa.
 - Marketplace: lint, typecheck, 72 testes e build aprovados. Backoffice: lint, typecheck e 96 testes aprovados; build falha em artefato `.next/server/pages-manifest.json` após compilação e requer investigação isolada.
+
+**Sessão 17 — 2026-08-28 (implementação local, aguardando commit e integração):**
+- TASK-068 implementada localmente: `SettlementWorker` e `ReconciliationWorker` migrados de `setInterval` para pg-boss (scheduler durável sobre PostgreSQL).
+- `platform/scheduling/pgboss.module.ts` criado: provider global de `PgBoss`, shutdown gracioso via `onModuleDestroy`.
+- `SettlementWorker`: cron `0 * * * *` UTC (1h); `FOR UPDATE SKIP LOCKED` em transação explícita (corrigido da revisão); `isRunning` flag removido.
+- `ReconciliationWorker`: cron `*/15 * * * *` UTC (15min); `isRunning` flag removido; lógica de reconciliação inalterada.
+- `OutboxNotificationWorker` mantido com `setInterval` — intervalo de 5s incompatível com granularidade mínima do pg-boss (1 min); já possui `FOR UPDATE SKIP LOCKED` e é seguro.
+- Code review pós-implementação: 4 findings corrigidos — listener de erro movido para antes de `boss.start()`, FOR UPDATE em transação, `processed++` só em sucesso, `boss.schedule()` com try/catch.
+- `health.e2e-spec.ts` atualizado: mock de `PG_BOSS` adicionado (mesmo padrão dos mocks de Prisma e object storage).
+- ADR-011 registrada e aceita em `docs/decisions/`.
+- 521/521 testes passando (80 suites), validate-architecture.sh APROVADA, build limpo.
+- `pg-boss@10.4.2` adicionado a `dependencies` de `apps/api`.
+- Build do `backoffice-web` verificado: passa limpo (bug da sessão 16 resolvido por correções anteriores).
+- TASK-066 Phase 4 (workers/scheduler) encerrada — bloqueador (ADR) resolvido pela ADR-011 + TASK-068.
+- Verificado empiricamente: TASK-053 a TASK-062 todas CONCLUÍDAS e implementadas no código.
+- 3 features implementadas e revistas (sessão 18 — continuação da sessão 17):
+  - **Orders/A3 — Taxa de plataforma repassada ao comprador**: `PLATFORM_FEE_BPS` env var em basis points; `totalAmount = subtotal + fee` calculado em `reservation-access.adapter.ts` usando aritmética BigInt; linha "Taxa de serviço" exibida no `CheckoutPage` quando `totalAmount > subtotalAmount`; `PLATFORM_FEE_BPS=0` adicionado ao `.env.example`.
+  - **Tickets/A3 — Pré-reserva com countdown**: timer de 15 minutos visível no `CheckoutPage` com destaque vermelho quando `< 3 min`; `aria-live` movido para span irmão fora do container visual (fix acessibilidade — evita ~300 anúncios/sessão).
+  - **Notifications/A3 — Duplicata silenciosa**: retorno antecipado sem qualquer log quando notificação já foi enviada (decisão explícita do utilizador: "erro silencioso").
+- **Limitação conhecida (documentada)**: `PLATFORM_FEE_BPS` (taxa cobrada do comprador) e `fee_policies.platform_fee_bps` (taxa de liquidação do vendedor) são dois sistemas independentes. Quando ambos `> 0`, `recordSale` aplica a política sobre um `grossAmount` já inflacionado → sellerNetAmount errado no snapshot. Ambos defaults são 0; não há risco imediato. Usar apenas um dos dois enquanto não houver reconciliação explícita.
+- 72/72 testes do marketplace passando; 521/521 testes da API inalterados.
+
+**Sessão 19 — 2026-08-31:**
+- Auditoria técnica aprofundada registrada em `.ai/reports/DEEP-TECHNICAL-AUDIT-2026-08-31.md`.
+- TASK-069 implementada parcialmente: idempotência de payout agora é escopada por organização, com retry seguro de dispatch sem `externalPayoutId` e testes de isolamento adicionados.
+- A integração PostgreSQL da TASK-069 aguarda ambiente com Docker/Testcontainers.
+- `PLATFORM_FEE_BPS` foi desativada localmente até a definição do modelo financeiro único; TASK-070 criada como tarefa planejada.
+- pg-boss agora cria as filas antes dos schedules; testes específicos de scheduler ainda são pendência da TASK-068.
+
+**Sessão 20 — 2026-08-31:**
+- TASK-068 concluída: specs dos workers e do PgBossModule finalizados com tipos específicos.
+- `settlement.worker.spec.ts` (9 testes) e `reconciliation.worker.spec.ts` (17 testes) e `pgboss.module.spec.ts` (4 testes) criados sem `any`/`unknown` escritos explicitamente.
+- Tipos usados: `jest.MockedFunction<PgBoss['createQueue' | 'schedule']>`, `jest.Mock<Promise<string>, [string, () => Promise<void>]>` para `work` (evita conflito de overload da última sobrecarga), `jest.Mocked<Pick<IPort, 'método'>>` para todos os ports, `cb: (tx: ReturnType<typeof makeMockTx>) => Promise<void>` nas 10 chamadas de `mockImplementation`.
+- 566/566 testes passando (84 suites), typecheck 0 erros, validate-architecture.sh APROVADA.
+- `.ai/reports/TASK-068-pgboss-durable-scheduler.md` e `.ai/tasks/TASK-068-pgboss-durable-scheduler.md` atualizados para status COMPLETED.

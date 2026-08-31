@@ -185,11 +185,12 @@ jobs:
       - name: Architecture validation
         run: bash .ai/scripts/validate-architecture.sh
 
-      # Verifies that no committed migration file has been modified.
-      # On a clean CI checkout, git diff shows no changes — correct behaviour.
-      # The integration test job validates migrations against a real database.
+      # Rejects changes to existing migrations against the PR/push base.
       - name: Migration integrity
         run: bash .ai/scripts/validate-migrations.sh
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
 
       # Scans changed files for common secret patterns.
       # On pull_request: diffs against the PR base commit.

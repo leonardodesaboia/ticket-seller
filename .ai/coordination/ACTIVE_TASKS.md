@@ -1,10 +1,11 @@
 Tarefas ativas
 
-Última atualização: 2026-08-26
+Última atualização: 2026-08-31
 
 | Tarefa | Status | Responsável |
 | --- | --- | --- |
 | TASK-066A | READY_TO_MERGE | Orquestrador |
+| TASK-070 | IN_REVIEW | Orquestrador |
 
 Estados
 BLOCKED: dependências ainda não integradas;
@@ -69,6 +70,9 @@ TASK-060: Production Infrastructure & Deployment — MERGED em develop 2026-08-2
 TASK-061: Backup, Disaster Recovery & Operational Runbooks — MERGED em develop 2026-08-24
 TASK-062: Release Readiness & E2E Certification — MERGED em develop 2026-08-24 (commit e9f0435) — RC-1.0 READY
 TASK-065: Payment Provider Configuration Hardening — MERGED em 2026-08-26
+TASK-068: pg-boss Durable Scheduler — COMPLETED em 2026-08-31
+TASK-069: Payout Idempotency Tenant Isolation — COMPLETED em 2026-08-31
+TASK-071: Webhook Payout Amount Guard — COMPLETED em 2026-08-31
 
 Regras
 uma tarefa deve aparecer uma única vez;

@@ -219,8 +219,11 @@ export function CheckoutPage({ reservationId }: CheckoutPageProps) {
         {eventSlug && <p className="text-sm text-muted-foreground">Evento: {eventSlug}</p>}
       </header>
 
-      <p className="text-sm text-muted-foreground">Reserva expira em {formatRemainingTime(remaining)}</p>
-      <p aria-live="polite" className="sr-only">{Math.ceil(remaining / 60)} minuto(s) restante(s) para a reserva</p>
+      <div className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium tabular-nums ${remaining < 180 ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-input text-muted-foreground'}`}>
+        <span aria-hidden="true">⏱</span>
+        <span>Reserva expira em <strong>{formatRemainingTime(remaining)}</strong></span>
+      </div>
+      <span aria-live="polite" className="sr-only">{Math.ceil(remaining / 60)} minuto(s) restante(s) para a reserva</span>
 
       <section aria-labelledby="order-summary-heading" className="rounded-md border border-input p-4">
         <h2 id="order-summary-heading" className="text-lg font-semibold text-foreground">Resumo do pedido</h2>
