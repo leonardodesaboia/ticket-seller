@@ -2,7 +2,7 @@
 
 ## Status
 
-IN_PROGRESS
+READY_TO_MERGE
 
 ## Objetivo
 

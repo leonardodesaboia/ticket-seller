@@ -6,6 +6,7 @@ import { AppModule } from '../../src/app.module';
 import { HttpExceptionFilter } from '../../src/platform/http/filters/http-exception.filter';
 import { PrismaService } from '../../src/platform/database/prisma.service';
 import { OBJECT_STORAGE_PORT } from '../../src/shared/ports/object-storage.port';
+import { PG_BOSS } from '../../src/platform/scheduling/pgboss.module';
 
 const mockPrismaService = {
   $connect: jest.fn().mockResolvedValue(undefined),
@@ -20,6 +21,15 @@ const mockObjectStorageAdapter = {
   deleteObject: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockPgBoss = {
+  start: jest.fn().mockResolvedValue(undefined),
+  stop: jest.fn().mockResolvedValue(undefined),
+  createQueue: jest.fn().mockResolvedValue(undefined),
+  schedule: jest.fn().mockResolvedValue(undefined),
+  work: jest.fn().mockResolvedValue(undefined),
+  on: jest.fn(),
+};
+
 describe('HealthController (e2e)', () => {
   let app: NestFastifyApplication;
 
@@ -31,6 +41,8 @@ describe('HealthController (e2e)', () => {
       .useValue(mockPrismaService)
       .overrideProvider(OBJECT_STORAGE_PORT)
       .useValue(mockObjectStorageAdapter)
+      .overrideProvider(PG_BOSS)
+      .useValue(mockPgBoss)
       .compile();
 
     app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

@@ -29,6 +29,12 @@ describe('calculateFeeAmount', () => {
     expect(calculateFeeAmount(1_000_000n, 1)).toBe(100n);
   });
 
+  it('preserves exact precision above Number.MAX_SAFE_INTEGER', () => {
+    const grossAmount = 9_007_199_254_740_993n;
+
+    expect(calculateFeeAmount(grossAmount, 10_000)).toBe(grossAmount);
+  });
+
   it('returns 0n when gross is 0 and bps > 0', () => {
     expect(calculateFeeAmount(0n, 500)).toBe(0n);
   });

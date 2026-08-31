@@ -26,6 +26,7 @@ export class ResendEmailAdapter implements IEmailProvider {
         to: message.to,
         subject: message.subject,
         text: message.text,
+        ...(message.html !== undefined ? { html: message.html } : {}),
       });
     } catch (err) {
       throw new EmailSendError(`Resend delivery failed: ${String(err)}`, err instanceof Error ? err : undefined);

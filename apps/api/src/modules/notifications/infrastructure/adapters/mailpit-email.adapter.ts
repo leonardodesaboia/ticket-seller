@@ -27,6 +27,7 @@ export class MailpitEmailAdapter implements IEmailProvider, OnModuleInit {
         to: message.to,
         subject: message.subject,
         text: message.text,
+        ...(message.html !== undefined ? { html: message.html } : {}),
       });
     } catch (err) {
       throw new EmailSendError(`SMTP delivery failed: ${String(err)}`, err instanceof Error ? err : undefined);

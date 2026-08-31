@@ -51,4 +51,35 @@ describe("MailpitEmailAdapter", () => {
 
     expect(sendMailMock).toHaveBeenCalledTimes(1);
   });
+
+  it("forwards html field when provided", async () => {
+    await adapter.send({
+      to: "recipient@example.com",
+      subject: "HTML email",
+      text: "Fallback text",
+      html: "<p>Hello, <strong>world</strong>!</p>",
+    });
+
+    expect(sendMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Fallback text",
+        html: "<p>Hello, <strong>world</strong>!</p>",
+      }),
+    );
+  });
+
+  it("omits html field when not provided", async () => {
+    await adapter.send({ to: "a@b.com", subject: "s", text: "t" });
+
+    const call = sendMailMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty("html");
+  });
+
+  it("throws EmailSendError when sendMail rejects", async () => {
+    sendMailMock.mockRejectedValueOnce(new Error("SMTP connection refused"));
+
+    await expect(
+      adapter.send({ to: "a@b.com", subject: "s", text: "t" }),
+    ).rejects.toThrow("SMTP delivery failed");
+  });
 });

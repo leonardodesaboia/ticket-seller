@@ -50,6 +50,21 @@ describe("SendEmailUseCase", () => {
     );
   });
 
+  it("forwards html field to email provider when provided", async () => {
+    await useCase.execute({ ...baseInput, html: "<p>Confirmado!</p>" });
+
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      expect.objectContaining({ html: "<p>Confirmado!</p>" }),
+    );
+  });
+
+  it("omits html field from provider call when not provided", async () => {
+    await useCase.execute(baseInput);
+
+    const call = (emailProvider.send as jest.Mock).mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty("html");
+  });
+
   it("skips send when order-level idempotency check returns true", async () => {
     notificationLog.hasBeenSent.mockResolvedValue(true);
 

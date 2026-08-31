@@ -672,7 +672,7 @@ model Payout {
   status            String    @default("SCHEDULED")
   provider          String
   externalPayoutId  String?   @map("external_payout_id")
-  idempotencyKey    String    @unique @map("idempotency_key")
+  idempotencyKey    String    @map("idempotency_key")
   failureReason     String?   @map("failure_reason")
   requestedAt       DateTime  @default(now()) @map("requested_at") @db.Timestamptz
   succeededAt       DateTime? @map("succeeded_at") @db.Timestamptz
@@ -686,6 +686,7 @@ model Payout {
 
   @@index([organizationId], map: "payouts_org")
   @@index([status, requestedAt(sort: Desc)], map: "payouts_status")
+  @@unique([organizationId, idempotencyKey], map: "payouts_organization_id_idempotency_key_key")
   @@map("payouts")
 }
 

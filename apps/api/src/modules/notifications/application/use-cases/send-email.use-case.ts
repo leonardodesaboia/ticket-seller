@@ -12,6 +12,7 @@ export interface SendEmailInput {
   recipientEmail: string;
   subject: string;
   text: string;
+  html?: string | undefined;
   outboxEventId?: string | undefined;
 }
 
@@ -26,26 +27,17 @@ export class SendEmailUseCase {
     // Idempotency: prefer order-level deduplication; fall back to outbox-event-level
     if (input.orderId !== undefined) {
       const alreadySent = await this.notificationLog.hasBeenSent(input.orderId, input.eventType);
-      if (alreadySent) {
-        this.logger.log(
-          `Notification already sent for orderId=${input.orderId} eventType=${input.eventType}, skipping`,
-        );
-        return;
-      }
+      if (alreadySent) return;
     } else if (input.outboxEventId !== undefined) {
       const alreadySent = await this.notificationLog.hasBeenSentForOutboxEvent(input.outboxEventId);
-      if (alreadySent) {
-        this.logger.log(
-          `Notification already sent for outboxEventId=${input.outboxEventId} eventType=${input.eventType}, skipping`,
-        );
-        return;
-      }
+      if (alreadySent) return;
     }
 
     await this.emailProvider.send({
       to: input.recipientEmail,
       subject: input.subject,
       text: input.text,
+      ...(input.html !== undefined ? { html: input.html } : {}),
     });
 
     const entry: NotificationLogEntry = {

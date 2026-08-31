@@ -6,7 +6,7 @@
 
 /**
  * Calculate a fee amount in minor units using basis points (bps).
- * Uses Math.floor to ensure deterministic rounding — always rounds down.
+ * Integer division ensures deterministic rounding — always rounds down.
  *
  * @param grossAmount - Gross amount in minor units (e.g. centavos)
  * @param feeBps - Fee in basis points (1 bps = 0.01%). Max 10000 = 100%.
@@ -14,7 +14,7 @@
  */
 export function calculateFeeAmount(grossAmount: bigint, feeBps: number): bigint {
   if (feeBps === 0) return 0n;
-  return BigInt(Math.floor(Number(grossAmount) * feeBps / 10000));
+  return (grossAmount * BigInt(feeBps)) / 10_000n;
 }
 
 /**
