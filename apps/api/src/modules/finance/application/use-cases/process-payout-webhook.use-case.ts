@@ -61,6 +61,41 @@ export class ProcessPayoutWebhookUseCase {
       return;
     }
 
+    // Step 4: Guard — reject webhook if amount/currency diverges from stored payout.
+    // Currency comparison is case-sensitive; upstream normalization to uppercase (e.g. 'BRL')
+    // is enforced by the gateway adapter in parseWebhookEvent.
+    if (event.amount !== payout.amount || event.currency !== payout.currency) {
+      await this.transactionRunner.run(async (tx) => {
+        type TxRaw = { $executeRaw: (...args: unknown[]) => Promise<number> };
+        const txRaw = tx as TxRaw;
+        await txRaw.$executeRaw`
+          INSERT INTO outbox_events (aggregate_type, aggregate_id, type, payload, organization_id)
+          VALUES (
+            'payout',
+            ${payout.id}::uuid,
+            'finance.webhook-mismatch.v1',
+            ${JSON.stringify({
+              payoutId: payout.id,
+              organizationId: payout.organizationId,
+              expectedAmount: payout.amount.toString(),
+              actualAmount: event.amount.toString(),
+              expectedCurrency: payout.currency,
+              actualCurrency: event.currency,
+              providerEventId,
+            })}::jsonb,
+            ${payout.organizationId}::uuid
+          )
+        `;
+      });
+      this.logger.warn(
+        `Payout webhook mismatch for payout ${payout.id} — ` +
+          `expected amount=${payout.amount} currency=${payout.currency}, ` +
+          `got amount=${event.amount.toString()} currency=${event.currency} ` +
+          `(event ${providerEventId}) — rejecting webhook`,
+      );
+      return;
+    }
+
     // Dedup INSERT is performed inside each handler's transaction so that a
     // failed transaction rolls it back — preventing an unprocessed event from
     // being permanently blocked by a committed dedup row.
@@ -74,10 +109,10 @@ export class ProcessPayoutWebhookUseCase {
     const { organizationId } = payout;
 
     if (eventType === 'SUCCEEDED') {
-      await this.handleSucceeded(payout.id, organizationId, amount, currency, webhookEventData);
+      await this.handleSucceeded(payout.id, organizationId, payout.amount, payout.currency, webhookEventData);
     } else {
       const failureReason = `Provider reported FAILED for event ${providerEventId}`;
-      await this.handleFailed(payout.id, organizationId, amount, currency, failureReason, webhookEventData);
+      await this.handleFailed(payout.id, organizationId, payout.amount, payout.currency, failureReason, webhookEventData);
     }
   }
 
