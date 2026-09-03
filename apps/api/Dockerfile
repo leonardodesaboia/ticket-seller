@@ -50,6 +50,10 @@ COPY --chown=appuser:appgroup --from=builder /app/apps/api/prisma ./prisma
 
 USER appuser
 
+# Increase libuv thread pool so argon2 hashing does not starve DNS and fs
+# operations. Default is 4; 16 supports up to 16 concurrent bcrypt/argon2 calls.
+ENV UV_THREADPOOL_SIZE=16
+
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \

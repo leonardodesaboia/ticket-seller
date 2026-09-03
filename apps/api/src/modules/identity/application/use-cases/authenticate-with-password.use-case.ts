@@ -28,6 +28,11 @@ const MAX_FAILURES = 5;
 const WINDOW_MINUTES = 15;
 const GENERIC_ERROR = 'Invalid credentials';
 
+// Pre-computed argon2id hash (m=65536, t=3, p=4) used when the email is not
+// found, so the verify() call takes the same ~50ms as a real credential check.
+// Prevents email enumeration via response-time side-channel.
+const TIMING_DUMMY_HASH = '$argon2id$v=19$m=65536,p=4,t=3$RIdpw3v/zqZ13YvFtmgdAg$cRP7BlSn3nOxAU+PcjE5rkC0fdU3VdDnj/JXngENZE0';
+
 export class AuthenticateWithPasswordUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
@@ -59,8 +64,7 @@ export class AuthenticateWithPasswordUseCase {
     const identityWithCredential = await this.userRepository.findIdentityWithCredential(normalizedEmail);
 
     if (!identityWithCredential) {
-      // Dummy hash to equalize timing and prevent email enumeration via side-channel
-      await this.hasher.verify('$argon2id$v=19$m=65536,t=3,p=4$dummy$dummydummydummy', input.password);
+      await this.hasher.verify(TIMING_DUMMY_HASH, input.password);
       await this.authAttemptRepository.record({ email: normalizedEmail, ip: input.ip, outcome: 'FAILURE' });
       throw new UnauthorizedError(GENERIC_ERROR);
     }
