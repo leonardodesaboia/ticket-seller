@@ -50,7 +50,7 @@ function sendWebhook(body: Buffer, signature: string) {
 }
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer('postgres:16-alpine').start();
+  container = await new PostgreSqlContainer('postgres:17-alpine').start();
   const databaseUrl = container.getConnectionUri();
   process.env['DATABASE_URL'] = databaseUrl;
   process.env['FAKE_GATEWAY_SECRET'] = 'fake-secret-for-dev';

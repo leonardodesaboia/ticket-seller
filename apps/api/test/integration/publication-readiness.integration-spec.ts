@@ -16,7 +16,7 @@ const INVALID_UUID = 'not-a-valid-uuid';
 const NONEXISTENT_UUID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer('postgres:16-alpine').start();
+  container = await new PostgreSqlContainer('postgres:17-alpine').start();
   const url = container.getConnectionUri();
   process.env['DATABASE_URL'] = url;
   const migration = spawnSync(
