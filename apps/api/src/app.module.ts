@@ -27,6 +27,13 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
 import { MediaModule } from './modules/media/media.module';
 
+function redactTokensFromUrl(url: string | undefined): string {
+  if (!url) return '/';
+  // Redact single-use tokens that appear as path segments in token-consuming routes.
+  // Pattern: /(invitations|transfers)/<token>/accept
+  return url.replace(/\/(invitations|transfers)\/[^/?#]+\/accept/g, '/$1/[REDACTED]/accept');
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -59,12 +66,12 @@ import { MediaModule } from './modules/media/media.module';
           req: (req: IncomingMessage & { id?: string }) => ({
             requestId: req.id,
             method: req.method,
-            url: req.url,
+            url: redactTokensFromUrl(req.url),
           }),
           res: (res: ServerResponse) => ({ statusCode: res.statusCode }),
         },
         customSuccessMessage: (req: IncomingMessage, res: ServerResponse, elapsed: number) =>
-          `${req.method ?? 'UNKNOWN'} ${req.url ?? '/'} ${res.statusCode} ${elapsed}ms`,
+          `${req.method ?? 'UNKNOWN'} ${redactTokensFromUrl(req.url) ?? '/'} ${res.statusCode} ${elapsed}ms`,
         ...(process.env['NODE_ENV'] === 'development' && {
           transport: { target: 'pino-pretty', options: { singleLine: true } },
         }),

@@ -17,8 +17,11 @@ export class RequestPasswordResetUseCase {
 
     const userId = await this.userRepository.findUserIdByEmail(normalizedEmail);
 
-    // Anti-enumeration: always return success regardless of whether email exists
+    // Anti-enumeration: always return success regardless of whether email exists.
+    // The dummy delay approximates the cost of token creation + DB write to prevent
+    // timing-based email enumeration.
     if (!userId) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 150 + Math.random() * 100));
       return;
     }
 

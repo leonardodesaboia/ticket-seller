@@ -44,7 +44,9 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
     organizationId: string,
   ): Promise<TicketTransfer | null> {
     const rows = await this.prisma.$queryRaw<RawTransferRow[]>`
-      SELECT * FROM ticket_transfers
+      SELECT id, ticket_id, organization_id, claim_token_hash, status,
+             expires_at, accepted_at, cancelled_at, created_at
+      FROM ticket_transfers
       WHERE ticket_id = ${ticketId}::uuid
         AND organization_id = ${organizationId}::uuid
         AND status = 'PENDING'
@@ -55,7 +57,9 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
 
   async findByClaimTokenHash(hash: string): Promise<TicketTransfer | null> {
     const rows = await this.prisma.$queryRaw<RawTransferRow[]>`
-      SELECT * FROM ticket_transfers
+      SELECT id, ticket_id, organization_id, claim_token_hash, status,
+             expires_at, accepted_at, cancelled_at, created_at
+      FROM ticket_transfers
       WHERE claim_token_hash = ${hash}
       LIMIT 1
     `;
@@ -72,7 +76,8 @@ export class PrismaTicketTransferRepository implements ITicketTransferRepository
         ${data.claimTokenHash},
         ${data.expiresAt}
       )
-      RETURNING *
+      RETURNING id, ticket_id, organization_id, claim_token_hash, status,
+                expires_at, accepted_at, cancelled_at, created_at
     `;
     if (!rows[0]) throw new Error('create: insert failed');
     return toEntity(rows[0]);

@@ -39,7 +39,8 @@ export class PrismaTicketCredentialRepository implements ITicketCredentialReposi
     organizationId: string,
   ): Promise<TicketCredential | null> {
     const rows = await this.prisma.$queryRaw<RawCredentialRow[]>`
-      SELECT * FROM ticket_credentials
+      SELECT id, ticket_id, organization_id, token_hash, status, version, issued_at, revoked_at
+      FROM ticket_credentials
       WHERE ticket_id = ${ticketId}::uuid
         AND organization_id = ${organizationId}::uuid
         AND status = 'ACTIVE'
@@ -50,7 +51,8 @@ export class PrismaTicketCredentialRepository implements ITicketCredentialReposi
 
   async findByTokenHash(tokenHash: string, organizationId: string): Promise<TicketCredential | null> {
     const rows = await this.prisma.$queryRaw<RawCredentialRow[]>`
-      SELECT * FROM ticket_credentials
+      SELECT id, ticket_id, organization_id, token_hash, status, version, issued_at, revoked_at
+      FROM ticket_credentials
       WHERE token_hash = ${tokenHash}
         AND organization_id = ${organizationId}::uuid
       LIMIT 1
@@ -67,7 +69,7 @@ export class PrismaTicketCredentialRepository implements ITicketCredentialReposi
         ${data.tokenHash}, ${data.version}
       )
       ON CONFLICT (ticket_id) WHERE status = 'ACTIVE' DO NOTHING
-      RETURNING *
+      RETURNING id, ticket_id, organization_id, token_hash, status, version, issued_at, revoked_at
     `;
     return rows[0] ? toEntity(rows[0]) : null;
   }
@@ -98,7 +100,7 @@ export class PrismaTicketCredentialRepository implements ITicketCredentialReposi
           ${newData.id}::uuid, ${newData.ticketId}::uuid, ${newData.organizationId}::uuid,
           ${newData.tokenHash}, ${newData.version}
         )
-        RETURNING *
+        RETURNING id, ticket_id, organization_id, token_hash, status, version, issued_at, revoked_at
       `;
 
       if (!rows[0]) throw new Error('rotateCredential: insert failed');

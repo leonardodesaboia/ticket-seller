@@ -51,7 +51,7 @@ export class SendEmailUseCase {
     await this.notificationLog.record(entry);
 
     this.logger.log(
-      `Email sent to ${input.recipientEmail} for orderId=${input.orderId ?? "N/A"} eventType=${input.eventType}`,
+      `Email sent — eventType=${input.eventType} orderId=${input.orderId ?? 'N/A'}`,
     );
   }
 }

@@ -32,7 +32,9 @@ export class PrismaPaymentAttemptOperationAdapter implements IPaymentAttemptOper
           (id, organization_id, order_id, provider, external_payment_id, status, payment_method, amount, currency, idempotency_key, checkout_data, expires_at)
         VALUES
           (${data.id}::uuid, ${data.organizationId}::uuid, ${data.orderId}::uuid, ${data.provider}, ${data.externalPaymentId}, ${data.status}, ${data.paymentMethod}, ${data.amount}, ${data.currency}, ${data.idempotencyKey}, ${data.checkoutData ? JSON.stringify(data.checkoutData) : null}::jsonb, ${data.expiresAt})
-        RETURNING *
+        RETURNING id, organization_id, order_id, provider, external_payment_id, status,
+                  payment_method, amount, currency, idempotency_key, failure_code,
+                  checkout_data, expires_at, version, created_at, updated_at
       `;
       await tx.$executeRaw`
         INSERT INTO outbox_events (aggregate_type, aggregate_id, type, version, payload, organization_id)

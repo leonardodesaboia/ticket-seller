@@ -59,7 +59,9 @@ export class PrismaCheckInRepository implements ICheckInRepository {
 
   async findByIdempotencyKey(key: string, organizationId: string): Promise<CheckIn | null> {
     const rows = await this.prisma.$queryRaw<RawCheckInRow[]>`
-      SELECT * FROM check_ins
+      SELECT id, organization_id, event_id, ticket_id, credential_id,
+             performed_by_user_id, result, idempotency_key, checked_in_at, source, notes
+      FROM check_ins
       WHERE idempotency_key = ${key}
         AND organization_id = ${organizationId}::uuid
       LIMIT 1
@@ -110,7 +112,8 @@ export class PrismaCheckInRepository implements ICheckInRepository {
       )
       ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL
         DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
-      RETURNING *
+      RETURNING id, organization_id, event_id, ticket_id, credential_id,
+                performed_by_user_id, result, idempotency_key, checked_in_at, source, notes
     `;
 
     if (!rows[0]) throw new Error('createCheckIn: no row returned');

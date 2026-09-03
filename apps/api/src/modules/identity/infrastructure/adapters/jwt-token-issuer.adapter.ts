@@ -12,7 +12,7 @@ export class JwtTokenIssuerAdapter implements ITokenIssuer {
 
   verifyAccessToken(token: string): TokenPayload | null {
     try {
-      const decoded = this.jwtService.verify<{ sub: string; jti: string }>(token);
+      const decoded = this.jwtService.verify<{ sub: string; jti: string }>(token, { algorithms: ['HS256'] });
       return { sub: decoded.sub, jti: decoded.jti };
     } catch {
       return null;

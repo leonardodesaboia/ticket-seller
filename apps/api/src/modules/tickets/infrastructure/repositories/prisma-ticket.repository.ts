@@ -47,12 +47,15 @@ export class PrismaTicketRepository implements ITicketRepository {
          ${data.orderId}::uuid, ${data.orderItemId}::uuid, ${data.ticketTypeId}::uuid,
          ${data.unitIndex}, ${data.publicCode})
       ON CONFLICT (order_item_id, unit_index) DO NOTHING
-      RETURNING *
+      RETURNING id, organization_id, event_id, order_id, order_item_id, ticket_type_id,
+                unit_index, public_code, status, created_at, updated_at
     `;
     // If conflict: return existing ticket
     if (rows.length === 0) {
       const existing = await this.prisma.$queryRaw<RawTicketRow[]>`
-        SELECT * FROM tickets
+        SELECT id, organization_id, event_id, order_id, order_item_id, ticket_type_id,
+               unit_index, public_code, status, created_at, updated_at
+        FROM tickets
         WHERE order_item_id = ${data.orderItemId}::uuid AND unit_index = ${data.unitIndex}
         LIMIT 1
       `;
@@ -63,7 +66,9 @@ export class PrismaTicketRepository implements ITicketRepository {
 
   async findByOrderId(orderId: string, organizationId: string): Promise<Ticket[]> {
     const rows = await this.prisma.$queryRaw<RawTicketRow[]>`
-      SELECT * FROM tickets
+      SELECT id, organization_id, event_id, order_id, order_item_id, ticket_type_id,
+             unit_index, public_code, status, created_at, updated_at
+      FROM tickets
       WHERE order_id = ${orderId}::uuid
         AND organization_id = ${organizationId}::uuid
       ORDER BY order_item_id, unit_index

@@ -62,6 +62,10 @@ if (parsed.NODE_ENV === 'production' && parsed.PAYMENT_PROVIDER === 'fake' && !p
   throw new Error('FAKE_GATEWAY_SECRET is required in production when PAYMENT_PROVIDER is fake');
 }
 
+if (parsed.NODE_ENV === 'production' && !parsed.FAKE_PAYOUT_SECRET) {
+  throw new Error('FAKE_PAYOUT_SECRET is required in production');
+}
+
 if (parsed.OBJECT_STORAGE_PROVIDER === 's3' && !parsed.AWS_S3_BUCKET) {
   throw new Error('AWS_S3_BUCKET is required when OBJECT_STORAGE_PROVIDER is s3');
 }

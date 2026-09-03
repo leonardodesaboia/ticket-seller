@@ -67,7 +67,9 @@ export class PrismaPaymentAttemptRepository implements IPaymentAttemptRepository
          ${data.paymentMethod}, ${data.amount}, ${data.currency},
          ${data.idempotencyKey}, ${data.checkoutData ? JSON.stringify(data.checkoutData) : null}::jsonb,
          ${data.expiresAt})
-      RETURNING *
+      RETURNING id, organization_id, order_id, provider, external_payment_id, status,
+                payment_method, amount, currency, idempotency_key, failure_code,
+                checkout_data, expires_at, version, created_at, updated_at
     `;
     return toEntity(rows[0]!);
   }
@@ -83,21 +85,29 @@ export class PrismaPaymentAttemptRepository implements IPaymentAttemptRepository
         version             = version + 1,
         updated_at          = NOW()
       WHERE id = ${id}::uuid
-      RETURNING *
+      RETURNING id, organization_id, order_id, provider, external_payment_id, status,
+                payment_method, amount, currency, idempotency_key, failure_code,
+                checkout_data, expires_at, version, created_at, updated_at
     `;
     return toEntity(rows[0]!);
   }
 
   async findById(id: string): Promise<PaymentAttempt | null> {
     const rows = await this.prisma.$queryRaw<RawAttemptRow[]>`
-      SELECT * FROM payment_attempts WHERE id = ${id}::uuid LIMIT 1
+      SELECT id, organization_id, order_id, provider, external_payment_id, status,
+             payment_method, amount, currency, idempotency_key, failure_code,
+             checkout_data, expires_at, version, created_at, updated_at
+      FROM payment_attempts WHERE id = ${id}::uuid LIMIT 1
     `;
     return rows[0] ? toEntity(rows[0]) : null;
   }
 
   async findLatestByOrderId(orderId: string): Promise<PaymentAttempt | null> {
     const rows = await this.prisma.$queryRaw<RawAttemptRow[]>`
-      SELECT * FROM payment_attempts
+      SELECT id, organization_id, order_id, provider, external_payment_id, status,
+             payment_method, amount, currency, idempotency_key, failure_code,
+             checkout_data, expires_at, version, created_at, updated_at
+      FROM payment_attempts
       WHERE order_id = ${orderId}::uuid
       ORDER BY created_at DESC
       LIMIT 1
@@ -107,7 +117,10 @@ export class PrismaPaymentAttemptRepository implements IPaymentAttemptRepository
 
   async findByIdempotencyKey(key: string): Promise<PaymentAttempt | null> {
     const rows = await this.prisma.$queryRaw<RawAttemptRow[]>`
-      SELECT * FROM payment_attempts
+      SELECT id, organization_id, order_id, provider, external_payment_id, status,
+             payment_method, amount, currency, idempotency_key, failure_code,
+             checkout_data, expires_at, version, created_at, updated_at
+      FROM payment_attempts
       WHERE idempotency_key = ${key}
       LIMIT 1
     `;
@@ -116,7 +129,10 @@ export class PrismaPaymentAttemptRepository implements IPaymentAttemptRepository
 
   async findActiveByOrderId(orderId: string): Promise<PaymentAttempt | null> {
     const rows = await this.prisma.$queryRaw<RawAttemptRow[]>`
-      SELECT * FROM payment_attempts
+      SELECT id, organization_id, order_id, provider, external_payment_id, status,
+             payment_method, amount, currency, idempotency_key, failure_code,
+             checkout_data, expires_at, version, created_at, updated_at
+      FROM payment_attempts
       WHERE order_id = ${orderId}::uuid
         AND status IN ('PENDING', 'PROCESSING')
       LIMIT 1

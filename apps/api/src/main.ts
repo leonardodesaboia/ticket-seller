@@ -16,7 +16,7 @@ async function bootstrap(): Promise<void> {
   // bodyLimit: 1MB rejects payloads larger than 1 048 576 bytes before they reach handlers.
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ bodyLimit: 1_048_576 }),
+    new FastifyAdapter({ bodyLimit: 1_048_576, trustProxy: 1 }),
     { bufferLogs: true, rawBody: true },
   );
 
@@ -57,12 +57,14 @@ async function bootstrap(): Promise<void> {
   );
   app.useGlobalFilters(new ApplicationErrorFilter(), new HttpExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Ticket Seller API')
-    .setDescription('Multi-tenant ticket marketplace API')
-    .setVersion('1.0')
-    .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  if (env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Ticket Seller API')
+      .setDescription('Multi-tenant ticket marketplace API')
+      .setVersion('1.0')
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  }
 
   await app.listen(env.PORT, '0.0.0.0');
   app.get(Logger).log(`Server listening on http://0.0.0.0:${env.PORT}/api/v1`);
