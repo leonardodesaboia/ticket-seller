@@ -78,7 +78,11 @@ export class PrismaReservationAccessAdapter implements IReservationAccess {
         return view;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
-      if (isRetryable(error) && attempt < MAX_RETRIES) return this.createWithRetries(input, attempt + 1);
+      if (isRetryable(error) && attempt < MAX_RETRIES) {
+        const delayMs = Math.min((50 + Math.random() * 50) * 2 ** attempt, 2000);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        return this.createWithRetries(input, attempt + 1);
+      }
       if (isUniqueViolation(error)) return this.resolveUniqueConflict(input);
       throw error;
     }

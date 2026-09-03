@@ -117,12 +117,16 @@ export class PrismaReservationRepository implements IReservationRepository {
         const requested = new Map<string, number>();
         for (const item of input.items) requested.set(item.ticketTypeId, (requested.get(item.ticketTypeId) ?? 0) + item.quantity);
         const ticketTypes = new Map(event.ticketTypes.map((ticketType) => [ticketType.id, ticketType]));
-        const snapshots = [...requested].map(([ticketTypeId, quantity]) => {
-          const ticketType = ticketTypes.get(ticketTypeId);
-          if (!ticketType) throw new TicketTypeNotFoundForReservationError();
-          if (ticketType.status !== 'ACTIVE') throw new TicketTypeInactiveForReservationError();
-          return { ticketTypeId, quantity, name: ticketType.name, unitPriceAmount: ticketType.priceAmount };
-        });
+        // Sort by ticketTypeId (code-point order) to match Postgres ORDER BY ticket_type_id,
+        // preventing ABBA deadlocks when concurrent transactions lock the same rows.
+        const snapshots = [...requested]
+          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+          .map(([ticketTypeId, quantity]) => {
+            const ticketType = ticketTypes.get(ticketTypeId);
+            if (!ticketType) throw new TicketTypeNotFoundForReservationError();
+            if (ticketType.status !== 'ACTIVE') throw new TicketTypeInactiveForReservationError();
+            return { ticketTypeId, quantity, name: ticketType.name, unitPriceAmount: ticketType.priceAmount };
+          });
 
         await this.expireHoldsForTicketTypes(tx, snapshots.map((item) => item.ticketTypeId));
         for (const snapshot of snapshots) {
@@ -163,6 +167,8 @@ export class PrismaReservationRepository implements IReservationRepository {
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
       if (isSerializationFailure(error) && attempt < 2) {
+        const delayMs = Math.min((50 + Math.random() * 50) * 2 ** attempt, 2000);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
         return this.createWithRetries(input, attempt + 1);
       }
       if (!isIdempotencyUniqueViolation(error)) throw error;
@@ -213,6 +219,8 @@ export class PrismaReservationRepository implements IReservationRepository {
       }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     } catch (error) {
       if (isSerializationFailure(error) && attempt < 2) {
+        const delayMs = Math.min((50 + Math.random() * 50) * 2 ** attempt, 2000);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
         return this.cancelWithRetries(reservationId, tokenHash, attempt + 1);
       }
       throw error;
@@ -260,23 +268,48 @@ export class PrismaReservationRepository implements IReservationRepository {
   }
 
   private async expireHoldsForTicketTypes(tx: TransactionClient, ticketTypeIds: string[]): Promise<void> {
-    for (const ticketTypeId of ticketTypeIds) {
-      const expired = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT DISTINCT r.id FROM reservations r JOIN reservation_items ri ON ri.reservation_id = r.id
-        WHERE r.status = 'ACTIVE' AND r.expires_at <= NOW() AND ri.ticket_type_id = ${ticketTypeId}::uuid
-      `;
-      for (const reservation of expired) await this.expireReservation(tx, reservation.id);
-    }
-  }
+    // Find all expired active reservations touching any of the requested ticket types (single query).
+    const toExpire = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT DISTINCT r.id
+      FROM reservations r
+      JOIN reservation_items ri ON ri.reservation_id = r.id
+      WHERE r.status = 'ACTIVE'
+        AND r.expires_at <= NOW()
+        AND ri.ticket_type_id = ANY(${ticketTypeIds}::uuid[])
+    `;
+    if (toExpire.length === 0) return;
 
-  private async expireReservation(tx: TransactionClient, reservationId: string): Promise<void> {
-    const reservation = await this.findReservation(tx, 'id', reservationId);
-    if (!reservation || reservation.status !== 'ACTIVE' || reservation.expires_at > new Date()) return;
-    const changed = await tx.$executeRaw`UPDATE reservations SET status = 'EXPIRED', updated_at = NOW() WHERE id = ${reservationId}::uuid AND status = 'ACTIVE' AND expires_at <= NOW()`;
-    if (changed === 0) return;
-    for (const item of await this.findItems(tx, reservationId)) {
-      await tx.$executeRaw`UPDATE ticket_inventory SET reserved = GREATEST(reserved - ${item.quantity}, 0), version = version + 1, updated_at = NOW() WHERE ticket_type_id = ${item.ticket_type_id}::uuid AND organization_id = ${reservation.organization_id}::uuid`;
-    }
+    const ids = toExpire.map((r) => r.id);
+
+    // Bulk expire reservations (single UPDATE).
+    await tx.$executeRaw`
+      UPDATE reservations
+      SET status = 'EXPIRED', updated_at = NOW()
+      WHERE id = ANY(${ids}::uuid[])
+        AND status = 'ACTIVE'
+        AND expires_at <= NOW()
+    `;
+
+    // Bulk release inventory — same pattern as expireActiveReservations (single UPDATE FROM).
+    await tx.$executeRaw`
+      UPDATE ticket_inventory ti
+      SET
+        reserved   = GREATEST(ti.reserved - agg.total_quantity, 0),
+        version    = ti.version + 1,
+        updated_at = NOW()
+      FROM (
+        SELECT
+          ri.ticket_type_id,
+          r.organization_id,
+          SUM(ri.quantity)::int AS total_quantity
+        FROM reservation_items ri
+        JOIN reservations r ON r.id = ri.reservation_id
+        WHERE r.id = ANY(${ids}::uuid[])
+        GROUP BY ri.ticket_type_id, r.organization_id
+      ) AS agg
+      WHERE ti.ticket_type_id = agg.ticket_type_id
+        AND ti.organization_id = agg.organization_id
+    `;
   }
 
   private async findReservation(client: Pick<PrismaService, '$queryRaw'> | TransactionClient, column: 'id' | 'idempotency_key', value: string): Promise<ReservationRow | null> {
