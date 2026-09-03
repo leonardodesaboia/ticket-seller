@@ -27,12 +27,13 @@ services:
     image: redis:7-alpine
     container_name: ticket-seller-redis
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis-dev-password}
     ports:
       - '${PORT_REDIS:-6379}:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD-SHELL', 'redis-cli -a ${REDIS_PASSWORD:-redis-dev-password} --no-auth-warning ping']
       interval: 10s
       timeout: 5s
       retries: 5
