@@ -210,20 +210,44 @@ export class PrismaPaymentWebhookOperationAdapter implements IPaymentWebhookOper
         WHERE oi.order_id = ${attempt.order_id}::uuid
       `;
 
-      for (const item of orderItems) {
-        for (let unitIndex = 0; unitIndex < Number(item.quantity); unitIndex++) {
-          const publicCode = crypto.randomBytes(32).toString('hex');
-          const ticketId = crypto.randomUUID();
-          await tx.$executeRaw`
-            INSERT INTO tickets
-              (id, organization_id, event_id, order_id, order_item_id, ticket_type_id, unit_index, public_code)
-            VALUES
-              (${ticketId}::uuid, ${attempt.organization_id}::uuid, ${item.event_id}::uuid,
-               ${attempt.order_id}::uuid, ${item.id}::uuid, ${item.ticket_type_id}::uuid,
-               ${unitIndex}, ${publicCode})
-            ON CONFLICT (order_item_id, unit_index) DO NOTHING
-          `;
-        }
+      // Build one ticket row per (order_item, unit_index) and insert as a batch.
+      const ticketRows = orderItems.flatMap((item) =>
+        Array.from({ length: Number(item.quantity) }, (_, unitIndex) => ({
+          id: crypto.randomUUID(),
+          organizationId: attempt.organization_id,
+          eventId: item.event_id,
+          orderId: attempt.order_id,
+          orderItemId: item.id,
+          ticketTypeId: item.ticket_type_id,
+          unitIndex,
+          publicCode: crypto.randomBytes(32).toString('hex'),
+        })),
+      );
+
+      if (ticketRows.length > 0) {
+        const ids = ticketRows.map((r) => r.id);
+        const orgIds = ticketRows.map((r) => r.organizationId);
+        const eventIds = ticketRows.map((r) => r.eventId);
+        const orderIds = ticketRows.map((r) => r.orderId);
+        const itemIds = ticketRows.map((r) => r.orderItemId);
+        const typeIds = ticketRows.map((r) => r.ticketTypeId);
+        const unitIndexes = ticketRows.map((r) => r.unitIndex);
+        const publicCodes = ticketRows.map((r) => r.publicCode);
+
+        await tx.$executeRaw`
+          INSERT INTO tickets
+            (id, organization_id, event_id, order_id, order_item_id, ticket_type_id, unit_index, public_code)
+          SELECT
+            UNNEST(${ids}::uuid[]),
+            UNNEST(${orgIds}::uuid[]),
+            UNNEST(${eventIds}::uuid[]),
+            UNNEST(${orderIds}::uuid[]),
+            UNNEST(${itemIds}::uuid[]),
+            UNNEST(${typeIds}::uuid[]),
+            UNNEST(${unitIndexes}::int[]),
+            UNNEST(${publicCodes}::text[])
+          ON CONFLICT (order_item_id, unit_index) DO NOTHING
+        `;
       }
 
       // Record pricing snapshot for financial audit

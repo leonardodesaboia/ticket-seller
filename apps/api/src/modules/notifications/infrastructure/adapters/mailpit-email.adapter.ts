@@ -15,6 +15,8 @@ export class MailpitEmailAdapter implements IEmailProvider, OnModuleInit {
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: false,
+      connectionTimeout: 5_000,
+      socketTimeout: 10_000,
     });
 
     this.logger.log(`SMTP transport configured — ${env.SMTP_HOST}:${env.SMTP_PORT}`);

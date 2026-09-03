@@ -16,6 +16,7 @@ interface EligibleOrderRow {
 export class SettlementWorker implements OnModuleInit {
   private readonly logger = new Logger(SettlementWorker.name);
   private readonly chunkSize = 50;
+  private readonly parallelism = 5;
   static readonly JOB_NAME = 'settlement-poll';
 
   constructor(
@@ -40,8 +41,10 @@ export class SettlementWorker implements OnModuleInit {
         const orders = await this.fetchEligibleOrders();
         if (orders.length === 0) break;
 
-        for (const order of orders) {
-          if (await this.processOrder(order)) processed++;
+        for (let i = 0; i < orders.length; i += this.parallelism) {
+          const chunk = orders.slice(i, i + this.parallelism);
+          const results = await Promise.all(chunk.map((order) => this.processOrder(order)));
+          processed += results.filter(Boolean).length;
         }
 
         if (orders.length < this.chunkSize) hasMore = false;
